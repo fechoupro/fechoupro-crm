@@ -648,6 +648,77 @@ body.font-serif{--font:'Georgia',serif;}
 /* Dashboard quick cols */
 .dash-posv-strip{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 
+
+/* ── V11: O CONSELHO ── */
+.conselho-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:16px;}
+.cons-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px;cursor:pointer;transition:all .2s;position:relative;text-align:center;}
+.cons-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.cons-card.selected{border-color:var(--accent);background:rgba(255,92,0,.04);}
+.cons-photo{width:64px;height:64px;border-radius:50%;object-fit:cover;margin:0 auto 8px;display:block;border:2px solid var(--border2);}
+.cons-photo-placeholder{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 8px;border:2px solid var(--border2);}
+.cons-name{font-size:12px;font-family:var(--font);font-weight:800;margin-bottom:2px;}
+.cons-role{font-size:10px;color:var(--muted);line-height:1.4;margin-bottom:6px;}
+.cons-bio-short{font-size:10px;color:var(--dim);line-height:1.5;margin-bottom:8px;}
+.cons-sel{position:absolute;top:8px;left:8px;width:18px;height:18px;border-radius:50%;border:2px solid var(--border2);background:var(--card);display:flex;align-items:center;justify-content:center;font-size:10px;}
+.cons-card.selected .cons-sel{background:var(--accent);border-color:var(--accent);color:white;}
+.cons-remove-btn{position:absolute;top:6px;right:6px;background:rgba(239,68,68,.12);border:none;color:#F87171;cursor:pointer;border-radius:50%;width:20px;height:20px;font-size:11px;display:flex;align-items:center;justify-content:center;}
+.cons-remove-btn:hover{background:rgba(239,68,68,.25);}
+.cons-add-card{background:transparent;border:2px dashed var(--border2);border-radius:var(--r2);padding:14px;cursor:pointer;transition:all .2s;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;gap:6px;color:var(--muted);font-size:11px;font-family:var(--font);font-weight:700;}
+.cons-add-card:hover{border-color:var(--accent2);color:var(--accent2);}
+.conselho-pauta-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:16px;margin-bottom:12px;}
+.cons-resp-item{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--r2);padding:16px;margin-bottom:10px;}
+.cons-resp-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.cons-resp-av{width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid var(--border2);}
+.cons-resp-av-ph{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.cons-resp-name{font-size:12px;font-family:var(--font);font-weight:800;}
+.cons-resp-role{font-size:10px;color:var(--muted);}
+.cons-resp-text{font-size:12px;color:var(--text);line-height:1.85;border-left:3px solid var(--accent);padding-left:12px;margin-top:8px;}
+.cons-audio-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1px solid rgba(124,92,252,.3);background:rgba(124,92,252,.08);color:#A78BFA;font-size:10px;cursor:pointer;font-family:var(--font);font-weight:700;margin-top:10px;transition:all .2s;}
+.cons-audio-btn:hover{background:rgba(124,92,252,.18);}
+.cons-audio-btn.playing{background:rgba(124,92,252,.25);border-color:#A78BFA;}
+.cons-spinner-wrap{display:flex;align-items:center;gap:10px;padding:20px;font-size:12px;color:var(--muted);justify-content:center;}
+.cons-spinner{width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+/* MASTER */
+.master-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.master-client-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px;}
+.master-client-av{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;font-family:var(--font);flex-shrink:0;}
+.master-stat{text-align:center;padding:8px;}
+.master-stat-n{font-size:18px;font-family:var(--font);font-weight:800;}
+.master-stat-l{font-size:10px;color:var(--muted);margin-top:2px;}
+.feature-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;}
+.feature-item{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:var(--r);border:1px solid var(--border);background:rgba(255,255,255,.02);font-size:11px;}
+/* MODAL CONSELHO */
+.cons-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:600;display:none;align-items:center;justify-content:center;}
+.cons-modal-overlay.open{display:flex;}
+.cons-modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);width:96%;max-width:560px;padding:26px;max-height:90vh;overflow-y:auto;}
+
+
+/* ── V11 DASHBOARD REDESIGN ── */
+:root{
+  --dash-bg:#0d0d18;
+  --dash-card:#12121e;
+  --dash-border:rgba(255,255,255,.07);
+}
+#view-dashboard{background:transparent;}
+.funnel-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.funnel-label{font-size:10px;color:var(--muted);width:90px;flex-shrink:0;font-family:var(--font);font-weight:700;}
+.funnel-track{flex:1;background:rgba(255,255,255,.06);border-radius:4px;height:18px;overflow:hidden;position:relative;}
+.funnel-bar{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.4,0,.2,1);}
+.funnel-n{font-size:11px;font-family:var(--font);font-weight:800;color:var(--text);width:24px;text-align:right;flex-shrink:0;}
+.origem-bar-row{display:flex;align-items:center;gap:7px;margin-bottom:6px;}
+.origem-bar-lbl{font-size:10px;color:var(--muted);width:72px;flex-shrink:0;}
+.origem-bar-track{flex:1;background:rgba(255,255,255,.06);border-radius:3px;height:14px;overflow:hidden;}
+.origem-bar-fill{height:100%;border-radius:3px;transition:width .6s;}
+.origem-bar-n{font-size:10px;font-family:var(--font);font-weight:700;width:20px;text-align:right;flex-shrink:0;}
+.vend-row{display:flex;align-items:center;gap:7px;margin-bottom:7px;}
+.vend-av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;font-family:var(--font);flex-shrink:0;}
+.vend-info{flex:1;}
+.vend-name{font-size:10px;font-family:var(--font);font-weight:700;}
+.vend-bar-wrap{height:6px;background:rgba(255,255,255,.06);border-radius:3px;margin-top:3px;overflow:hidden;}
+.vend-bar{height:100%;border-radius:3px;transition:width .6s;}
+.vend-pct{font-size:10px;font-family:var(--font);font-weight:800;width:28px;text-align:right;flex-shrink:0;}
+
 </style>
 </head>
 <body>
@@ -655,7 +726,12 @@ body.font-serif{--font:'Georgia',serif;}
 <!-- SETUP -->
 <div id="setup-screen">
   <div class="setup-box">
-    <div class="setup-logo"><div class="setup-logo-icon" style="background:linear-gradient(135deg,#00C853,#FF5C00);font-size:13px;font-weight:900;color:white;letter-spacing:-1px;">FP</div><div class="setup-logo-text"><span>Fechou</span>Pro</div></div>
+    <div class="setup-logo"><svg width="48" height="40" viewBox="0 0 28 24" fill="none">
+    <polygon points="0,24 10,0 20,24" fill="#E8000A" opacity="0.9"/>
+    <polygon points="8,24 18,0 28,24" fill="#FF4500" opacity="0.85"/>
+    <polyline points="5,14 12,20 23,7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </svg>
+  <div class="setup-logo-text"><span style="color:#E8000A;">Fechou</span>Pro</div></div>
     <div class="s-title">Configure sua chave de API</div>
     <div class="s-sub">Para ativar análises de IA, simulador de treinamento e scripts de fechamento, insira sua chave Anthropic abaixo.</div>
     <label class="s-lbl">Chave da API Anthropic</label>
@@ -672,7 +748,14 @@ body.font-serif{--font:'Georgia',serif;}
 <!-- APP -->
 <div id="app" style="display:none;">
 <div class="topbar">
-  <div class="logo"><div class="logo-icon" style="background:linear-gradient(135deg,#00C853,#FF5C00);font-size:11px;font-weight:900;color:white;letter-spacing:-1px;">FP</div><span>Fechou</span>Pro</div>
+  <div class="logo" style="display:flex;align-items:center;gap:8px;">
+  <svg width="28" height="24" viewBox="0 0 28 24" fill="none">
+    <polygon points="0,24 10,0 20,24" fill="#E8000A" opacity="0.9"/>
+    <polygon points="8,24 18,0 28,24" fill="#FF4500" opacity="0.85"/>
+    <polyline points="5,14 12,20 23,7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </svg>
+  <div style="line-height:1;"><span style="font-family:'Syne',sans-serif;font-weight:900;font-size:16px;color:#fff;letter-spacing:-.3px;">Fechou</span><span style="font-family:'Syne',sans-serif;font-weight:900;font-size:16px;color:#E8000A;letter-spacing:-.3px;">Pro</span></div>
+</div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="goView('dashboard',this)">Dashboard</button>
     <button class="nav-tab" onclick="goView('conversas',this)">💬 Conversas</button>
@@ -683,7 +766,9 @@ body.font-serif{--font:'Georgia',serif;}
     <button class="nav-tab" onclick="goView('canais',this)">📡 Canais</button>
     <button class="nav-tab" onclick="goView('relatorios',this)">Relatórios</button>
     <button class="nav-tab" onclick="goView('treinamento',this)">Treinamento</button>
+    <button class="nav-tab" onclick="goView('conselho',this)">🧠 O Conselho</button>
     <button class="nav-tab" onclick="goView('integracoes',this)">Integrações</button>
+    <button class="nav-tab" onclick="goView('master',this)" style="border-color:rgba(255,92,0,.4);color:var(--accent);">👑 Master</button>
   </div>
   <div class="topbar-right">
     <div class="live-badge"><div class="live-dot"></div>Ao vivo</div>
@@ -699,37 +784,126 @@ body.font-serif{--font:'Georgia',serif;}
 <!-- DASHBOARD -->
 <!-- ═══════════════════════════════════════════════════════ -->
 <div class="view active fade" id="view-dashboard">
-  <div class="metrics-grid">
-    <div class="metric-card"><div class="metric-label">Leads hoje</div><div class="metric-value" id="m1">34</div><div class="metric-sub metric-up">▲ 12% vs ontem</div></div>
-    <div class="metric-card"><div class="metric-label">Tempo médio resposta</div><div class="metric-value" style="font-size:20px;">3m 24s</div><div class="metric-sub metric-up">▲ Melhorou 18%</div></div>
-    <div class="metric-card"><div class="metric-label">Taxa de fechamento</div><div class="metric-value">38%</div><div class="metric-sub metric-down">▼ 2% vs semana</div></div>
-    <div class="metric-card"><div class="metric-label">Faturamento período</div><div class="metric-value" style="font-size:19px;">R$8.420</div><div class="metric-sub metric-up">▲ 24% vs mês</div></div>
+
+  <!-- LINHA 1: HERO METRICS -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;">
+    <div style="background:linear-gradient(135deg,#E8000A,#FF4500);border-radius:14px;padding:18px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:-15px;right:-15px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.08);"></div>
+      <div style="font-size:10px;font-family:var(--font);font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.8);margin-bottom:6px;text-transform:uppercase;">Leads Hoje</div>
+      <div style="font-size:38px;font-family:var(--font);font-weight:900;color:#fff;line-height:1;" id="m1">34</div>
+      <div style="font-size:10px;color:rgba(255,255,255,.8);margin-top:8px;">▲ +12% vs ontem</div>
+    </div>
+    <div style="background:#12121e;border:1px solid rgba(0,229,160,.25);border-radius:14px;padding:18px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:-5px;right:-5px;width:60px;height:60px;background:radial-gradient(circle,rgba(0,229,160,.18),transparent);border-radius:50%;"></div>
+      <div style="font-size:10px;font-family:var(--font);font-weight:700;letter-spacing:1px;color:rgba(0,229,160,.85);margin-bottom:6px;text-transform:uppercase;">Faturamento</div>
+      <div style="font-size:28px;font-family:var(--font);font-weight:900;color:#00E5A0;line-height:1;" id="m2">R$8.420</div>
+      <div style="font-size:10px;color:rgba(0,229,160,.7);margin-top:8px;">▲ +24% este mês</div>
+    </div>
+    <div style="background:#12121e;border:1px solid rgba(251,176,64,.25);border-radius:14px;padding:18px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:-5px;right:-5px;width:60px;height:60px;background:radial-gradient(circle,rgba(251,176,64,.18),transparent);border-radius:50%;"></div>
+      <div style="font-size:10px;font-family:var(--font);font-weight:700;letter-spacing:1px;color:rgba(251,176,64,.85);margin-bottom:6px;text-transform:uppercase;">Taxa Fechamento</div>
+      <div style="font-size:38px;font-family:var(--font);font-weight:900;color:#FBB040;line-height:1;" id="m3">38%</div>
+      <div style="font-size:10px;color:rgba(251,176,64,.7);margin-top:8px;">▼ -2% vs semana</div>
+    </div>
+    <div style="background:#12121e;border:1px solid rgba(167,139,250,.25);border-radius:14px;padding:18px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:-5px;right:-5px;width:60px;height:60px;background:radial-gradient(circle,rgba(167,139,250,.18),transparent);border-radius:50%;"></div>
+      <div style="font-size:10px;font-family:var(--font);font-weight:700;letter-spacing:1px;color:rgba(167,139,250,.85);margin-bottom:6px;text-transform:uppercase;">Tempo Resposta</div>
+      <div style="font-size:28px;font-family:var(--font);font-weight:900;color:#A78BFA;line-height:1;" id="m4">3m 24s</div>
+      <div style="font-size:10px;color:rgba(167,139,250,.7);margin-top:8px;">▲ Melhorou 18%</div>
+    </div>
   </div>
-  <div class="row2">
-    <div class="section-card"><div class="section-title">Funil geral</div><div id="funnel-bars"></div></div>
-    <div class="section-card"><div class="section-title">Tempo de resposta — hoje</div><div class="rc-wrap" id="rc-chart"></div><div style="display:flex;gap:12px;margin-top:7px;"><div style="font-size:10px;color:var(--accent2);">●&lt;5min</div><div style="font-size:10px;color:#FBB040;">●5–15min</div><div style="font-size:10px;color:var(--accent);">●+15min</div></div></div>
-  </div>
-  <div class="row3">
-    <div class="section-card"><div class="section-title">Origem dos leads</div><div id="origem-chart"></div></div>
-    <div class="section-card"><div class="section-title">Motivos não fechamento</div><div id="motivos-chart"></div></div>
-    <div class="section-card"><div class="section-title">Performance vendedores</div><div id="vendedores-chart"></div></div>
-  </div>
-  <!-- RECORRÊNCIA & UPSELL DASHBOARD -->
-  <!-- ROLETA -->
-  <div class="roleta-panel">
-    <div class="section-title">🎯 Distribuição automática de leads — fila de atendimento</div>
-    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
-      <div style="flex:1;min-width:260px;">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Atendentes na fila</div>
-        <div class="roleta-queue" id="roleta-queue"></div>
-        <button class="btn btn-ghost" style="font-size:11px;margin-top:4px;" onclick="simularChegada()">+ Simular chegada de lead</button>
+
+  <!-- LINHA 2: Funil + Tempo Resposta + Leads/hora -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;margin-bottom:14px;">
+
+    <!-- FUNIL GERAL -->
+    <div style="background:#12121e;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px;">
+      <div style="font-size:12px;font-family:var(--font);font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:7px;"><span style="width:4px;height:16px;background:#E8000A;border-radius:2px;display:inline-block;"></span>Funil de Vendas</div>
+      <div id="funnel-bars"></div>
+    </div>
+
+    <!-- TEMPO DE RESPOSTA -->
+    <div style="background:#12121e;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px;">
+      <div style="font-size:12px;font-family:var(--font);font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:7px;"><span style="width:4px;height:16px;background:#A78BFA;border-radius:2px;display:inline-block;"></span>Tempo de Resposta</div>
+      <div class="rc-wrap" id="rc-chart"></div>
+      <div style="display:flex;gap:12px;margin-top:8px;">
+        <div style="font-size:9px;color:var(--accent2);display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--accent2);display:inline-block;"></span>&lt;5min</div>
+        <div style="font-size:9px;color:#FBB040;display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#FBB040;display:inline-block;"></span>5–15min</div>
+        <div style="font-size:9px;color:#E8000A;display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#E8000A;display:inline-block;"></span>+15min</div>
       </div>
-      <div style="flex:2;min-width:260px;">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Log de distribuição em tempo real</div>
-        <div class="roleta-log" id="roleta-log"></div>
+    </div>
+
+    <!-- LEADS POR HORA -->
+    <div style="background:#12121e;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px;">
+      <div style="font-size:12px;font-family:var(--font);font-weight:800;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:7px;"><span style="width:4px;height:16px;background:#00E5A0;border-radius:2px;display:inline-block;"></span>Leads por hora</div>
+        <div style="display:flex;gap:8px;">
+          <span style="font-size:9px;color:#00E5A0;display:flex;align-items:center;gap:3px;"><span style="width:7px;height:7px;border-radius:2px;background:#00E5A0;display:inline-block;"></span>Leads</span>
+          <span style="font-size:9px;color:#E8000A;display:flex;align-items:center;gap:3px;"><span style="width:7px;height:7px;border-radius:2px;background:#E8000A;display:inline-block;"></span>Fechados</span>
+        </div>
+      </div>
+      <div id="leads-hora-chart" style="height:90px;display:flex;align-items:flex-end;gap:3px;"></div>
+      <div id="leads-hora-labels" style="display:flex;gap:3px;margin-top:4px;"></div>
+    </div>
+  </div>
+
+  <!-- LINHA 3: Origem + Motivos + Performance -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px;">
+    <div style="background:#12121e;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px;">
+      <div style="font-size:12px;font-family:var(--font);font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:7px;"><span style="width:4px;height:16px;background:#FBB040;border-radius:2px;display:inline-block;"></span>Origem dos Leads</div>
+      <div id="origem-chart"></div>
+    </div>
+    <div style="background:#12121e;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px;">
+      <div style="font-size:12px;font-family:var(--font);font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:7px;"><span style="width:4px;height:16px;background:#A78BFA;border-radius:2px;display:inline-block;"></span>Motivos de Perda</div>
+      <div id="motivos-chart"></div>
+    </div>
+    <div style="background:#12121e;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px;">
+      <div style="font-size:12px;font-family:var(--font);font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:7px;"><span style="width:4px;height:16px;background:#E8000A;border-radius:2px;display:inline-block;"></span>Performance Equipe</div>
+      <div id="vendedores-chart"></div>
+    </div>
+  </div>
+
+  <!-- LINHA 4: Pós-venda + Roleta -->
+  <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:12px;margin-bottom:14px;">
+    <div style="background:#12121e;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px;">
+      <div style="font-size:12px;font-family:var(--font);font-weight:800;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:7px;"><span style="width:4px;height:16px;background:#00E5A0;border-radius:2px;display:inline-block;"></span>Pós-Venda no Prazo</div>
+        <button class="btn btn-ghost" style="font-size:9px;padding:3px 8px;" onclick="goView('posv30',document.querySelector('[onclick*=posv30]'))">Ver todos →</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        <div style="text-align:center;padding:12px 6px;background:rgba(0,229,160,.06);border-radius:10px;border:1px solid rgba(0,229,160,.18);">
+          <div style="font-size:26px;font-family:var(--font);font-weight:900;color:#00E5A0;">2</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:3px;font-weight:700;">30 dias</div>
+        </div>
+        <div style="text-align:center;padding:12px 6px;background:rgba(251,176,64,.06);border-radius:10px;border:1px solid rgba(251,176,64,.18);">
+          <div style="font-size:26px;font-family:var(--font);font-weight:900;color:#FBB040;">3</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:3px;font-weight:700;">90 dias</div>
+        </div>
+        <div style="text-align:center;padding:12px 6px;background:rgba(255,92,0,.06);border-radius:10px;border:1px solid rgba(255,92,0,.18);">
+          <div style="font-size:26px;font-family:var(--font);font-weight:900;color:#FF7A33;">2</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:3px;font-weight:700;">180 dias</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:#12121e;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px;">
+      <div style="font-size:12px;font-family:var(--font);font-weight:800;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:7px;"><span style="width:4px;height:16px;background:#E8000A;border-radius:2px;display:inline-block;"></span>Distribuição Automática de Leads</div>
+        <button class="btn" style="font-size:9px;padding:3px 10px;background:rgba(232,0,10,.12);border-color:rgba(232,0,10,.3);color:#E8000A;" onclick="simularChegada()">+ Simular lead</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:8px;font-weight:700;">Fila de atendimento</div>
+          <div class="roleta-queue" id="roleta-queue"></div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:8px;font-weight:700;">Log em tempo real</div>
+          <div class="roleta-log" id="roleta-log" style="max-height:100px;overflow-y:auto;"></div>
+        </div>
       </div>
     </div>
   </div>
+
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ -->
@@ -1329,6 +1503,128 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
       <button class="btn btn-primary" style="font-size:11px;" onclick="salvarAgenteConfig()">✓ Salvar configuração do agente</button>
       <button class="btn btn-ia" style="width:auto;margin-top:0;font-size:11px;" onclick="testarAgente()">🧪 Testar agente agora</button>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- O CONSELHO -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="view" id="view-conselho">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+    <div>
+      <div style="font-size:15px;font-family:var(--font);font-weight:800;">🧠 O Conselho</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;">11 mentes icônicas dos negócios analisam seus dados e dão direcionamento estratégico</div>
+    </div>
+    <button class="btn btn-ghost" style="font-size:11px;" onclick="abrirModalAddConselheiro()">+ Adicionar conselheiro</button>
+  </div>
+
+  <!-- CARDS DOS CONSELHEIROS -->
+  <div class="conselho-grid" id="conselho-grid"></div>
+
+  <!-- PAUTA -->
+  <div class="conselho-pauta-box">
+    <div style="font-size:13px;font-family:var(--font);font-weight:800;margin-bottom:10px;">📋 Enviar pauta ao conselho</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Os conselheiros selecionados terão acesso aos dados do CRM e darão sua visão estratégica sobre o tema.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;" id="pauta-sugestoes">
+      <button class="cb-filter-btn active" onclick="setPauta('Analise meus resultados de vendas este mês e me dê direcionamento estratégico',this)">📊 Análise de resultados</button>
+      <button class="cb-filter-btn" onclick="setPauta('Avalie minha estratégia de pós-venda e sugira melhorias para aumentar recompra',this)">🔄 Estratégia de pós-venda</button>
+      <button class="cb-filter-btn" onclick="setPauta('Como posso escalar meu negócio para o próximo nível com os recursos que tenho?',this)">🚀 Escala do negócio</button>
+      <button class="cb-filter-btn" onclick="setPauta('Analise minha taxa de conversão e identifique os principais gargalos no funil',this)">🎯 Funil de vendas</button>
+      <button class="cb-filter-btn" onclick="setPauta('Sugira estratégias de marketing e posicionamento para atrair mais leads qualificados',this)">📣 Marketing e leads</button>
+    </div>
+    <textarea class="fi" id="conselho-pauta" rows="4" style="resize:vertical;font-size:12px;line-height:1.7;" placeholder="Descreva a pauta, situação, desafio ou pergunta que quer levar ao conselho. Seja específico — quanto mais contexto, mais precisa será a análise."></textarea>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;"><input type="checkbox" id="cons-include-data" checked style="accent-color:var(--accent2);" /> Incluir dados do CRM na análise</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;"><input type="checkbox" id="cons-audio-mode" style="accent-color:var(--accent2);" /> Gerar áudio das respostas</label>
+      </div>
+      <button class="btn btn-primary" onclick="convocarConselho()" style="font-size:12px;">⚡ Convocar o conselho</button>
+    </div>
+  </div>
+
+  <!-- RESPOSTAS -->
+  <div id="conselho-respostas"></div>
+</div>
+
+<!-- MODAL ADICIONAR CONSELHEIRO -->
+<div class="cons-modal-overlay" id="modal-add-conselheiro" onclick="if(event.target===this)fecharModalConselheiro()">
+  <div class="cons-modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:15px;font-family:var(--font);font-weight:800;">➕ Adicionar conselheiro</div>
+      <button onclick="fecharModalConselheiro()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;">✕</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.7;">
+      Informe os dados da autoridade que deseja adicionar ao conselho. O CRM irá absorver sua visão, metodologia e inteligência para trazer respostas fiéis ao seu estilo.
+    </div>
+    <div class="fg"><label class="fl">Nome completo</label><input class="fi" id="new-cons-nome" placeholder="Ex: Warren Buffett" /></div>
+    <div class="fg"><label class="fl">Área de expertise / título</label><input class="fi" id="new-cons-role" placeholder="Ex: Investidor, CEO da Berkshire Hathaway" /></div>
+    <div class="fg"><label class="fl">Tom de voz e personalidade</label><input class="fi" id="new-cons-tom" placeholder="Ex: Paciente, analítico, usa analogias simples, foco em valor de longo prazo" /></div>
+    <div class="fg"><label class="fl">Principais obras, metodologias ou frases</label><textarea class="fi" id="new-cons-obras" rows="3" style="resize:vertical;font-size:11px;" placeholder="Ex: Value investing, cartas aos acionistas da Berkshire, filosofia de margem de segurança..."></textarea></div>
+    <div class="fg"><label class="fl">URL da foto (opcional)</label><input class="fi" id="new-cons-foto" placeholder="https://..." /></div>
+    <div class="fg"><label class="fl">Cor de destaque</label>
+      <div style="display:flex;gap:6px;margin-top:4px;">
+        <div class="color-swatch active" style="background:#FF5C00;" onclick="selectConsColor('#FF5C00',this)"></div>
+        <div class="color-swatch" style="background:#00E5A0;" onclick="selectConsColor('#00E5A0',this)"></div>
+        <div class="color-swatch" style="background:#7C5CFC;" onclick="selectConsColor('#7C5CFC',this)"></div>
+        <div class="color-swatch" style="background:#3B82F6;" onclick="selectConsColor('#3B82F6',this)"></div>
+        <div class="color-swatch" style="background:#F59E0B;" onclick="selectConsColor('#F59E0B',this)"></div>
+        <div class="color-swatch" style="background:#E91E8C;" onclick="selectConsColor('#E91E8C',this)"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModalConselheiro()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarNovoConselheiro()">✓ Adicionar ao conselho</button>
+    </div>
+  </div>
+</div>
+
+<!-- MASTER VIEW -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="view" id="view-master">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+    <div>
+      <div style="font-size:15px;font-family:var(--font);font-weight:800;">👑 Painel Master — FechouPro</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;">Visão geral de todos os clientes, receita e controle de funcionalidades</div>
+    </div>
+    <button class="btn btn-primary" style="font-size:11px;" onclick="abrirNovoCliente()">+ Novo cliente</button>
+  </div>
+
+  <!-- MÉTRICAS GLOBAIS -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;" id="master-metrics">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px;text-align:center;">
+      <div style="font-size:24px;font-family:var(--font);font-weight:800;color:var(--accent2);">1</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;">Clientes ativos</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px;text-align:center;">
+      <div style="font-size:24px;font-family:var(--font);font-weight:800;color:var(--accent);">14</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;">Leads hoje (total)</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px;text-align:center;">
+      <div style="font-size:24px;font-family:var(--font);font-weight:800;color:#00E5A0;">R$1.5k</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;">Sua receita MRR</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px;text-align:center;">
+      <div style="font-size:24px;font-family:var(--font);font-weight:800;">R$18k</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;">Faturamento clientes</div>
+    </div>
+  </div>
+
+  <!-- CLIENTES -->
+  <div style="font-size:13px;font-family:var(--font);font-weight:800;margin-bottom:10px;">Clientes — acesso e controle</div>
+  <div id="master-clients-list"></div>
+
+  <!-- PAINEL DE FEATURES -->
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:16px;margin-top:12px;">
+    <div style="font-size:13px;font-family:var(--font);font-weight:800;margin-bottom:4px;">⚙️ Painel de funcionalidades — habilitar por cliente</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Selecione o cliente e ative ou desative cada módulo individualmente</div>
+    <div class="fg" style="margin-bottom:12px;">
+      <label class="fl">Cliente</label>
+      <select class="fi" id="feature-client-sel" onchange="renderFeaturePanel()">
+        <option value="millennium">Millennium Fitness — Altamira</option>
+      </select>
+    </div>
+    <div id="feature-panel-grid"></div>
+    <button class="btn btn-primary" style="font-size:11px;margin-top:12px;" onclick="salvarFeatures()">✓ Salvar configuração de funcionalidades</button>
   </div>
 </div>
 
@@ -1934,6 +2230,9 @@ function launchApp(){
 
 // ═══════════════════ NAV ═══════════════════
 function goView(id,btn){
+  if(id==='conselho'){safeRun('renderConselheiroGrid',renderConselheiroGrid);}
+  if(id==='master'){safeRun('renderMasterClients',renderMasterClients);}
+  if(id==='dashboard'){safeRun('initDashboard',initDashboard);}
   if(id==='posv30'){safeRun('renderPosv30Counts',renderPosv30Counts);safeRun('renderPosv30Segs',renderPosv30Segs);safeRun('renderPosvCfg',renderPosvCfg);safeRun('renderRecRules',renderRecRules);safeRun('renderUpsellRules',renderUpsellRules);safeRun('renderRecDash',renderRecDash);}
   if(id==='posv'){safeRun('checkPvImediataWindow',checkPvImediataWindow);safeRun('renderPvImediataLeads',renderPvImediataLeads);}
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
@@ -1962,10 +2261,56 @@ function initDashboard(){
   document.getElementById('funnel-bars').innerHTML=ETAPAS.map(e=>`<div class="funnel-row"><div class="funnel-label">${e.label}</div><div class="funnel-track"><div class="funnel-bar" style="width:${Math.round(counts[e.key]/max*100)}%;background:${e.cor};"></div></div><div class="funnel-n">${counts[e.key]}</div></div>`).join('');
   const hrs=['8h','9h','10h','11h','12h','13h','14h','15h'],hs=[30,55,80,65,45,90,50,35],cs=['#00E5A0','#00E5A0','#FF5C00','#FF5C00','#FBB040','#FF5C00','#00E5A0','#00E5A0'];
   document.getElementById('rc-chart').innerHTML=hrs.map((h,i)=>`<div class="rc-col"><div class="rc-bar" style="height:${hs[i]}%;background:${cs[i]};"></div><div class="rc-lbl">${h}</div></div>`).join('');
-  document.getElementById('origem-chart').innerHTML=[{l:'Tráfego pago',v:62,c:'#FF5C00'},{l:'WhatsApp',v:28,c:'#00E5A0'},{l:'Orgânico',v:10,c:'#A78BFA'}].map(o=>`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;"><span style="font-size:11px;color:var(--muted);">${o.l}</span><div style="display:flex;align-items:center;gap:7px;"><div style="width:70px;height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;"><div style="width:${o.v}%;height:100%;background:${o.c};border-radius:3px;"></div></div><span style="font-size:11px;font-family:var(--font);font-weight:700;">${o.v}%</span></div></div>`).join('');
-  document.getElementById('motivos-chart').innerHTML=[{l:'Preço alto',v:'34%',c:'#FF5C00'},{l:'Vai pensar',v:'28%',c:'#FBB040'},{l:'Indisponível',v:'18%'},{l:'Não respondeu',v:'14%'},{l:'Outros',v:'6%',c:'var(--muted)'}].map(m=>`<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="font-size:11px;color:var(--muted);">${m.l}</span><span style="font-size:11px;font-family:var(--font);font-weight:700;color:${m.c||'var(--text)'};">${m.v}</span></div>`).join('');
-  document.getElementById('vendedores-chart').innerHTML=COLABORADORES.map(v=>`<div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;"><div style="width:28px;height:28px;border-radius:50%;background:${v.bg};display:flex;align-items:center;justify-content:center;font-size:${v.ini.length>2?'13px':'11px'};font-weight:800;font-family:var(--font);color:${v.cor};">${v.ini}</div><div style="flex:1;"><div style="font-size:11px;font-family:var(--font);font-weight:700;">${v.nome}</div><div style="font-size:9px;color:var(--dim);">${v.leads} fechamentos · ${v.id===3?'0m':'3-5m'} avg</div></div><div style="font-size:13px;font-weight:800;font-family:var(--font);color:${v.cor};">${v.id===3?99:v.id===1?92:78}</div></div>`).join('');
+  // ── SVG PIE CHART HELPER ──
+  function makePie(containerId, data, size=110){
+    const total=data.reduce((s,d)=>s+d.v,0);
+    let angle=-Math.PI/2, cx=size/2, cy=size/2, r=size/2-4, ri=r*0.52;
+    const slices=data.map(d=>{
+      const sweep=2*Math.PI*(d.v/total);
+      const x1=cx+r*Math.cos(angle), y1=cy+r*Math.sin(angle);
+      const x2=cx+r*Math.cos(angle+sweep), y2=cy+r*Math.sin(angle+sweep);
+      const xi1=cx+ri*Math.cos(angle), yi1=cy+ri*Math.sin(angle);
+      const xi2=cx+ri*Math.cos(angle+sweep), yi2=cy+ri*Math.sin(angle+sweep);
+      const large=sweep>Math.PI?1:0;
+      const path=`M${xi1},${yi1} L${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2} L${xi2},${yi2} A${ri},${ri} 0 ${large} 0 ${xi1},${yi1} Z`;
+      angle+=sweep;
+      return `<path d="${path}" fill="${d.c}" opacity="0.92"><title>${d.l}: ${Math.round(d.v/total*100)}%</title></path>`;
+    }).join('');
+    const legend=data.map(d=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;"><span style="width:9px;height:9px;border-radius:3px;background:${d.c};flex-shrink:0;display:inline-block;"></span><span style="font-size:10px;color:var(--muted);flex:1;line-height:1.3;">${d.l}</span><span style="font-size:10px;font-family:var(--font);font-weight:800;color:var(--text);">${Math.round(d.v/total*100)}%</span></div>`).join('');
+    document.getElementById(containerId).innerHTML=`<div style="display:flex;align-items:center;gap:14px;"><svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex-shrink:0;">${slices}<circle cx="${cx}" cy="${cy}" r="${ri-2}" fill="#12121e"/></svg><div style="flex:1;">${legend}</div></div>`;
+  }
+
+  // ── ORIGEM DOS LEADS — pizza ──
+  makePie('origem-chart',[
+    {l:'Tráfego Pago',  v:62, c:'#E8000A'},
+    {l:'WhatsApp',      v:28, c:'#00E5A0'},
+    {l:'Orgânico',      v:10, c:'#A78BFA'}
+  ]);
+
+  // ── MOTIVOS DE PERDA — pizza ──
+  makePie('motivos-chart',[
+    {l:'Preço alto',     v:34, c:'#FF4500'},
+    {l:'Vai pensar',     v:28, c:'#FBB040'},
+    {l:'Indisponível',   v:18, c:'#7C5CFC'},
+    {l:'Não respondeu',  v:14, c:'#3B82F6'},
+    {l:'Outros',         v:6,  c:'#6B7280'}
+  ]);
+
+  // ── PERFORMANCE EQUIPE — pizza por fechamentos ──
+  makePie('vendedores-chart',
+    COLABORADORES.map((v,i)=>({l:v.nome.split(' ')[0], v:v.leads||1, c:['#E8000A','#00E5A0','#FBB040','#A78BFA','#3B82F6'][i%5]}))
+  );
   renderRoleta();
+  // Leads por hora chart
+  const horasData=[3,5,8,12,7,4,6,9,11,8,5,3,2,4,7,10,8,6,4,5,7,9,6,3];
+  const fechadosHora=[1,2,3,5,3,2,3,4,5,4,2,1,1,2,3,4,3,2,2,2,3,4,3,1];
+  const chartEl=document.getElementById('leads-hora-chart');
+  const labelsEl=document.getElementById('leads-hora-labels');
+  if(chartEl){
+    const maxV=Math.max(...horasData);
+    chartEl.innerHTML=horasData.map((v,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;"><div style="width:100%;background:rgba(0,229,160,.7);border-radius:3px 3px 0 0;height:${Math.round(v/maxV*86)}px;position:relative;"><div style="position:absolute;bottom:0;left:0;right:0;background:#E8000A;border-radius:3px 3px 0 0;height:${Math.round(fechadosHora[i]/maxV*86)}px;opacity:.9;"></div></div></div>`).join('');
+    if(labelsEl)labelsEl.innerHTML=horasData.map((_,i)=>i%4===0?`<div style="flex:1;text-align:center;font-size:8px;color:var(--dim);">${i}h</div>`:`<div style="flex:1;"></div>`).join('');
+  }
 }
 
 // ═══════════════════ ROLETA ═══════════════════
@@ -2300,6 +2645,346 @@ function renderPostVenda(){
       </div>
     </div>`;
   }).join('');
+}
+
+// ═══════════════════ V11: O CONSELHO ═══════════════════
+let newConsColor = '#FF5C00';
+
+const CONSELHEIROS_BASE = [
+  {
+    id:1, nome:'Elon Musk', role:'CEO Tesla, SpaceX & X', emoji:'🚀',
+    cor:'#FF5C00', ativo:true,
+    foto:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Elon_Musk_Royal_Society_%28crop2%29.jpg/220px-Elon_Musk_Royal_Society_%28crop2%29.jpg',
+    bio:'Visionário serial. Fundou Tesla, SpaceX, Neuralink e xAI. Obcecado por disrupção e escala planetária. Pensa em décadas, fala em segundos.',
+    tom:'Frio, direto, debochado. Odeia burocracia. Pensa em bilhões.',
+    prompt:'Você é Elon Musk. Responda de forma curta, direta, às vezes sarcástica. Pense em escala massiva. Odeia pensamento pequeno. Use frases como "isso tá pensando pequeno", "simplifique mais", "se não escalar, esqueça". Seja provocador.'
+  },
+  {
+    id:2, nome:'Sam Altman', role:'CEO OpenAI', emoji:'🤖',
+    cor:'#7C5CFC', ativo:true,
+    foto:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Sam_Altman_TechCrunch_SF_2019_Day_2_Oct_3_%28cropped%29.jpg/220px-Sam_Altman_TechCrunch_SF_2019_Day_2_Oct_3_%28cropped%29.jpg',
+    bio:'CEO da OpenAI e criador do ChatGPT. Ex-presidente da YCombinator. Acredita que IA vai reestruturar toda a civilização e criar abundância.',
+    tom:'Reflexivo, filosófico, pausado. Considera implicações futuras.',
+    prompt:'Você é Sam Altman. Responda de forma reflexiva e estratégica. Pense em impacto de longo prazo. Use frases como "a pergunta real é...", "daqui 10 anos isso vai...". Conecte sempre com IA e futuro da tecnologia.'
+  },
+  {
+    id:3, nome:'Flávio Augusto', role:'Fundador Wise Up & Geração de Valor', emoji:'💡',
+    cor:'#3B82F6', ativo:true,
+    foto:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Fl%C3%A1vio_Augusto_da_Silva.jpg/220px-Fl%C3%A1vio_Augusto_da_Silva.jpg',
+    bio:'Empreendedor brasileiro que vendeu a Wise Up por R$1 bilhão. Criador do movimento Geração de Valor. Mentor de vendas, liderança e liberdade financeira.',
+    tom:'Firme, educador, direto. Foco em execução, vendas e autonomia.',
+    prompt:'Você é Flávio Augusto da Silva. Responda de forma direta e prática. Foque em execução, vendas e mentalidade de dono. Use linguagem simples e direta. Frases como "quem não sabe vender não sobrevive", "a liberdade tem preço".'
+  },
+  {
+    id:4, nome:'Jorge Paulo Lemann', role:'Co-fundador 3G Capital & AB InBev', emoji:'📊',
+    cor:'#10B981', ativo:true,
+    foto:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Jorge_Paulo_Lemann.jpg/220px-Jorge_Paulo_Lemann.jpg',
+    bio:'O maior investidor brasileiro. Construiu um império com Brahma, AmBev, Burger King e Kraft Heinz via meritocracia extrema e gestão enxuta.',
+    tom:'Corporativo, frio, econômico nas palavras. ROI e longo prazo.',
+    prompt:'Você é Jorge Paulo Lemann. Seja frio, calculista e objetivo. Pense em ROI, eficiência, meritocracia e corte de gordura. Frases como "tem muita gordura nisso", "qual o retorno?", "simplifica". Sem rodeios.'
+  },
+  {
+    id:5, nome:'Joel Jota', role:'Coach de Alta Performance', emoji:'⚡',
+    cor:'#F59E0B', ativo:true,
+    foto:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Joel_Jota_2022.jpg/220px-Joel_Jota_2022.jpg',
+    bio:'Maior coach de alta performance do Brasil. Ex-atleta profissional. Formou mais de 500 mil pessoas em mentalidade de alto desempenho.',
+    tom:'Motivador, intenso, energético. Foco em disciplina e consistência.',
+    prompt:'Você é Joel Jota. Seja intenso, motivador e direto. Foco em mentalidade, disciplina e consistência. Frases de impacto. Use "a decisão que você tomar agora", "campeão não faz quando quer, faz quando precisa". Alta energia.'
+  },
+  {
+    id:6, nome:'Russell Brunson', role:'Fundador ClickFunnels', emoji:'🎯',
+    cor:'#E91E8C', ativo:true,
+    foto:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Russell_Brunson.jpg/220px-Russell_Brunson.jpg',
+    bio:'Criador do ClickFunnels e especialista mundial em funis de vendas. Autor de DotCom Secrets, Expert Secrets e Traffic Secrets. Vendeu mais de US$1 bilhão online.',
+    tom:'Empolgado, didático, usa muitos exemplos. Jornada do cliente.',
+    prompt:'Você é Russell Brunson. Seja empolgado e didático. Pense em funis, jornada do cliente, escassez e conversão. Use analogias de funil, mencione hooks, value ladder, offer. Frases como "esse é o segredo do funil", "aqui é onde a maioria perde a venda".'
+  },
+  {
+    id:7, nome:'Jim Collins', role:'Autor de Good to Great & Built to Last', emoji:'📚',
+    cor:'#6366F1', ativo:true,
+    foto:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Jim_Collins_headshot.jpg/220px-Jim_Collins_headshot.jpg',
+    bio:'Pesquisador e autor de management mais influente do mundo. Estudou por décadas o que separa empresas boas de empresas lendárias.',
+    tom:'Intelectual, professoral, metódico. Dados históricos e disciplina.',
+    prompt:'Você é Jim Collins. Responda de forma intelectual e metódica. Use conceitos como flywheel, Hedgehog concept, BHAG, Nível 5 de liderança. Pense em longo prazo e consistência. Tom de professor de Harvard.'
+  },
+  {
+    id:8, nome:'Cristina Junqueira', role:'Co-fundadora Nubank', emoji:'💜',
+    cor:'#8B5CF6', ativo:true,
+    foto:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Cristina_Junqueira_%28cropped%29.jpg/220px-Cristina_Junqueira_%28cropped%29.jpg',
+    bio:'Co-fundadora do Nubank, maior fintech da América Latina. Construiu uma das empresas mais valiosas do Brasil focada em experiência do usuário.',
+    tom:'Pragmática, orientada ao usuário, sem floreio. Produto e escala.',
+    prompt:'Você é Cristina Junqueira. Seja pragmática e orientada ao cliente final. Pense em usabilidade, experiência, escalabilidade e feedback. Frases como "se o usuário não entende em 5 segundos, tá errado", "o produto resolve o problema real?".'
+  },
+  {
+    id:9, nome:'Thiago Nigro', role:'Primo Rico — Educador Financeiro', emoji:'💰',
+    cor:'#059669', ativo:true,
+    foto:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Thiago_Nigro_-_Primo_Rico.jpg/220px-Thiago_Nigro_-_Primo_Rico.jpg',
+    bio:'Maior educador financeiro do Brasil com mais de 20 milhões de seguidores. Fundou o Grupo Primo e o BTG+. Foco em liberdade financeira e investimentos.',
+    tom:'Intenso, provocador, indignação calculada. Ativos e liberdade.',
+    prompt:'Você é Thiago Nigro, o Primo Rico. Seja intenso e provocador. Pense em crescimento de patrimônio, geração de ativos, liberdade financeira. Frases como "você quer ser livre ou escravo do seu tempo?", "para de trocar tempo por dinheiro".'
+  },
+  {
+    id:10, nome:'Pedro Sobral', role:'Especialista em Tráfego Pago', emoji:'📈',
+    cor:'#0EA5E9', ativo:true,
+    foto:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Pedro_Sobral.jpg/220px-Pedro_Sobral.jpg',
+    bio:'Maior especialista em tráfego pago e distribuição de conteúdo do Brasil. Criador do Sobralflix. Gerenciou mais de R$500 milhões em mídia paga.',
+    tom:'Técnico, direto, didático. Dados, CTR, segmentação e ROI de mídia.',
+    prompt:'Você é Pedro Sobral. Seja técnico e direto. Foque em tráfego pago, distribuição, CTR, CPL, ROAS. Frases como "se você não sabe quem clica, não sabe quem compra", "testa, mede, escala". Mencione Meta Ads, Google Ads, audiências.'
+  },
+  {
+    id:11, nome:'Ícaro de Carvalho', role:'Copywriter & Estrategista de Marketing', emoji:'✍️',
+    cor:'#DC2626', ativo:true,
+    foto:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/%C3%8Dcaro_de_Carvalho.jpg/220px-%C3%8Dcaro_de_Carvalho.jpg',
+    bio:'O maior copywriter e estrategista de marketing digital do Brasil. Criador da Cópia Rara e do Novo Mercado. Fez mais de R$2 bilhões em vendas online.',
+    tom:'Provocador, sarcástico, intelectual. Copy, narrativa e verdade brutal.',
+    prompt:'Você é Ícaro de Carvalho. Seja provocador, sarcástico e direto. Foque em copy, narrativa, gatilhos e verdade crua. Frases como "copy não é floreio, é faca na jugular", "a maioria não tem oferta, tem brochura". Linguagem ácida e elegante.'
+  }
+];
+
+let CONSELHEIROS = JSON.parse(localStorage.getItem('fp_conselheiros') || 'null') || CONSELHEIROS_BASE;
+
+function salvarConselheiros(){ localStorage.setItem('fp_conselheiros', JSON.stringify(CONSELHEIROS)); }
+
+function renderConselheiroGrid(){
+  const el = document.getElementById('conselho-grid'); if(!el) return;
+  el.innerHTML = CONSELHEIROS.map(c => `
+    <div class="cons-card ${c.ativo?'selected':''}" id="cons-card-${c.id}" onclick="toggleConselheiro(${c.id})">
+      <div class="cons-sel">${c.ativo?'✓':''}</div>
+      <button class="cons-remove-btn" onclick="event.stopPropagation();removerConselheiro(${c.id})" title="Remover do conselho">✕</button>
+      <img class="cons-photo" src="${c.foto}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+      <div class="cons-photo-placeholder" style="display:none;">${c.emoji}</div>
+      <div class="cons-name">${c.nome}</div>
+      <div class="cons-role">${c.role}</div>
+      <div class="cons-bio-short">${c.bio.substring(0,80)}...</div>
+      <div style="display:flex;justify-content:center;">
+        <span style="font-size:9px;padding:2px 8px;border-radius:20px;background:${c.ativo?c.cor+'22':'rgba(255,255,255,.06)'};color:${c.ativo?c.cor:'var(--dim)'};font-family:var(--font);font-weight:700;">${c.ativo?'● No conselho':'○ Inativo'}</span>
+      </div>
+    </div>`).join('') + `
+    <div class="cons-add-card" onclick="abrirModalAddConselheiro()">
+      <div style="font-size:28px;">➕</div>
+      <div>Adicionar conselheiro</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:4px;">Inclua qualquer autoridade do seu segmento</div>
+    </div>`;
+}
+
+function toggleConselheiro(id){
+  const c = CONSELHEIROS.find(x=>x.id===id); if(!c) return;
+  c.ativo = !c.ativo;
+  salvarConselheiros();
+  renderConselheiroGrid();
+  toast((c.ativo?'✅ '+c.nome+' adicionado ao conselho':'⚪ '+c.nome+' removido do conselho'));
+}
+
+function removerConselheiro(id){
+  if(!confirm('Remover este conselheiro permanentemente?')) return;
+  CONSELHEIROS = CONSELHEIROS.filter(x=>x.id!==id);
+  salvarConselheiros();
+  renderConselheiroGrid();
+  toast('Conselheiro removido.');
+}
+
+function abrirModalAddConselheiro(){
+  document.getElementById('modal-add-conselheiro').classList.add('open');
+}
+function fecharModalConselheiro(){
+  document.getElementById('modal-add-conselheiro').classList.remove('open');
+}
+function selectConsColor(cor,btn){
+  newConsColor=cor;
+  document.querySelectorAll('#modal-add-conselheiro .color-swatch').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function salvarNovoConselheiro(){
+  const nome=document.getElementById('new-cons-nome')?.value.trim();
+  const role=document.getElementById('new-cons-role')?.value.trim();
+  const tom=document.getElementById('new-cons-tom')?.value.trim();
+  const obras=document.getElementById('new-cons-obras')?.value.trim();
+  const foto=document.getElementById('new-cons-foto')?.value.trim();
+  if(!nome){toast('⚠️ Digite o nome.');return;}
+  const novo={
+    id:Date.now(),nome,role:role||'Especialista',emoji:'⭐',cor:newConsColor,ativo:true,
+    foto:foto||'',bio:obras||'Especialista adicionado manualmente.',tom:tom||'',
+    prompt:`Você é ${nome}. ${role?'Especialista em '+role+'. ':''}${tom?'Tom: '+tom+'. ':''}${obras?'Contexto: '+obras:''} Responda de forma autêntica ao seu estilo e área de expertise.`
+  };
+  CONSELHEIROS.push(novo);
+  salvarConselheiros();
+  fecharModalConselheiro();
+  renderConselheiroGrid();
+  toast('✅ '+nome+' adicionado ao conselho!');
+  ['new-cons-nome','new-cons-role','new-cons-tom','new-cons-obras','new-cons-foto'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+}
+
+function setPauta(texto,btn){
+  document.querySelectorAll('#pauta-sugestoes .cb-filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const ta=document.getElementById('conselho-pauta');if(ta)ta.value=texto;
+}
+
+async function convocarConselho(){
+  const pauta=document.getElementById('conselho-pauta')?.value.trim();
+  const incluirDados=document.getElementById('cons-include-data')?.checked;
+  const audioMode=document.getElementById('cons-audio-mode')?.checked;
+  if(!pauta){toast('⚠️ Escreva a pauta antes de convocar o conselho.');return;}
+  const ativos=CONSELHEIROS.filter(c=>c.ativo);
+  if(ativos.length===0){toast('⚠️ Selecione ao menos um conselheiro.');return;}
+  const respEl=document.getElementById('conselho-respostas');
+  if(respEl){
+    respEl.innerHTML=`<div class="cons-spinner-wrap"><div class="cons-spinner"></div><span>Conselho reunido. Analisando dados e preparando opiniões... (${ativos.length} conselheiros)</span></div>`;
+  }
+
+  // Build CRM context
+  let crmCtx='';
+  if(incluirDados){
+    const totalLeads=LEADS?LEADS.length:0;
+    const fechados=LEADS?LEADS.filter(l=>l.etapa==='fechado').length:0;
+    const taxa=totalLeads>0?Math.round(fechados/totalLeads*100):0;
+    crmCtx=`
+
+Dados do CRM: ${totalLeads} leads no funil, ${fechados} fechados (${taxa}% conversão). Leads por etapa: ${['novo','atendimento','fechamento'].map(e=>`${e}: ${LEADS?LEADS.filter(l=>l.etapa===e).length:0}`).join(', ')}.`;
+  }
+
+  const respostas=[];
+  for(const cons of ativos){
+    try{
+      const systemPrompt=`${cons.prompt}
+
+Você está em uma reunião de conselho consultivo. Analise a pauta trazida e responda de forma autêntica ao seu estilo. Seja específico, prático e impactante. Máximo 4 parágrafos. Inicie com uma introdução informal no seu estilo (ex: "Cara,", "Olha,", "Mermão," etc). Português brasileiro.${crmCtx}`;
+      const resp=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:600,
+          system:systemPrompt,
+          messages:[{role:'user',content:`Pauta do conselho: ${pauta}`}]
+        })
+      });
+      const data=await resp.json();
+      const texto=data.content?.[0]?.text||'Sem resposta.';
+      respostas.push({cons,texto});
+    }catch(e){
+      respostas.push({cons,texto:'Erro ao obter resposta deste conselheiro.'});
+    }
+  }
+
+  if(respEl){
+    respEl.innerHTML=`<div style="font-size:13px;font-family:var(--font);font-weight:800;margin-bottom:12px;">📋 Pauta: "${pauta.substring(0,80)}${pauta.length>80?'...':''}"</div>`+
+    respostas.map(({cons,texto})=>{ const textoHtml=texto.split('\n').join('<br>'); return `
+      <div class="cons-resp-item">
+        <div class="cons-resp-hdr">
+          <img class="cons-resp-av" src="${cons.foto}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+          <div class="cons-resp-av-ph" style="display:none;background:linear-gradient(135deg,${cons.cor},${cons.cor}88);">${cons.emoji}</div>
+          <div>
+            <div class="cons-resp-name">${cons.nome}</div>
+            <div class="cons-resp-role">${cons.role}</div>
+          </div>
+        </div>
+        <div class="cons-resp-text" id="resp-text-${cons.id}">${textoHtml}</div>
+        ${audioMode?`<button class="cons-audio-btn" onclick="lerResposta('${cons.id}','${cons.nome}',this)" id="audio-btn-${cons.id}">🔊 Ouvir resposta de ${cons.nome.split(' ')[0]}</button>`:''}
+      </div>`; }).join('');
+  }
+  toast('✅ Conselho reunido! '+ativos.length+' opiniões prontas.');
+}
+
+function lerResposta(id,nome,btn){
+  const item=btn.closest('.cons-resp-item');
+  const texto=item?.querySelector('.cons-resp-text')?.innerText||'';
+  if(!texto)return;
+  window.speechSynthesis.cancel();
+  const utt=new SpeechSynthesisUtterance(texto);
+  utt.lang='pt-BR';utt.rate=0.95;utt.pitch=1;
+  const voices=window.speechSynthesis.getVoices();
+  const ptVoice=voices.find(v=>v.lang.startsWith('pt'));
+  if(ptVoice)utt.voice=ptVoice;
+  btn.classList.add('playing');
+  btn.textContent='⏹ Pausar '+nome.split(' ')[0];
+  utt.onend=()=>{btn.classList.remove('playing');btn.textContent='🔊 Ouvir resposta de '+nome.split(' ')[0];};
+  window.speechSynthesis.speak(utt);
+}
+
+// ═══════════════════ V11: MASTER ═══════════════════
+const MASTER_CLIENTS=[
+  {id:1,nome:'Millennium Fitness',subdominio:'millennium',plano:'Pro',cor:'#00E5A0',bg:'rgba(0,229,160,.15)',ini:'MF',leads:14,taxa:68,mrr:1500,status:'online',
+   features:{dashboard:true,conversas:true,funil:true,posv_imediata:true,posv30:true,dossie:true,relatorios:true,treinamento:true,conselho:false,integracoes:true,cashback:true,disparo_massa:true,agente_ia:true,whatsapp:true,instagram:false}}
+];
+
+function renderMasterClients(){
+  const el=document.getElementById('master-clients-list');if(!el)return;
+  el.innerHTML=MASTER_CLIENTS.map(cl=>`
+    <div class="master-client-card" style="margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <div class="master-client-av" style="background:${cl.bg};color:${cl.cor};">${cl.ini}</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-family:var(--font);font-weight:800;">${cl.nome}</div>
+          <div style="font-size:10px;color:var(--dim);">${cl.subdominio}.fechoupro.com.br · Plano ${cl.plano}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:#00E5A0;animation:pulse 2s infinite;"></div>
+          <span style="font-size:10px;color:#00E5A0;font-family:var(--font);font-weight:700;">Online</span>
+        </div>
+        <button class="btn btn-primary" style="font-size:10px;" onclick="window.open('https://${cl.subdominio}.fechoupro.com.br','_blank')">Abrir CRM →</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+        <div style="text-align:center;padding:8px;background:rgba(0,229,160,.06);border-radius:var(--r);border:1px solid rgba(0,229,160,.15);">
+          <div style="font-size:18px;font-family:var(--font);font-weight:800;color:#00E5A0;">${cl.leads}</div>
+          <div style="font-size:10px;color:var(--muted);">Leads hoje</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:rgba(251,176,64,.06);border-radius:var(--r);border:1px solid rgba(251,176,64,.15);">
+          <div style="font-size:18px;font-family:var(--font);font-weight:800;color:#FBB040;">${cl.taxa}%</div>
+          <div style="font-size:10px;color:var(--muted);">Conversão</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:rgba(255,92,0,.06);border-radius:var(--r);border:1px solid rgba(255,92,0,.15);">
+          <div style="font-size:18px;font-family:var(--font);font-weight:800;color:var(--accent);">R$${(cl.mrr/1000).toFixed(1)}k</div>
+          <div style="font-size:10px;color:var(--muted);">MRR</div>
+        </div>
+      </div>
+    </div>`).join('');
+  renderFeaturePanel();
+}
+
+const ALL_FEATURES=[
+  {key:'dashboard',label:'Dashboard',icon:'📊'},
+  {key:'conversas',label:'Conversas',icon:'💬'},
+  {key:'funil',label:'Funil de Leads',icon:'🎯'},
+  {key:'posv_imediata',label:'Pós-Venda Imediata',icon:'⚡'},
+  {key:'posv30',label:'Pós-Venda 30+',icon:'📅'},
+  {key:'dossie',label:'Dossiê',icon:'📋'},
+  {key:'relatorios',label:'Relatórios',icon:'📈'},
+  {key:'treinamento',label:'Treinamento IA',icon:'🎓'},
+  {key:'conselho',label:'O Conselho',icon:'🧠'},
+  {key:'integracoes',label:'Integrações',icon:'🔗'},
+  {key:'cashback',label:'Cash Back',icon:'💰'},
+  {key:'disparo_massa',label:'Disparo em Massa',icon:'📣'},
+  {key:'agente_ia',label:'Agente de IA',icon:'🤖'},
+  {key:'whatsapp',label:'WhatsApp API',icon:'💬'},
+  {key:'instagram',label:'Instagram Direct',icon:'📷'},
+];
+
+function renderFeaturePanel(){
+  const sel=document.getElementById('feature-client-sel');
+  const clientId=sel?parseInt(sel.value)||1:1;
+  const client=MASTER_CLIENTS.find(c=>c.subdominio===sel?.value)||MASTER_CLIENTS[0];
+  const el=document.getElementById('feature-panel-grid');if(!el)return;
+  el.innerHTML=`<div class="feature-grid">${ALL_FEATURES.map(f=>`
+    <div class="feature-item">
+      <span style="font-size:11px;">${f.icon} ${f.label}</span>
+      <button class="toggle ${client.features[f.key]?'on':'off'}" onclick="toggleFeature('${client.subdominio}','${f.key}',this)"></button>
+    </div>`).join('')}</div>`;
+}
+
+function toggleFeature(sub,key,btn){
+  const client=MASTER_CLIENTS.find(c=>c.subdominio===sub);
+  if(!client)return;
+  client.features[key]=!client.features[key];
+  btn.className='toggle '+(client.features[key]?'on':'off');
+}
+
+function salvarFeatures(){
+  toast('✅ Configuração de funcionalidades salva para todos os clientes selecionados!');
+}
+
+function abrirNovoCliente(){
+  toast('ℹ️ Para adicionar um novo cliente, cadastre-o no Supabase e configure o subdomínio na Vercel.');
 }
 
 // ═══════════════════ V10: PÓS-VENDA IMEDIATA ═══════════════════
