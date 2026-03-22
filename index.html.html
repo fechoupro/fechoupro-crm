@@ -720,6 +720,21 @@ body.font-serif{--font:'Georgia',serif;}
 .vend-pct{font-size:10px;font-family:var(--font);font-weight:800;width:28px;text-align:right;flex-shrink:0;}
 
 </style>
+<!-- SUPABASE -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://udtoojqdjcbxnvevazum.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkdG9vanFkamNieG52ZXZhenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NjM3NzQsImV4cCI6MjA4OTUzOTc3NH0.-HENtNoiH3yiEMxWIZeVrcB20BOOzoTw6oJsuvanBtM'
+  );
+
+  // Detecta subdomínio para multi-tenant
+  const hostname = window.location.hostname;
+  const parts = hostname.split('.');
+  const CLIENTE_SUBDOMINIO = parts.length >= 3 ? parts[0] : 'master';
+  console.log('FechouPro CRM | Cliente:', CLIENTE_SUBDOMINIO);
+</script>
 </head>
 <body>
 
