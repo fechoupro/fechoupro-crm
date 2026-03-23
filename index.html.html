@@ -2,12 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FechouPro — CRM Inteligente</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
+<meta name=
   --bg:#09090b;--surface:#111115;--card:#18181d;--card2:#1f1f26;
   --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
   --accent:#FF5C00;--accent2:#00E5A0;--accent3:#7C5CFC;
@@ -734,6 +729,19 @@ body.font-serif{--font:'Georgia',serif;}
   const parts = hostname.split('.');
   const CLIENTE_SUBDOMINIO = parts.length >= 3 ? parts[0] : 'master';
   console.log('FechouPro CRM | Cliente:', CLIENTE_SUBDOMINIO);
+</script>
+<!-- SUPABASE CONNECTION -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://udtoojqdjcbxnvevazum.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkdG9vanFkamNieG52ZXZhenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NjM3NzQsImV4cCI6MjA4OTUzOTc3NH0.-HENtNoiH3yiEMxWIZeVrcB20BOOzoTw6oJsuvanBtM'
+  );
+  const hostname = window.location.hostname;
+  const parts = hostname.split('.');
+  window.CLIENTE_SUBDOMINIO = parts.length >= 3 ? parts[0] : 'master';
+  console.log('FechouPro | Cliente:', window.CLIENTE_SUBDOMINIO);
 </script>
 </head>
 <body>
