@@ -4686,240 +4686,164 @@ window.addEventListener('DOMContentLoaded',function(){
   }catch(e){console.warn('Init error:',e);}
 });
 </script>
-<script id="contatos-logic">
-window.addEventListener('DOMContentLoaded', function() {
-  setTimeout(function() {
+<script id="fixes-v1">
+(function(){
+// FIX 1: MEMÓRIA DE ABA
+var _tabHooked=false;
+function hookTab(){
+  if(_tabHooked||typeof window.goView!=='function')return;
+  _tabHooked=true;
+  var orig=window.goView;
+  window.goView=function(tab){
+    if(tab)localStorage.setItem('mf_last_tab',tab);
+    return orig.apply(this,arguments);
+  };
+  var last=localStorage.getItem('mf_last_tab');
+  if(last&&last!=='dashboard'){setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},2800);}
+}
+hookTab();
+document.addEventListener('DOMContentLoaded',function(){setTimeout(hookTab,600);});
 
-    // ==============================
-    // SISTEMA DE CONTATOS
-    // Separação: Contatos (fora funil) vs Leads (funil ativo)
-    // ==============================
+// FIX 2: SISTEMA DE CONTATOS
+if(!window.CONTATOS)window.CONTATOS=JSON.parse(localStorage.getItem('mf_contatos')||'[]');
+function saveC(){localStorage.setItem('mf_contatos',JSON.stringify(window.CONTATOS));}
 
-    // Array de contatos salvos (fora do funil)
-    if (!window.CONTATOS) window.CONTATOS = JSON.parse(localStorage.getItem('mf_contatos') || '[]');
+window.adicionarContato=function(d){
+  var c={id:Date.now(),nome:d.nome||'',tel:d.tel||'',ig:d.ig||'',produto:d.produto||'',origem:d.origem||'Manual',obs:d.obs||'',criado:new Date().toISOString()};
+  window.CONTATOS.unshift(c);saveC();if(window._renderC)window._renderC();return c;
+};
 
-    function salvarContatos() {
-      localStorage.setItem('mf_contatos', JSON.stringify(window.CONTATOS));
-    }
+window.moverParaFunil=function(id){
+  var idx=window.CONTATOS.findIndex(function(c){return c.id===id;});
+  if(idx<0)return;
+  var c=window.CONTATOS[idx];
+  var l={id:Date.now(),nome:c.nome,tel:c.tel,ig:c.ig,produto:c.produto,origem:c.origem,etapa:'novo',valor:0,hora:new Date().toISOString(),tasks:[],notas:c.obs||''};
+  if(typeof LEADS!=='undefined'){LEADS.unshift(l);if(window.dbSalvarLead)window.dbSalvarLead(l);}
+  window.CONTATOS.splice(idx,1);saveC();
+  if(typeof renderKanban==='function')renderKanban();
+  if(window._renderC)window._renderC();
+};
 
-    // Adiciona contato à lista (SEM entrar no funil)
-    window.adicionarContato = function(dados) {
-      const contato = {
-        id: Date.now(),
-        nome: dados.nome || '',
-        tel: dados.tel || '',
-        ig: dados.ig || '',
-        produto: dados.produto || '',
-        origem: dados.origem || 'Manual',
-        obs: dados.obs || '',
-        criado: new Date().toISOString(),
-        historico: []
-      };
-      window.CONTATOS.unshift(contato);
-      salvarContatos();
-      renderContatos();
-      return contato;
-    };
+window.moverLeadParaContatos=function(id){
+  if(typeof LEADS==='undefined')return;
+  var idx=LEADS.findIndex(function(l){return l.id===id;});
+  if(idx<0)return;
+  var l=LEADS[idx];
+  window.CONTATOS.unshift({id:l.id,nome:l.nome,tel:l.tel,ig:l.ig,produto:l.produto,origem:l.origem,obs:l.notas||'',criado:l.hora});
+  saveC();LEADS.splice(idx,1);
+  if(window.dbDeletarLead)window.dbDeletarLead(l);
+  if(typeof renderKanban==='function')renderKanban();
+  if(window._renderC)window._renderC();
+};
 
-    // Move contato para o funil (quando inicia conversa ativa)
-    window.moverContatoParaFunil = function(contatoId) {
-      const idx = window.CONTATOS.findIndex(c => c.id === contatoId);
-      if (idx < 0) return;
-      const c = window.CONTATOS[idx];
-      // Cria lead no funil
-      const novoLead = {
-        id: Date.now(),
-        nome: c.nome, tel: c.tel, ig: c.ig,
-        produto: c.produto, origem: c.origem,
-        etapa: 'novo', valor: 0,
-        hora: new Date().toISOString(),
-        tasks: [], notas: c.obs || '',
-        _fromContato: contatoId
-      };
-      if (typeof LEADS !== 'undefined') {
-        LEADS.unshift(novoLead);
-        if (window.dbSalvarLead) window.dbSalvarLead(novoLead);
-      }
-      // Remove dos contatos
-      window.CONTATOS.splice(idx, 1);
-      salvarContatos();
-      if (typeof renderKanban === 'function') renderKanban();
-      if (typeof renderDash === 'function') renderDash();
-      renderContatos();
-      return novoLead;
-    };
+window._renderC=function(){
+  var el=document.getElementById('contatos-list');if(!el)return;
+  var lista=window.CONTATOS;
+  if(!lista||!lista.length){el.innerHTML='<div style="padding:32px 16px;text-align:center;color:var(--muted);font-size:13px">📋 Nenhum contato salvo.<br><small style="opacity:.6">Adicione contatos que ainda não iniciaram conversa.</small></div>';return;}
+  el.innerHTML=lista.map(function(c){
+    var ini=(c.nome||'?').split(' ').map(function(p){return p[0]||'';}).slice(0,2).join('').toUpperCase();
+    return '<div class="conv-item" style="cursor:default">'
+      +'<div class="conv-av" style="background:rgba(255,255,255,.06);color:var(--muted)">'+ini+'</div>'
+      +'<div class="conv-body"><div class="conv-name">'+c.nome+'</div>'
+      +'<div class="conv-preview">'+(c.tel||c.ig||'—')+(c.produto?' · '+c.produto:'')+'</div>'
+      +'<div style="display:flex;gap:6px;margin-top:5px">'
+      +'<button onclick="event.stopPropagation();moverParaFunil('+c.id+')" style="font-size:10px;padding:3px 10px;border-radius:6px;border:1px solid var(--accent);background:rgba(255,92,0,.08);color:var(--accent);cursor:pointer;font-family:var(--font)">→ Iniciar conversa</button>'
+      +'<button onclick="event.stopPropagation();window.CONTATOS=window.CONTATOS.filter(function(x){return x.id!=='+c.id+'});localStorage.setItem('mf_contatos',JSON.stringify(window.CONTATOS));window._renderC&&window._renderC()" style="font-size:10px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer">✕</button>'
+      +'</div></div></div>';
+  }).join('');
+};
 
-    // Move lead do funil de volta para Contatos (cadência sem retorno)
-    window.moverLeadParaContatos = function(leadId) {
-      if (typeof LEADS === 'undefined') return;
-      const idx = LEADS.findIndex(l => l.id === leadId);
-      if (idx < 0) return;
-      const l = LEADS[idx];
-      // Mantém histórico da conversa mas remove do funil
-      const contato = {
-        id: l.id,
-        nome: l.nome, tel: l.tel, ig: l.ig,
-        produto: l.produto, origem: l.origem,
-        obs: l.notas || '',
-        criado: l.hora,
-        saiu_funil: new Date().toISOString(),
-        historico: l.historico || []
-      };
-      window.CONTATOS.unshift(contato);
-      salvarContatos();
-      // Remove do funil
-      LEADS.splice(idx, 1);
-      if (window.dbDeletarLead) window.dbDeletarLead(l);
-      if (typeof renderKanban === 'function') renderKanban();
-      if (typeof renderDash === 'function') renderDash();
-      renderContatos();
-    };
+window._switchConvTab=function(tab,btn){
+  document.querySelectorAll('.conv-tab-btn').forEach(function(b){b.style.background='transparent';b.style.color='var(--muted)';b.style.border='1px solid var(--border)';});
+  if(btn){btn.style.background='var(--card)';btn.style.color='var(--text)';btn.style.border='none';}
+  var listEl=document.querySelector('.conv-list');
+  var cEl=document.getElementById('contatos-list');
+  if(tab==='contatos'){if(cEl)cEl.style.display='block';if(listEl)listEl.style.display='none';window._renderC();}
+  else{if(cEl)cEl.style.display='none';if(listEl)listEl.style.display='';if(typeof renderConvs==='function')renderConvs();}
+};
 
-    // ==============================
-    // RENDERIZAÇÃO DA LISTA DE CONTATOS
-    // ==============================
-    function renderContatos() {
-      const container = document.getElementById('contatos-list');
-      if (!container) return;
-      if (!window.CONTATOS || window.CONTATOS.length === 0) {
-        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Nenhum contato salvo.<br><small>Adicione contatos que ainda não estão em negociação ativa.</small></div>';
-        return;
-      }
-      container.innerHTML = window.CONTATOS.map(c => `
-        <div class="conv-item" style="border-left:2px solid var(--border)">
-          <div class="conv-av" style="background:var(--card2);color:var(--muted)">${(c.nome||'?').charAt(0).toUpperCase()}</div>
-          <div class="conv-body">
-            <div class="conv-name">${c.nome}</div>
-            <div class="conv-preview">${c.tel||c.ig||'Sem contato'} · ${c.produto||'Sem produto'}</div>
-            <div class="conv-meta">
-              <span class="conv-time" style="font-size:10px;color:var(--muted)">${c.origem||'Manual'}</span>
-              <div style="display:flex;gap:6px;margin-top:4px">
-                <button onclick="moverContatoParaFunil(${c.id})" style="font-size:10px;padding:3px 8px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer">→ Funil</button>
-                <button onclick="window.CONTATOS=window.CONTATOS.filter(x=>x.id!==${c.id});localStorage.setItem('mf_contatos',JSON.stringify(window.CONTATOS));renderContatos?renderContatos():null" style="font-size:10px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer">Remover</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      `).join('');
-    }
+function injetarAbasConv(){
+  if(document.getElementById('conv-tabs-bar'))return;
+  var sb=document.querySelector('.conv-sidebar');if(!sb)return;
+  var bar=document.createElement('div');
+  bar.id='conv-tabs-bar';
+  bar.style.cssText='display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none';
+  bar.innerHTML=[['contatos','📋 Contatos'],['todos','Todos'],['whatsapp','WhatsApp'],['instagram','Instagram']].map(function(it,i){
+    var a=i===1;
+    return '<button class="conv-tab-btn" onclick="_switchConvTab(''+it[0]+'',this)" style="white-space:nowrap;flex-shrink:0;padding:5px 11px;border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--font);'+(a?'background:var(--card);color:var(--text);border:none':'background:transparent;color:var(--muted);border:1px solid var(--border)')+'">'+it[1]+'</button>';
+  }).join('');
+  sb.insertBefore(bar,sb.firstChild);
+  if(!document.getElementById('contatos-list')){
+    var d=document.createElement('div');d.id='contatos-list';d.style.cssText='display:none;flex:1;overflow-y:auto';
+    var cl=sb.querySelector('.conv-list');
+    if(cl)sb.insertBefore(d,cl);else sb.appendChild(d);
+  }
+  window._renderC();
+}
 
-    // ==============================
-    // INJEÇÃO NA ABA CONVERSAS
-    // Adiciona filtro "Contatos" antes de "Todos"
-    // ==============================
-    function injetarFiltroContatos() {
-      // Busca a barra de filtros da aba conversas
-      const convSearch = document.querySelector('.conv-search');
-      if (!convSearch) return;
-
-      // Verifica se já injetou
-      if (document.getElementById('filtro-contatos')) return;
-
-      // Cria barra de filtros com Contatos + Todos + WhatsApp + Instagram
-      const filtroBar = document.createElement('div');
-      filtroBar.style.cssText = 'display:flex;gap:4px;padding:8px 12px;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0;scrollbar-width:none';
-      filtroBar.id = 'filtro-contatos-bar';
-      filtroBar.innerHTML = `
-        <button id="filtro-contatos" onclick="switchConvTab('contatos',this)" style="white-space:nowrap;flex-shrink:0;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;font-family:var(--font)">📋 Contatos</button>
-        <button id="filtro-todos" onclick="switchConvTab('todos',this)" style="white-space:nowrap;flex-shrink:0;padding:5px 12px;border-radius:6px;border:none;background:var(--card);color:var(--text);font-size:11px;cursor:pointer;font-family:var(--font)">Todos</button>
-        <button id="filtro-whatsapp" onclick="switchConvTab('whatsapp',this)" style="white-space:nowrap;flex-shrink:0;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;font-family:var(--font)">WhatsApp</button>
-        <button id="filtro-instagram" onclick="switchConvTab('instagram',this)" style="white-space:nowrap;flex-shrink:0;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;font-family:var(--font)">Instagram</button>
-      `;
-      convSearch.parentNode.insertBefore(filtroBar, convSearch);
-
-      // Container de contatos (oculto por padrão)
-      const contatosDiv = document.createElement('div');
-      contatosDiv.id = 'contatos-list';
-      contatosDiv.style.cssText = 'display:none;flex:1;overflow-y:auto';
-      const convList = document.querySelector('.conv-list');
-      if (convList) convList.parentNode.insertBefore(contatosDiv, convList);
-
-      renderContatos();
-    }
-
-    // Switch entre abas de conversas
-    window.switchConvTab = function(tab, btn) {
-      // Atualiza botões
-      document.querySelectorAll('#filtro-contatos-bar button').forEach(b => {
-        b.style.background = 'transparent';
-        b.style.color = 'var(--muted)';
-        b.style.border = '1px solid var(--border)';
-      });
-      if (btn) {
-        btn.style.background = 'var(--card)';
-        btn.style.color = 'var(--text)';
-        btn.style.border = 'none';
-      }
-
-      const contatosList = document.getElementById('contatos-list');
-      const convList = document.querySelector('.conv-list');
-
-      if (tab === 'contatos') {
-        if (contatosList) contatosList.style.display = 'block';
-        if (convList) convList.style.display = 'none';
-        renderContatos();
-      } else {
-        if (contatosList) contatosList.style.display = 'none';
-        if (convList) convList.style.display = '';
-        // Filtra por canal
-        if (typeof renderConvs === 'function') {
-          window._convFiltro = tab === 'todos' ? null : tab;
-          renderConvs();
-        }
-      }
-    };
-
-    // ==============================
-    // HOOK NO BOTÃO "+ NOVO LEAD"
-    // Muda comportamento: agora abre modal de contato
-    // (lead só entra no funil via conversa ativa)
-    // ==============================
-    function hookBotaoNovoLead() {
-      // Não alteramos o botão principal — o sistema atual de addLead continua
-      // mas adicionamos um botão "+ Contato" na aba de contatos
-    }
-
-    // ==============================
-    // CADÊNCIA DE RECUPERAÇÃO — AUTO-SAÍDA DO FUNIL
-    // Verifica leads com cadência encerrada sem resposta
-    // ==============================
-    window.verificarCadenciaRecuperacao = function() {
-      if (typeof LEADS === 'undefined') return;
-      const agora = Date.now();
-      LEADS.forEach(l => {
-        if (!l.recuperacao_ativa || !l.recuperacao_fim) return;
-        const fim = new Date(l.recuperacao_fim).getTime();
-        if (agora > fim && !l.respondeu) {
-          console.log('[Cadência] Lead sem retorno após cadência, saindo do funil:', l.nome);
-          window.moverLeadParaContatos(l.id);
-        }
-      });
-    };
-
-    // Verifica cadência a cada hora
-    setInterval(window.verificarCadenciaRecuperacao, 3600000);
-
-    // Injeta na aba de conversas quando ela for aberta
-    const origShowTab = window.showTab;
-    if (typeof origShowTab === 'function') {
-      window.showTab = function(tab) {
-        origShowTab.apply(this, arguments);
-        if (tab === 'conversas') {
-          setTimeout(injetarFiltroContatos, 300);
-        }
-      };
-    }
-
-    // Se já está na aba conversas, injeta agora
-    const convSection = document.getElementById('conversas');
-    if (convSection && convSection.style.display !== 'none') {
-      injetarFiltroContatos();
-    }
-
-    console.log('[Contatos] Sistema de contatos iniciado');
-
-  }, 2500);
+var obs=new MutationObserver(function(){
+  var conv=document.getElementById('conversas');
+  if(conv&&conv.style.display!=='none')injetarAbasConv();
 });
+document.addEventListener('DOMContentLoaded',function(){
+  setTimeout(function(){
+    document.body&&obs.observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});
+    var conv=document.getElementById('conversas');
+    if(conv&&conv.style.display!=='none')injetarAbasConv();
+  },2000);
+});
+
+// FIX 3: BOTÃO + NOVO LEAD → ABRE MODAL DE CONTATO
+function hookBotao(){
+  var btns=document.querySelectorAll('.topbar-right button');
+  btns.forEach(function(b){
+    if(b.textContent.includes('Novo Lead')||b.textContent.includes('Lead')){
+      b.innerHTML=b.innerHTML.replace(/Novo Lead|Lead/g,'Contato');
+      b.onclick=function(e){e.preventDefault();e.stopPropagation();abrirModalContato();};
+    }
+  });
+}
+
+window.abrirModalContato=function(){
+  var m=document.getElementById('modal-novo-contato');
+  if(m){m.style.display='flex';return;}
+  var ov=document.createElement('div');
+  ov.id='modal-novo-contato';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:500;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:28px 24px;width:400px;max-width:94vw;max-height:88vh;overflow-y:auto">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    +'<h3 style="font-family:var(--font);font-size:16px;font-weight:700;margin:0">Adicionar Contato</h3>'
+    +'<button onclick="document.getElementById('modal-novo-contato').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;line-height:1">×</button>'
+    +'</div>'
+    +'<p style="font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.5">O contato entra na lista de Contatos (Conversas → Contatos). Ele entra no funil apenas quando uma conversa ativa for iniciada.</p>'
+    +['nome|Nome completo *','tel|Telefone / WhatsApp','ig|@ Instagram','produto|Produto de interesse','origem|Origem','obs|Observações'].map(function(f){
+        var p=f.split('|');
+        return '<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px">'+p[1]+'</label>'
+          +'<input id="nc-'+p[0]+'" type="text" style="width:100%;background:var(--card);border:1px solid var(--border2);border-radius:var(--r);padding:10px 14px;font-size:14px;color:var(--text);box-sizing:border-box" placeholder=""></div>';
+      }).join('')
+    +'<button onclick="salvarNovoContato()" style="width:100%;margin-top:6px;padding:13px;border-radius:var(--r);background:var(--accent);color:#fff;border:none;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer">Salvar Contato</button>'
+    +'</div>';
+  document.body.appendChild(ov);
+};
+
+window.salvarNovoContato=function(){
+  var nome=(document.getElementById('nc-nome')?.value||'').trim();
+  if(!nome){typeof toast==='function'&&toast('⚠️ Digite o nome do contato.');return;}
+  window.adicionarContato({
+    nome:nome,
+    tel:(document.getElementById('nc-tel')?.value||'').trim(),
+    ig:(document.getElementById('nc-ig')?.value||'').trim(),
+    produto:(document.getElementById('nc-produto')?.value||'').trim(),
+    origem:(document.getElementById('nc-origem')?.value||'').trim()||'Manual',
+    obs:(document.getElementById('nc-obs')?.value||'').trim()
+  });
+  document.getElementById('modal-novo-contato').style.display='none';
+  ['nome','tel','ig','produto','origem','obs'].forEach(function(f){var e=document.getElementById('nc-'+f);if(e)e.value='';});
+  typeof toast==='function'&&toast('✅ Contato salvo! Acesse Conversas → Contatos.');
+};
+
+document.addEventListener('DOMContentLoaded',function(){setTimeout(hookBotao,2600);});
+})();
 </script>
 </body>
 </html>
