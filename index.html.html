@@ -4687,38 +4687,75 @@ window.addEventListener('DOMContentLoaded',function(){
 });
 </script>
 <script id="supa-sync">
-const _SB='https://udtoojqdjcbxnvevazum.supabase.co',_SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkdG9vanFkamNieG52ZXZhenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NjM3NzQsImV4cCI6MjA4OTUzOTc3NH0.-HENtNoiH3yiEMxWIZeVrcB20BOOzoTw6oJsuvanBtM';
-async function _supa(t,m='GET',b=null,q=''){const o={method:m,headers:{'apikey':_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':m==='POST'?'return=representation':''}};if(b)o.body=JSON.stringify(b);try{const r=await fetch(_SB+'/rest/v1/'+t+q,o);return r.ok?r.json():null;}catch(e){return null;}}
-async function dbSalvarLead(l){const row={cliente_subdominio:CLIENTE_SUBDOMINIO,nome:l.nome||'',telefone:l.tel||'',produto:l.produto||'',origem:l.origem||'Manual',etapa:l.etapa||'novo',valor:parseFloat(l.valor)||0,vendedor:l.vendedor||'',ig:l.ig||'',entrega:l.entrega||'',disc:l.disc||'',tasks:JSON.stringify(l.tasks||[]),notas:l.notas||''};if(l._dbId){await _supa('leads','PATCH',row,'?id=eq.'+l._dbId);}else{const res=await _supa('leads','POST',row);if(res&&res[0]){l._dbId=res[0].id;l.id=res[0].id;}}}
-async function dbCarregarLeads(){const rows=await _supa('leads','GET',null,'?cliente_subdominio=eq.'+CLIENTE_SUBDOMINIO+'&order=created_at.desc');if(!rows||!rows.length)return;LEADS=rows.map(r=>({_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa,valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at}));typeof renderKanban==='function'&&renderKanban();typeof renderConvs==='function'&&renderConvs();typeof renderDash==='function'&&renderDash();console.log('[DB] '+LEADS.length+' leads');}
-async function dbDeletarLead(l){if(l._dbId)await _supa('leads','DELETE',null,'?id=eq.'+l._dbId);}
-async function dbSalvarColab(c){const row={cliente_subdominio:CLIENTE_SUBDOMINIO,nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:c.online||false,perms:JSON.stringify(c.perms||{})};if(c._dbId){await _supa('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}else{const res=await _supa('colaboradores','POST',row);if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}}}
-async function dbCarregarColabs(){const rows=await _supa('colaboradores','GET',null,'?cliente_subdominio=eq.'+CLIENTE_SUBDOMINIO+'&ativo=eq.true');if(!rows||!rows.length)return;COLABORADORES=rows.map(r=>({_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')}));typeof renderColabTable==='function'&&renderColabTable();typeof renderRoleta==='function'&&renderRoleta();console.log('[DB] '+COLABORADORES.length+' colabs');}
-window.addEventListener('DOMContentLoaded',async function(){await new Promise(r=>setTimeout(r,1800));if(typeof CLIENTE_SUBDOMINIO==='undefined'||typeof API_KEY==='undefined'||!API_KEY)return;console.log('[DB] sincronizando: '+CLIENTE_SUBDOMINIO);await dbCarregarColabs();await dbCarregarLeads();});
-window.dbSalvarLead=dbSalvarLead;window.dbCarregarLeads=dbCarregarLeads;window.dbDeletarLead=dbDeletarLead;window.dbSalvarColab=dbSalvarColab;window.dbCarregarColabs=dbCarregarColabs;
-</script>
-<script id="supa-hooks">
-window.addEventListener('DOMContentLoaded',function(){
-  setTimeout(function(){
-    // Hook addLead para salvar no Supabase
-    if(typeof addLead==='function'){
-      const _origAddLead=addLead;
-      window.addLead=function(){
-        _origAddLead.apply(this,arguments);
-        const lead=LEADS[0];
-        if(lead&&window.dbSalvarLead)window.dbSalvarLead(lead);
-      };
-    }
-    // Hook salvarColab para salvar no Supabase
-    if(typeof salvarColab==='function'){
-      const _origSalvarColab=salvarColab;
-      window.salvarColab=function(){
-        _origSalvarColab.apply(this,arguments);
-        COLABORADORES.forEach(c=>{if(!c._dbId&&window.dbSalvarColab)window.dbSalvarColab(c);});
-      };
-    }
-  },2500);
+!function(){
+const _U='https://udtoojqdjcbxnvevazum.supabase.co';
+const _K='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkdG9vanFkamNieG52ZXZhenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NjM3NzQsImV4cCI6MjA4OTUzOTc3NH0.-HENtNoiH3yiEMxWIZeVrcB20BOOzoTw6oJsuvanBtM';
+const _h={'apikey':_K,'Authorization':'Bearer '+_K,'Content-Type':'application/json','Prefer':'return=representation'};
+
+async function _q(t,m,b,q){
+  try{const r=await fetch(_U+'/rest/v1/'+t+(q||''),{method:m||'GET',headers:{..._h,Prefer:m==='POST'?'return=representation':''},...(b?{body:JSON.stringify(b)}:{})});return r.ok?r.json():null;}catch(e){return null;}
+}
+
+function _sub(){return typeof CLIENTE_SUBDOMINIO!=='undefined'?CLIENTE_SUBDOMINIO:'master';}
+
+window.dbSalvarLead=async function(l){
+  const row={cliente_subdominio:_sub(),nome:l.nome||'',telefone:l.tel||l.telefone||'',produto:l.produto||'',origem:l.origem||'Manual',etapa:l.etapa||'novo',valor:parseFloat(l.valor)||0,vendedor:l.vendedor||'',ig:l.ig||'',entrega:l.entrega||'',disc:l.disc||'',tasks:JSON.stringify(l.tasks||[]),notas:l.notas||''};
+  if(l._dbId){await _q('leads','PATCH',row,'?id=eq.'+l._dbId);}
+  else{const res=await _q('leads','POST',row);if(res&&res[0]){l._dbId=res[0].id;l.id=res[0].id;console.log('[DB] Lead salvo:',l.nome,l._dbId);}}
+};
+
+window.dbDeletarLead=async function(l){if(l._dbId)await _q('leads','DELETE',null,'?id=eq.'+l._dbId);};
+
+window.dbCarregarLeads=async function(){
+  const rows=await _q('leads','GET',null,'?cliente_subdominio=eq.'+_sub()+'&order=created_at.desc');
+  if(!rows||!rows.length){console.log('[DB] Nenhum lead no banco');return;}
+  if(typeof LEADS!=='undefined'){LEADS=rows.map(r=>({_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa,valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at}));}
+  typeof renderKanban==='function'&&renderKanban();
+  typeof renderConvs==='function'&&renderConvs();
+  typeof renderDash==='function'&&renderDash();
+  console.log('[DB] '+rows.length+' leads carregados do Supabase');
+};
+
+window.dbSalvarColab=async function(c){
+  const row={cliente_subdominio:_sub(),nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:!!c.online,perms:JSON.stringify(c.perms||{})};
+  if(c._dbId){await _q('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}
+  else{const res=await _q('colaboradores','POST',row);if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;console.log('[DB] Colab salvo:',c.nome);}}
+};
+
+window.dbCarregarColabs=async function(){
+  const rows=await _q('colaboradores','GET',null,'?cliente_subdominio=eq.'+_sub()+'&ativo=eq.true');
+  if(!rows||!rows.length){console.log('[DB] Nenhum colaborador no banco');return;}
+  if(typeof COLABORADORES!=='undefined'){COLABORADORES=rows.map(r=>({_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')}));}
+  typeof renderColabTable==='function'&&renderColabTable();
+  typeof renderRoleta==='function'&&renderRoleta();
+  console.log('[DB] '+rows.length+' colaboradores carregados');
+};
+
+// Inicializa após o CRM carregar
+window.addEventListener('DOMContentLoaded',async function(){
+  await new Promise(r=>setTimeout(r,2000));
+  if(typeof API_KEY==='undefined'||!API_KEY)return;
+  console.log('[DB] Iniciando sync Supabase para: '+_sub());
+  await window.dbCarregarColabs();
+  await window.dbCarregarLeads();
+  // Hook addLead
+  if(typeof addLead==='function'){
+    const _orig=window.addLead;
+    window.addLead=function(){
+      _orig.apply(this,arguments);
+      setTimeout(()=>{const l=LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},100);
+    };
+  }
+  // Hook salvarColab
+  if(typeof salvarColab==='function'){
+    const _orig2=window.salvarColab;
+    window.salvarColab=function(){
+      _orig2.apply(this,arguments);
+      setTimeout(()=>{COLABORADORES.filter(c=>!c._dbId).forEach(c=>window.dbSalvarColab(c));},100);
+    };
+  }
 });
+}();
 </script>
 </body>
 </html>
