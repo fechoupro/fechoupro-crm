@@ -4686,164 +4686,216 @@ window.addEventListener('DOMContentLoaded',function(){
   }catch(e){console.warn('Init error:',e);}
 });
 </script>
-<script id="fixes-v1">
-(function(){
-// FIX 1: MEMÓRIA DE ABA
-var _tabHooked=false;
-function hookTab(){
-  if(_tabHooked||typeof window.goView!=='function')return;
-  _tabHooked=true;
-  var orig=window.goView;
-  window.goView=function(tab){
-    if(tab)localStorage.setItem('mf_last_tab',tab);
-    return orig.apply(this,arguments);
-  };
-  var last=localStorage.getItem('mf_last_tab');
-  if(last&&last!=='dashboard'){setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},2800);}
+<script id="fp-fixes">
+// === CONTATOS: escopo global imediato ===
+window.CONTATOS = window.CONTATOS || JSON.parse(localStorage.getItem('mf_contatos') || '[]');
+
+function _saveContatos() { localStorage.setItem('mf_contatos', JSON.stringify(window.CONTATOS)); }
+
+function adicionarContato(d) {
+  var c = { id: Date.now(), nome: d.nome||'', tel: d.tel||'', ig: d.ig||'', produto: d.produto||'', origem: d.origem||'Manual', obs: d.obs||'', criado: new Date().toISOString() };
+  window.CONTATOS.unshift(c); _saveContatos();
+  if (typeof _renderContatos === 'function') _renderContatos();
+  return c;
 }
-hookTab();
-document.addEventListener('DOMContentLoaded',function(){setTimeout(hookTab,600);});
+window.adicionarContato = adicionarContato;
 
-// FIX 2: SISTEMA DE CONTATOS
-if(!window.CONTATOS)window.CONTATOS=JSON.parse(localStorage.getItem('mf_contatos')||'[]');
-function saveC(){localStorage.setItem('mf_contatos',JSON.stringify(window.CONTATOS));}
+function moverParaFunil(id) {
+  var idx = window.CONTATOS.findIndex(function(c){return c.id===id;});
+  if (idx < 0) return;
+  var c = window.CONTATOS[idx];
+  var l = { id: Date.now(), nome: c.nome, tel: c.tel, ig: c.ig, produto: c.produto, origem: c.origem, etapa: 'novo', valor: 0, hora: new Date().toISOString(), tasks: [], notas: c.obs||'' };
+  if (typeof LEADS !== 'undefined') { LEADS.unshift(l); if (window.dbSalvarLead) window.dbSalvarLead(l); }
+  window.CONTATOS.splice(idx, 1); _saveContatos();
+  if (typeof renderKanban === 'function') renderKanban();
+  if (typeof renderDash === 'function') renderDash();
+  if (typeof _renderContatos === 'function') _renderContatos();
+}
+window.moverParaFunil = moverParaFunil;
 
-window.adicionarContato=function(d){
-  var c={id:Date.now(),nome:d.nome||'',tel:d.tel||'',ig:d.ig||'',produto:d.produto||'',origem:d.origem||'Manual',obs:d.obs||'',criado:new Date().toISOString()};
-  window.CONTATOS.unshift(c);saveC();if(window._renderC)window._renderC();return c;
-};
+function moverLeadParaContatos(id) {
+  if (typeof LEADS === 'undefined') return;
+  var idx = LEADS.findIndex(function(l){return l.id===id;});
+  if (idx < 0) return;
+  var l = LEADS[idx];
+  window.CONTATOS.unshift({ id: l.id, nome: l.nome, tel: l.tel, ig: l.ig, produto: l.produto, origem: l.origem, obs: l.notas||'', criado: l.hora });
+  _saveContatos(); LEADS.splice(idx, 1);
+  if (window.dbDeletarLead) window.dbDeletarLead(l);
+  if (typeof renderKanban === 'function') renderKanban();
+  if (typeof _renderContatos === 'function') _renderContatos();
+}
+window.moverLeadParaContatos = moverLeadParaContatos;
 
-window.moverParaFunil=function(id){
-  var idx=window.CONTATOS.findIndex(function(c){return c.id===id;});
-  if(idx<0)return;
-  var c=window.CONTATOS[idx];
-  var l={id:Date.now(),nome:c.nome,tel:c.tel,ig:c.ig,produto:c.produto,origem:c.origem,etapa:'novo',valor:0,hora:new Date().toISOString(),tasks:[],notas:c.obs||''};
-  if(typeof LEADS!=='undefined'){LEADS.unshift(l);if(window.dbSalvarLead)window.dbSalvarLead(l);}
-  window.CONTATOS.splice(idx,1);saveC();
-  if(typeof renderKanban==='function')renderKanban();
-  if(window._renderC)window._renderC();
-};
-
-window.moverLeadParaContatos=function(id){
-  if(typeof LEADS==='undefined')return;
-  var idx=LEADS.findIndex(function(l){return l.id===id;});
-  if(idx<0)return;
-  var l=LEADS[idx];
-  window.CONTATOS.unshift({id:l.id,nome:l.nome,tel:l.tel,ig:l.ig,produto:l.produto,origem:l.origem,obs:l.notas||'',criado:l.hora});
-  saveC();LEADS.splice(idx,1);
-  if(window.dbDeletarLead)window.dbDeletarLead(l);
-  if(typeof renderKanban==='function')renderKanban();
-  if(window._renderC)window._renderC();
-};
-
-window._renderC=function(){
-  var el=document.getElementById('contatos-list');if(!el)return;
-  var lista=window.CONTATOS;
-  if(!lista||!lista.length){el.innerHTML='<div style="padding:32px 16px;text-align:center;color:var(--muted);font-size:13px">📋 Nenhum contato salvo.<br><small style="opacity:.6">Adicione contatos que ainda não iniciaram conversa.</small></div>';return;}
-  el.innerHTML=lista.map(function(c){
-    var ini=(c.nome||'?').split(' ').map(function(p){return p[0]||'';}).slice(0,2).join('').toUpperCase();
-    return '<div class="conv-item" style="cursor:default">'
-      +'<div class="conv-av" style="background:rgba(255,255,255,.06);color:var(--muted)">'+ini+'</div>'
-      +'<div class="conv-body"><div class="conv-name">'+c.nome+'</div>'
-      +'<div class="conv-preview">'+(c.tel||c.ig||'—')+(c.produto?' · '+c.produto:'')+'</div>'
-      +'<div style="display:flex;gap:6px;margin-top:5px">'
-      +'<button onclick="event.stopPropagation();moverParaFunil('+c.id+')" style="font-size:10px;padding:3px 10px;border-radius:6px;border:1px solid var(--accent);background:rgba(255,92,0,.08);color:var(--accent);cursor:pointer;font-family:var(--font)">→ Iniciar conversa</button>'
-      +'<button onclick="event.stopPropagation();window.CONTATOS=window.CONTATOS.filter(function(x){return x.id!=='+c.id+'});localStorage.setItem('mf_contatos',JSON.stringify(window.CONTATOS));window._renderC&&window._renderC()" style="font-size:10px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer">✕</button>'
-      +'</div></div></div>';
-  }).join('');
-};
-
-window._switchConvTab=function(tab,btn){
-  document.querySelectorAll('.conv-tab-btn').forEach(function(b){b.style.background='transparent';b.style.color='var(--muted)';b.style.border='1px solid var(--border)';});
-  if(btn){btn.style.background='var(--card)';btn.style.color='var(--text)';btn.style.border='none';}
-  var listEl=document.querySelector('.conv-list');
-  var cEl=document.getElementById('contatos-list');
-  if(tab==='contatos'){if(cEl)cEl.style.display='block';if(listEl)listEl.style.display='none';window._renderC();}
-  else{if(cEl)cEl.style.display='none';if(listEl)listEl.style.display='';if(typeof renderConvs==='function')renderConvs();}
-};
-
-function injetarAbasConv(){
-  if(document.getElementById('conv-tabs-bar'))return;
-  var sb=document.querySelector('.conv-sidebar');if(!sb)return;
-  var bar=document.createElement('div');
-  bar.id='conv-tabs-bar';
-  bar.style.cssText='display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none';
-  bar.innerHTML=[['contatos','📋 Contatos'],['todos','Todos'],['whatsapp','WhatsApp'],['instagram','Instagram']].map(function(it,i){
-    var a=i===1;
-    return '<button class="conv-tab-btn" onclick="_switchConvTab(''+it[0]+'',this)" style="white-space:nowrap;flex-shrink:0;padding:5px 11px;border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--font);'+(a?'background:var(--card);color:var(--text);border:none':'background:transparent;color:var(--muted);border:1px solid var(--border)')+'">'+it[1]+'</button>';
-  }).join('');
-  sb.insertBefore(bar,sb.firstChild);
-  if(!document.getElementById('contatos-list')){
-    var d=document.createElement('div');d.id='contatos-list';d.style.cssText='display:none;flex:1;overflow-y:auto';
-    var cl=sb.querySelector('.conv-list');
-    if(cl)sb.insertBefore(d,cl);else sb.appendChild(d);
+function _renderContatos() {
+  var el = document.getElementById('fp-contatos-list');
+  if (!el) return;
+  if (!window.CONTATOS.length) {
+    el.innerHTML = '<div style="padding:32px 16px;text-align:center;color:var(--muted);font-size:13px">📋 Nenhum contato salvo.<br><small style="opacity:.6;margin-top:6px;display:block">Contatos aguardam uma conversa ativa para entrar no funil.</small></div>';
+    return;
   }
-  window._renderC();
+  el.innerHTML = window.CONTATOS.map(function(c) {
+    var ini = (c.nome||'?').split(' ').map(function(p){return p[0]||'';}).slice(0,2).join('').toUpperCase();
+    return '<div class="conv-item" style="cursor:default">'
+      + '<div class="conv-av" style="background:rgba(255,255,255,.07);color:var(--muted)">' + ini + '</div>'
+      + '<div class="conv-body"><div class="conv-name">' + c.nome + '</div>'
+      + '<div class="conv-preview">' + (c.tel || c.ig || '—') + (c.produto ? ' · ' + c.produto : '') + '</div>'
+      + '<div style="display:flex;gap:6px;margin-top:6px">'
+      + '<button onclick="event.stopPropagation();moverParaFunil(' + c.id + ')" style="font-size:10px;padding:3px 10px;border-radius:6px;border:1px solid var(--accent);background:rgba(255,92,0,.08);color:var(--accent);cursor:pointer;font-family:var(--font)">→ Iniciar conversa</button>'
+      + '<button onclick="event.stopPropagation();window.CONTATOS=window.CONTATOS.filter(function(x){return x.id!==' + c.id + '});_saveContatos&&_saveContatos();_renderContatos&&_renderContatos()" style="font-size:10px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer">✕</button>'
+      + '</div></div></div>';
+  }).join('');
 }
+window._renderContatos = _renderContatos;
+window._saveContatos = _saveContatos;
 
-var obs=new MutationObserver(function(){
-  var conv=document.getElementById('conversas');
-  if(conv&&conv.style.display!=='none')injetarAbasConv();
-});
-document.addEventListener('DOMContentLoaded',function(){
-  setTimeout(function(){
-    document.body&&obs.observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});
-    var conv=document.getElementById('conversas');
-    if(conv&&conv.style.display!=='none')injetarAbasConv();
-  },2000);
+function _switchConvTab(tab, btn) {
+  document.querySelectorAll('.fp-conv-tab').forEach(function(b) {
+    b.style.background = 'transparent'; b.style.color = 'var(--muted)'; b.style.border = '1px solid var(--border)';
+  });
+  if (btn) { btn.style.background = 'var(--card)'; btn.style.color = 'var(--text)'; btn.style.border = 'none'; }
+  var listEl = document.querySelector('.conv-list');
+  var cEl = document.getElementById('fp-contatos-list');
+  if (tab === 'contatos') {
+    if (cEl) cEl.style.display = 'block';
+    if (listEl) listEl.style.display = 'none';
+    _renderContatos();
+  } else {
+    if (cEl) cEl.style.display = 'none';
+    if (listEl) listEl.style.display = '';
+    if (typeof renderConvs === 'function') renderConvs();
+  }
+}
+window._switchConvTab = _switchConvTab;
+
+function _injetarAbasConv() {
+  if (document.getElementById('fp-conv-tabs')) return;
+  var sb = document.querySelector('.conv-sidebar');
+  if (!sb) return;
+  var bar = document.createElement('div');
+  bar.id = 'fp-conv-tabs';
+  bar.style.cssText = 'display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none';
+  var tabs = [['contatos','📋 Contatos'],['todos','Todos'],['whatsapp','WhatsApp'],['instagram','Instagram']];
+  bar.innerHTML = tabs.map(function(t, i) {
+    var active = i === 1;
+    return '<button class="fp-conv-tab" onclick="_switchConvTab('' + t[0] + '',this)" style="white-space:nowrap;flex-shrink:0;padding:5px 11px;border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--font);transition:all .15s;'
+      + (active ? 'background:var(--card);color:var(--text);border:none' : 'background:transparent;color:var(--muted);border:1px solid var(--border)')
+      + '">' + t[1] + '</button>';
+  }).join('');
+  sb.insertBefore(bar, sb.firstChild);
+  var cd = document.createElement('div');
+  cd.id = 'fp-contatos-list';
+  cd.style.cssText = 'display:none;flex:1;overflow-y:auto';
+  var cl = sb.querySelector('.conv-list');
+  if (cl) sb.insertBefore(cd, cl); else sb.appendChild(cd);
+  _renderContatos();
+}
+window._injetarAbasConv = _injetarAbasConv;
+
+// === MODAL ADICIONAR CONTATO ===
+function abrirModalContato() {
+  var m = document.getElementById('fp-modal-contato');
+  if (m) { m.style.display = 'flex'; return; }
+  var ov = document.createElement('div');
+  ov.id = 'fp-modal-contato';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:500;display:flex;align-items:center;justify-content:center';
+  var campos = [['nome','Nome completo *','text'],['tel','Telefone / WhatsApp','tel'],['ig','@ Instagram','text'],['produto','Produto de interesse','text'],['origem','Origem','text'],['obs','Observações','text']];
+  ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:28px 24px;width:400px;max-width:94vw;max-height:88vh;overflow-y:auto">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    + '<h3 style="font-family:var(--font);font-size:16px;font-weight:700;margin:0">Adicionar Contato</h3>'
+    + '<button onclick="document.getElementById('fp-modal-contato').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;line-height:1">×</button></div>'
+    + '<p style="font-size:12px;color:var(--muted);margin:0 0 18px;line-height:1.6">O contato vai para a lista <b>Conversas → Contatos</b>. Só entra no funil quando uma conversa ativa for iniciada.</p>'
+    + campos.map(function(f) {
+        return '<div style="margin-bottom:12px">'
+          + '<label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px">' + f[1] + '</label>'
+          + '<input id="fpc-' + f[0] + '" type="' + f[2] + '" style="width:100%;background:var(--card);border:1px solid var(--border2);border-radius:var(--r);padding:10px 14px;font-size:14px;color:var(--text);box-sizing:border-box;outline:none" placeholder=""></div>';
+      }).join('')
+    + '<button onclick="_salvarContato()" style="width:100%;margin-top:6px;padding:13px;border-radius:var(--r);background:var(--accent);color:#fff;border:none;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer">Salvar Contato</button></div>';
+  document.body.appendChild(ov);
+}
+window.abrirModalContato = abrirModalContato;
+
+function _salvarContato() {
+  var nome = (document.getElementById('fpc-nome') ? document.getElementById('fpc-nome').value : '').trim();
+  if (!nome) { if (typeof toast === 'function') toast('⚠️ Digite o nome do contato.'); return; }
+  adicionarContato({
+    nome: nome,
+    tel: (document.getElementById('fpc-tel') ? document.getElementById('fpc-tel').value : '').trim(),
+    ig: (document.getElementById('fpc-ig') ? document.getElementById('fpc-ig').value : '').trim(),
+    produto: (document.getElementById('fpc-produto') ? document.getElementById('fpc-produto').value : '').trim(),
+    origem: (document.getElementById('fpc-origem') ? document.getElementById('fpc-origem').value : '').trim() || 'Manual',
+    obs: (document.getElementById('fpc-obs') ? document.getElementById('fpc-obs').value : '').trim()
+  });
+  document.getElementById('fp-modal-contato').style.display = 'none';
+  ['nome','tel','ig','produto','origem','obs'].forEach(function(f) {
+    var e = document.getElementById('fpc-' + f); if (e) e.value = '';
+  });
+  if (typeof toast === 'function') toast('✅ Contato salvo! Acesse Conversas → Contatos.');
+}
+window._salvarContato = _salvarContato;
+
+// === OBSERVER: injeta abas quando Conversas abrir ===
+var _convObserver = new MutationObserver(function() {
+  var conv = document.getElementById('conversas');
+  if (conv && conv.style.display !== 'none') {
+    setTimeout(_injetarAbasConv, 100);
+  }
 });
 
-// FIX 3: BOTÃO + NOVO LEAD → ABRE MODAL DE CONTATO
-function hookBotao(){
-  var btns=document.querySelectorAll('.topbar-right button');
-  btns.forEach(function(b){
-    if(b.textContent.includes('Novo Lead')||b.textContent.includes('Lead')){
-      b.innerHTML=b.innerHTML.replace(/Novo Lead|Lead/g,'Contato');
-      b.onclick=function(e){e.preventDefault();e.stopPropagation();abrirModalContato();};
+// === HOOK goView: memória de aba + injeção de abas ===
+var _goViewHooked = false;
+function _hookGoView() {
+  if (_goViewHooked) return;
+  if (typeof window.goView !== 'function') return;
+  _goViewHooked = true;
+  var _origGoView = window.goView;
+  window.goView = function(id, btn) {
+    // Salva aba atual
+    if (id) localStorage.setItem('mf_last_tab', id);
+    var result = _origGoView.apply(this, arguments);
+    // Injeta abas de conversas se necessário
+    if (id === 'conversas') setTimeout(_injetarAbasConv, 200);
+    return result;
+  };
+  // Hooka o botão + Novo Lead para abrir Contatos
+  var topBtns = document.querySelectorAll('.topbar-right button, .topbar button');
+  topBtns.forEach(function(b) {
+    if (b.textContent && (b.textContent.indexOf('Novo Lead') >= 0 || b.textContent.indexOf('Lead') >= 0)) {
+      b.innerHTML = b.innerHTML.replace('Novo Lead', '+ Contato').replace(/+s*Lead/, '+ Contato');
+      var oldClick = b.onclick;
+      b.onclick = function(e) { e.preventDefault(); e.stopPropagation(); abrirModalContato(); };
     }
   });
+  console.log('[FP] goView hooked, botão atualizado');
 }
 
-window.abrirModalContato=function(){
-  var m=document.getElementById('modal-novo-contato');
-  if(m){m.style.display='flex';return;}
-  var ov=document.createElement('div');
-  ov.id='modal-novo-contato';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:500;display:flex;align-items:center;justify-content:center';
-  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:28px 24px;width:400px;max-width:94vw;max-height:88vh;overflow-y:auto">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
-    +'<h3 style="font-family:var(--font);font-size:16px;font-weight:700;margin:0">Adicionar Contato</h3>'
-    +'<button onclick="document.getElementById('modal-novo-contato').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;line-height:1">×</button>'
-    +'</div>'
-    +'<p style="font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.5">O contato entra na lista de Contatos (Conversas → Contatos). Ele entra no funil apenas quando uma conversa ativa for iniciada.</p>'
-    +['nome|Nome completo *','tel|Telefone / WhatsApp','ig|@ Instagram','produto|Produto de interesse','origem|Origem','obs|Observações'].map(function(f){
-        var p=f.split('|');
-        return '<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px">'+p[1]+'</label>'
-          +'<input id="nc-'+p[0]+'" type="text" style="width:100%;background:var(--card);border:1px solid var(--border2);border-radius:var(--r);padding:10px 14px;font-size:14px;color:var(--text);box-sizing:border-box" placeholder=""></div>';
-      }).join('')
-    +'<button onclick="salvarNovoContato()" style="width:100%;margin-top:6px;padding:13px;border-radius:var(--r);background:var(--accent);color:#fff;border:none;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer">Salvar Contato</button>'
-    +'</div>';
-  document.body.appendChild(ov);
-};
+// === RESTAURA ABA APÓS RELOAD ===
+function _restaurarAba() {
+  var last = localStorage.getItem('mf_last_tab');
+  if (last && last !== 'dashboard' && typeof window.goView === 'function') {
+    window.goView(last);
+    if (last === 'conversas') setTimeout(_injetarAbasConv, 400);
+  }
+}
 
-window.salvarNovoContato=function(){
-  var nome=(document.getElementById('nc-nome')?.value||'').trim();
-  if(!nome){typeof toast==='function'&&toast('⚠️ Digite o nome do contato.');return;}
-  window.adicionarContato({
-    nome:nome,
-    tel:(document.getElementById('nc-tel')?.value||'').trim(),
-    ig:(document.getElementById('nc-ig')?.value||'').trim(),
-    produto:(document.getElementById('nc-produto')?.value||'').trim(),
-    origem:(document.getElementById('nc-origem')?.value||'').trim()||'Manual',
-    obs:(document.getElementById('nc-obs')?.value||'').trim()
-  });
-  document.getElementById('modal-novo-contato').style.display='none';
-  ['nome','tel','ig','produto','origem','obs'].forEach(function(f){var e=document.getElementById('nc-'+f);if(e)e.value='';});
-  typeof toast==='function'&&toast('✅ Contato salvo! Acesse Conversas → Contatos.');
-};
-
-document.addEventListener('DOMContentLoaded',function(){setTimeout(hookBotao,2600);});
-})();
+// === INICIALIZAÇÃO ===
+// Tenta hookar imediatamente (se goView já existe)
+_hookGoView();
+// Garante hook após launchApp rodar
+var _initInterval = setInterval(function() {
+  if (typeof window.goView === 'function') {
+    _hookGoView();
+    // Inicia observer
+    if (document.body) {
+      _convObserver.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['style'] });
+    }
+    // Restaura aba após 2s (dá tempo do CRM inicializar)
+    setTimeout(_restaurarAba, 2000);
+    // Verifica se já está na aba conversas
+    var conv = document.getElementById('conversas');
+    if (conv && conv.style.display !== 'none') _injetarAbasConv();
+    clearInterval(_initInterval);
+  }
+}, 300);
 </script>
 </body>
 </html>
