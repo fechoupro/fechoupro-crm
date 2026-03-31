@@ -4702,6 +4702,15 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 
 // INIT
 window.addEventListener('DOMContentLoaded',function(){
+  // Fecha conversa aberta ao trocar de aba
+  document.addEventListener('click',function(e){
+    if(e.target.classList.contains('conv-filter-btn')){
+      var d=document.getElementById('conv-detail');
+      if(d)d.style.display='none';
+      var fp=document.getElementById('fp-cl');
+      if(fp)fp.style.display='none';
+    }
+  });
   try{
     var saved=localStorage.getItem('mf_api_key');
     if(saved){API_KEY=saved;AI_MODE=true;launchApp();}
