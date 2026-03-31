@@ -761,7 +761,15 @@ window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq
 window.dbSalvarColab=function(c){var row={cliente_subdominio:_gs(),nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(function(p){return p[0];}).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:!!c.online,perms:JSON.stringify(c.perms||{})};if(c._dbId){_rq('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}else{_rq('colaboradores','POST',row).then(function(res){if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}});}};
 window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&ativo=eq.true').then(function(rows){if(!rows||!rows.length)return;window.COLABORADORES=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')};});if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();});};
 var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();setTimeout(window.dbCarregarLeads,600);var convEl=document.getElementById('conversas');if(convEl&&convEl.style.display!=='none')window._injetarAbasConv();console.log('[FP] OK. Contatos:'+window.CONTATOS.length);}},300);</script>
-</head>
+<style id="fp-scroll">
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+*::-webkit-scrollbar{width:6px;height:6px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px}
+*::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.35)}
+body,html{overflow:auto!important}
+.conv-list,.leads-col,.tab-content,[class*="scroll"]{overflow:auto!important}
+</style></head>
 <body>
 
 <!-- SETUP -->
@@ -2388,27 +2396,7 @@ function renderConvs(filter=''){
   const list=document.getElementById('conv-list');
   if(!list)return;
   const filtered=LEADS.filter(l=>!filter||l.nome.toLowerCase().includes(filter.toLowerCase())||l.canal&&l.canal.toLowerCase().includes(filter.toLowerCase()));
-  list.innerHTML=`<div style="padding:8px 12px 4px;display:flex;gap:6px;border-bottom:1px solid var(--border);">
-    <button class="conv-filter-btn active" onclick="filterConvsChannel('todos',this)" style="font-size:10px;padding:3px 9px;border-radius:20px;border:1px solid var(--border2);background:rgba(255,255,255,.07);color:var(--text);cursor:pointer;font-family:var(--font);font-weight:700;">Todos</button>
-    <button class="conv-filter-btn" onclick="filterConvsChannel('wpp',this)" style="font-size:10px;padding:3px 9px;border-radius:20px;border:1px solid rgba(0,229,160,.25);background:rgba(0,229,160,.08);color:#00E5A0;cursor:pointer;font-family:var(--font);font-weight:700;">💬 WhatsApp</button>
-    <button class="conv-filter-btn" onclick="filterConvsChannel('ig',this)" style="font-size:10px;padding:3px 9px;border-radius:20px;border:1px solid rgba(225,48,108,.25);background:rgba(225,48,108,.08);color:#E1306C;cursor:pointer;font-family:var(--font);font-weight:700;">📷 Instagram</button>
-  </div>`+filtered.map(l=>{
-    const last=l.msgs[l.msgs.length-1];
-    const unread=l.msgs.filter(m=>m.tipo==='recv').length;
-    const canal=l.canal||'wpp';
-    const canalBadge=canal==='ig'?'<span class="ch-badge ch-ig">📷 Instagram</span>':'<span class="ch-badge ch-wpp">💬 WhatsApp</span>';
-    return`<div class="conv-item ${currentConv&&currentConv.id===l.id?'active':''}" onclick="openConv(${l.id})" data-canal="${canal}">
-      <div class="conv-av" style="${canal==='ig'?'background:linear-gradient(135deg,#E1306C,#833AB4);':''}">${ini(l.nome)}${l.etapa==='atendimento'?'<div class="conv-online"></div>':''}</div>
-      <div class="conv-body">
-        <div class="conv-name">${l.nome}</div>
-        <div class="conv-preview">${last?last.txt.substring(0,48)+(last.txt.length>48?'...':''):'Sem mensagens'}</div>
-        <div style="display:flex;gap:5px;margin-top:3px;align-items:center;">${canalBadge}<span class="src-tag ${srcClass(l.origem)}">${l.origem.split(' ')[0]}</span></div>
-      </div>
-      <div class="conv-meta">
-        <div class="conv-time">${l.tempo}</div>
-        ${unread>0?`<div class="conv-badge">${unread}</div>`:''}
-      </div>
-    </div>`;
+  
   }).join('');
 }
 let convChannelFilter='todos';
