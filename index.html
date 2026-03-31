@@ -2414,7 +2414,8 @@ function filterConvsChannel(ch,btn){
   var fpCl=document.getElementById('fp-cl');if(fpCl)fpCl.style.display='none';
   document.querySelectorAll('.conv-filter-btn').forEach(b=>{b.style.opacity=b===btn?'1':'0.5';});
   document.querySelectorAll('.conv-item').forEach(item=>{
-    item.style.display=(ch==='todos'||(ch==='wpp'&&(item.dataset.canal||'').includes('wpp'))||(ch==='ig'&&(item.dataset.canal||'').includes('ig')))?'flex':'none';
+    var canal=item.dataset.canal||'';
+    item.style.display=(ch==='todos'||canal===ch)?'flex':'none';
   });
 }
 function filterConvs(v){renderConvs(v);}
