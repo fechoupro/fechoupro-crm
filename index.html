@@ -2388,11 +2388,7 @@ function renderConvs(filter=''){
   const list=document.getElementById('conv-list');
   if(!list)return;
   const filtered=LEADS.filter(l=>!filter||l.nome.toLowerCase().includes(filter.toLowerCase())||l.canal&&l.canal.toLowerCase().includes(filter.toLowerCase()));
-  list.innerHTML=`<div style="padding:8px 12px 4px;display:flex;gap:6px;border-bottom:1px solid var(--border);">
-    <button class="conv-filter-btn active" onclick="filterConvsChannel('todos',this)" style="font-size:10px;padding:3px 9px;border-radius:20px;border:1px solid var(--border2);background:rgba(255,255,255,.07);color:var(--text);cursor:pointer;font-family:var(--font);font-weight:700;">Todos</button>
-    <button class="conv-filter-btn" onclick="filterConvsChannel('wpp',this)" style="font-size:10px;padding:3px 9px;border-radius:20px;border:1px solid rgba(0,229,160,.25);background:rgba(0,229,160,.08);color:#00E5A0;cursor:pointer;font-family:var(--font);font-weight:700;">💬 WhatsApp</button>
-    <button class="conv-filter-btn" onclick="filterConvsChannel('ig',this)" style="font-size:10px;padding:3px 9px;border-radius:20px;border:1px solid rgba(225,48,108,.25);background:rgba(225,48,108,.08);color:#E1306C;cursor:pointer;font-family:var(--font);font-weight:700;">📷 Instagram</button>
-  </div>`+filtered.map(l=>{
+  list.innerHTML=``+filtered.map(l=>{
     const last=l.msgs[l.msgs.length-1];
     const unread=l.msgs.filter(m=>m.tipo==='recv').length;
     const canal=l.canal||'wpp';
