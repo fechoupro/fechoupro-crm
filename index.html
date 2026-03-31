@@ -723,7 +723,7 @@ body.font-serif{--font:'Georgia',serif;}
 <!-- SUPABASE -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  const { createClient } = supabase;
+  var _createClient_sb = supabase;
   const db = createClient(
     'https://udtoojqdjcbxnvevazum.supabase.co',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkdG9vanFkamNieG52ZXZhenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NjM3NzQsImV4cCI6MjA4OTUzOTc3NH0.-HENtNoiH3yiEMxWIZeVrcB20BOOzoTw6oJsuvanBtM'
@@ -2144,7 +2144,7 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
 // ═══════════════════ DADOS ═══════════════════
 var API_KEY='',AI_MODE=false,currentLead=null,trainSession=null,currentConv=null,roletaIdx=0;
 
-const LEADS=[
+var LEADS =[
   {id:1,nome:'Lucas Mendes',tel:'(91)99201-1234',origem:'Meta Ads',vendedor:'Agente IA',produto:'Whey Protein Gold + Creatina',entrega:'Delivery',ig:'@lucas.mendes.fit',etapa:'novo',disc:'D',valor:310,tempo:'5min',tasks:[],msgs:[{tipo:'recv',txt:'Oi! Vi o anúncio de vocês do Whey Gold. Quanto tá?',hora:'14:00'},{tipo:'agent',txt:'Olá Lucas! Sou a assistente da Millennium Fitness 💪 O Whey Gold está R$189,90 e Creatina R$89,90. Quer montar um combo?',hora:'14:00'},{tipo:'recv',txt:'Sim! Tem desconto no combo?',hora:'14:02'}]},
   {id:2,nome:'Fernanda Silva',tel:'(91)98812-5678',origem:'WhatsApp direto',vendedor:'Marina R.',produto:'Conjunto fitness feminino',entrega:'Delivery',ig:'@fernanda.fitness',etapa:'novo',disc:'I',valor:280,tempo:'12min',tasks:[],msgs:[{tipo:'recv',txt:'Oii! Vi vocês no Instagram. Tem conjuntos fitness?',hora:'13:45'},{tipo:'sent',txt:'Oi Fernanda! Temos sim! Legging + Top em várias cores.',hora:'13:46'}]},
   {id:3,nome:'Rafael Torres',tel:'(91)99945-4321',origem:'Google Ads',vendedor:'Carlos A.',produto:'Pré-treino C4 + Mizuno Wave Rider 26',entrega:'Delivery',ig:'@rafael.torres.fit',etapa:'atendimento',disc:'C',valor:580,tempo:'23min',tasks:[{id:1,desc:'Enviar tabela comparativa Mizuno',data:'18/03/2026',hora:'10:00',done:false}],msgs:[{tipo:'recv',txt:'Oi! Tem pré-treino disponível?',hora:'14:02'},{tipo:'agent',txt:'Olá Rafael! Sou a assistente da Millennium 💪 Sim, temos o C4 Extremo!',hora:'14:02'},{tipo:'recv',txt:'E tênis Mizuno?',hora:'14:04'},{tipo:'sent',txt:'Temos! Wave Rider 26 em promoção. Qual numeração?',hora:'14:05'},{tipo:'recv',txt:'42. Qual a diferença entre o Wave Rider e o Sky?',hora:'14:08'}]},
@@ -4722,7 +4722,7 @@ window.dbSalvarColab=function(c){if(!c)return;fetch('https://udtoojqdjcbxnvevazu
 window.dbCarregarColabs=function(){return fetch('https://udtoojqdjcbxnvevazum.supabase.co/rest/v1/colaboradores?cliente_subdominio=eq.'+(window.CLIENTE_SUBDOMINIO||'master'),{headers:{apikey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkdG9vanFkamNieG52ZXZhenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NjM3NzQsImV4cCI6MjA4OTUzOTc3NH0.-HENtNoiH3yiEMxWIZeVrcB20BOOzoTw6oJsuvanBtM',Authorization:'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkdG9vanFkamNieG52ZXZhenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NjM3NzQsImV4cCI6MjA4OTUzOTc3NH0.-HENtNoiH3yiEMxWIZeVrcB20BOOzoTw6oJsuvanBtM'}}).then(function(r){return r.json();});};
 </script>
 <script>
-  const { createClient } = supabase;
+  var _createClient_sb = supabase;
   const db = createClient(
     'https://udtoojqdjcbxnvevazum.supabase.co',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkdG9vanFkamNieG52ZXZhenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NjM3NzQsImV4cCI6MjA4OTUzOTc3NH0.-HENtNoiH3yiEMxWIZeVrcB20BOOzoTw6oJsuvanBtM'
@@ -6143,7 +6143,7 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
 // ═══════════════════ DADOS ═══════════════════
 var API_KEY='',AI_MODE=false,currentLead=null,trainSession=null,currentConv=null,roletaIdx=0;
 
-const LEADS=[
+var LEADS =[
   {id:1,nome:'Lucas Mendes',tel:'(91)99201-1234',origem:'Meta Ads',vendedor:'Agente IA',produto:'Whey Protein Gold + Creatina',entrega:'Delivery',ig:'@lucas.mendes.fit',etapa:'novo',disc:'D',valor:310,tempo:'5min',tasks:[],msgs:[{tipo:'recv',txt:'Oi! Vi o anúncio de vocês do Whey Gold. Quanto tá?',hora:'14:00'},{tipo:'agent',txt:'Olá Lucas! Sou a assistente da Millennium Fitness 💪 O Whey Gold está R$189,90 e Creatina R$89,90. Quer montar um combo?',hora:'14:00'},{tipo:'recv',txt:'Sim! Tem desconto no combo?',hora:'14:02'}]},
   {id:2,nome:'Fernanda Silva',tel:'(91)98812-5678',origem:'WhatsApp direto',vendedor:'Marina R.',produto:'Conjunto fitness feminino',entrega:'Delivery',ig:'@fernanda.fitness',etapa:'novo',disc:'I',valor:280,tempo:'12min',tasks:[],msgs:[{tipo:'recv',txt:'Oii! Vi vocês no Instagram. Tem conjuntos fitness?',hora:'13:45'},{tipo:'sent',txt:'Oi Fernanda! Temos sim! Legging + Top em várias cores.',hora:'13:46'}]},
   {id:3,nome:'Rafael Torres',tel:'(91)99945-4321',origem:'Google Ads',vendedor:'Carlos A.',produto:'Pré-treino C4 + Mizuno Wave Rider 26',entrega:'Delivery',ig:'@rafael.torres.fit',etapa:'atendimento',disc:'C',valor:580,tempo:'23min',tasks:[{id:1,desc:'Enviar tabela comparativa Mizuno',data:'18/03/2026',hora:'10:00',done:false}],msgs:[{tipo:'recv',txt:'Oi! Tem pré-treino disponível?',hora:'14:02'},{tipo:'agent',txt:'Olá Rafael! Sou a assistente da Millennium 💪 Sim, temos o C4 Extremo!',hora:'14:02'},{tipo:'recv',txt:'E tênis Mizuno?',hora:'14:04'},{tipo:'sent',txt:'Temos! Wave Rider 26 em promoção. Qual numeração?',hora:'14:05'},{tipo:'recv',txt:'42. Qual a diferença entre o Wave Rider e o Sky?',hora:'14:08'}]},
