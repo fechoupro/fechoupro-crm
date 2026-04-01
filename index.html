@@ -4498,7 +4498,13 @@ window._aplicarDadosEmpresa=function(e){
   var f=function(id,v){var el=document.getElementById(id);if(el&&v)el.value=v;};
   f('company-name-inp',e.nome);f('company-slogan',e.slogan);f('company-tel',e.tel);f('company-addr',e.addr);f('company-ig',e.ig);
   var logoEl=document.querySelector('.logo');
-  if(logoEl&&e.nome&&!logoEl.querySelector('img')){var parts=e.nome.split(' ');logoEl.innerHTML='<div class="logo-icon">🏋</div><span style="color:var(--accent);">'+parts[0]+ ' '+parts.slice(1).join(' ')+'</span>';}
+  if(logoEl&&e.nome){
+    if(e.logo&&e.logo.length>10){
+      logoEl.innerHTML='<img src="'+e.logo+'" style="height:28px;object-fit:contain;border-radius:6px;" /><span style="color:var(--accent);margin-left:6px;">'+e.nome+'</span>';
+    } else if(!logoEl.querySelector('img')){
+      var parts=e.nome.split(' ');logoEl.innerHTML='<div class="logo-icon">🏋</div><span style="color:var(--accent);">'+parts[0]+(parts.length>1?' '+parts.slice(1).join(' '):'')+'</span>';
+    }
+  }
 };
 window.zerarTudo=function(){
   if(!confirm('Apagar TODOS os dados de simulação? Leads, conversas e localStorage serão zerados.'))return;
