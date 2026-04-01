@@ -4498,6 +4498,8 @@ window.excluirLogo=function(){
 };
 window.carregarEmpresa=function(){
   var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);
+  // Aplicar cache local imediatamente para evitar flash
+  var _cache=localStorage.getItem('mf_company');if(_cache){try{window._aplicarDadosEmpresa(JSON.parse(_cache));}catch(e){}}
   fetch(_SB+'/rest/v1/empresas?cliente_subdominio=eq.'+_sub+'&limit=1',{headers:{'apikey':_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(d){
     if(d&&d.length>0){var e=d[0];localStorage.setItem('mf_company',JSON.stringify(e));_aplicarDadosEmpresa(e);}
   }).catch(function(){var s=localStorage.getItem('mf_company');if(s)_aplicarDadosEmpresa(JSON.parse(s));});
