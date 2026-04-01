@@ -4465,10 +4465,15 @@ function uploadLogo(input){
     img.src=e.target.result;img.style.display='block';
     if(ph)ph.style.display='none';
     // Update topbar logo
+    var _nome=document.getElementById('company-name-inp')?document.getElementById('company-name-inp').value||'Empresa':'Empresa';
+    var _imgData=e.target.result;
     const logoEl=document.querySelector('.logo');
     if(logoEl){
-      logoEl.innerHTML=`<img src="${e.target.result}" style="height:28px;object-fit:contain;border-radius:6px;" /><span style="color:var(--accent);">${document.getElementById('company-name-inp')?.value||'Millennium'}</span>&nbsp;Fitness CRM`;
+      logoEl.innerHTML='<img src="'+_imgData+'" style="height:28px;object-fit:contain;border-radius:6px;" /><span style="color:var(--accent);margin-left:6px;">'+_nome+'</span>';
     }
+    var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);
+    fetch(_SB+'/rest/v1/empresas?cliente_subdominio=eq.'+_sub,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK},body:JSON.stringify({logo:_imgData})});
+    localStorage.setItem('mf_logo',_imgData);
     toast('✅ Logomarca atualizada!');
   };
   reader.readAsDataURL(file);
