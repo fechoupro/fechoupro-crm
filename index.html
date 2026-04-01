@@ -760,7 +760,7 @@ window.dbDeletarLead=function(l){if(l&&l._dbId)_rq('leads','DELETE',null,'?id=eq
 window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=created_at.desc').then(function(rows){if(!rows||!rows.length)return;window.LEADS=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa,valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at};});if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();});};
 window.dbSalvarColab=function(c){var row={cliente_subdominio:_gs(),nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(function(p){return p[0];}).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:!!c.online,perms:JSON.stringify(c.perms||{})};if(c._dbId){_rq('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}else{_rq('colaboradores','POST',row).then(function(res){if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}});}};
 window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&ativo=eq.true').then(function(rows){if(!rows||!rows.length)return;window.COLABORADORES=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')};});if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();});};
-var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();setTimeout(window.dbCarregarLeads,600);var convEl=document.getElementById('conversas');if(convEl&&convEl.style.display!=='none')window._injetarAbasConv();console.log('[FP] OK. Contatos:'+window.CONTATOS.length);}},300);</script>
+var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();setTimeout(window.dbCarregarLeads,600);var convEl=document.getElementById('conversas');if(convEl&&convEl.style.display!=='none')window._injetarAbasConv();console.log('[FP] OK. Contatos:'+window.CONTATOS.length);}},300);</script>
 </head>
 <body>
 
@@ -4472,6 +4472,34 @@ function uploadLogo(input){
   reader.readAsDataURL(file);
 }
 
+window.carregarEmpresa=function(){
+  var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);
+  fetch(_SB+'/rest/v1/empresas?cliente_subdominio=eq.'+_sub+'&limit=1',{headers:{'apikey':_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.length>0){var e=d[0];localStorage.setItem('mf_company',JSON.stringify(e));_aplicarDadosEmpresa(e);}
+  }).catch(function(){var s=localStorage.getItem('mf_company');if(s)_aplicarDadosEmpresa(JSON.parse(s));});
+};
+window._aplicarDadosEmpresa=function(e){
+  if(!e)return;
+  var f=function(id,v){var el=document.getElementById(id);if(el&&v)el.value=v;};
+  f('company-name-inp',e.nome);f('company-slogan',e.slogan);f('company-tel',e.tel);f('company-addr',e.addr);f('company-ig',e.ig);
+  var logoEl=document.querySelector('.logo');
+  if(logoEl&&e.nome&&!logoEl.querySelector('img')){var parts=e.nome.split(' ');logoEl.innerHTML='<div class="logo-icon">🏋</div><span style="color:var(--accent);">'+parts[0]+'</span>&nbsp;'+parts.slice(1).join(' ')+' CRM';}
+};
+window.zerarTudo=function(){
+  if(!confirm('Apagar TODOS os dados de simulação? Leads, conversas e localStorage serão zerados.'))return;
+  var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);
+  var h={'apikey':_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'};
+  Promise.all([
+    fetch(_SB+'/rest/v1/leads?cliente_subdominio=eq.'+_sub,{method:'DELETE',headers:h}),
+    fetch(_SB+'/rest/v1/conversas?cliente_subdominio=eq.'+_sub,{method:'DELETE',headers:h})
+  ]).then(function(){
+    ['mf_leads','mf_colabs','CONTATOS','fp_contatos','mf_company'].forEach(function(k){localStorage.removeItem(k);});
+    window.LEADS=[];window.CONTATOS=[];
+    if(typeof renderKanban==='function')renderKanban();
+    if(typeof window._renderContatos==='function')window._renderContatos();
+    toast('✅ Dados zerados! CRM pronto para uso real.');
+  });
+};
 function salvarEmpresa(){
   const nome=document.getElementById('company-name-inp')?.value||'Millennium Fitness';
   const logoEl=document.querySelector('.logo');
@@ -4479,8 +4507,9 @@ function salvarEmpresa(){
     const parts=nome.split(' ');
     logoEl.innerHTML=`<div class="logo-icon">💪</div><span style="color:var(--accent);">${parts[0]}</span>&nbsp;${parts.slice(1).join(' ')} CRM`;
   }
-  localStorage.setItem('mf_company',JSON.stringify({nome,slogan:document.getElementById('company-slogan')?.value,tel:document.getElementById('company-tel')?.value,addr:document.getElementById('company-addr')?.value,ig:document.getElementById('company-ig')?.value}));
-  toast('✅ Dados da empresa salvos!');
+  var _subdomain=window._gs?window._gs():(location.hostname.split('.')[0]);
+  var _payload=JSON.stringify({cliente_subdominio:_subdomain,nome:nome,slogan:document.getElementById('company-slogan')?.value||'',tel:document.getElementById('company-tel')?.value||'',addr:document.getElementById('company-addr')?.value||'',ig:document.getElementById('company-ig')?.value||''});
+  fetch(_SB+'/rest/v1/empresas',{method:'POST',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK,'Prefer':'resolution=merge-duplicates'},body:_payload}).then(function(r){if(r.ok){localStorage.setItem('mf_company',_payload);toast('✅ Dados da empresa salvos!');_aplicarDadosEmpresa(JSON.parse(_payload));}else{r.text().then(function(t){toast('❌ Erro ao salvar: '+t.substring(0,80));});}});
 }
 
 // Load saved theme on init
