@@ -4493,7 +4493,7 @@ window.zerarTudo=function(){
     fetch(_SB+'/rest/v1/leads?cliente_subdominio=eq.'+_sub,{method:'DELETE',headers:h}),
     fetch(_SB+'/rest/v1/conversas?cliente_subdominio=eq.'+_sub,{method:'DELETE',headers:h})
   ]).then(function(){
-    ['mf_leads','mf_colabs','CONTATOS','fp_contatos','mf_company'].forEach(function(k){localStorage.removeItem(k);});
+    ['mf_leads','mf_colabs','CONTATOS','fp_contatos','mf_company','leads','colabs','fp_lastTab'].forEach(function(k){localStorage.removeItem(k);});
     window.LEADS=[];window.CONTATOS=[];
     if(typeof renderKanban==='function')renderKanban();
     if(typeof window._renderContatos==='function')window._renderContatos();
