@@ -1968,7 +1968,8 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
         <div class="cfg-panel" id="cfg-empresa">
           <div class="cfg-section">
             <div class="cfg-section-title">Dados da empresa</div>
-            <div class="logo-upload-area" onclick="document.getElementById('logo-upload').click()">
+            <div class="logo-upload-area" onclick="document.getElementById('logo-upload').click()" style="position:relative;">
+              <button id="btn-excluir-logo" type="button" onclick="event.stopPropagation();excluirLogo();" style="display:none;position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:rgba(220,38,38,0.9);border:none;color:#fff;font-size:14px;line-height:22px;cursor:pointer;z-index:10;padding:0;text-align:center;" title="Excluir logo">×</button>
               <img id="logo-preview-img" class="logo-preview" style="display:none;" />
               <div id="logo-upload-placeholder">
                 <div style="font-size:24px;margin-bottom:6px;">📷</div>
@@ -1977,7 +1978,6 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
               </div>
               <input type="file" id="logo-upload" accept="image/*" style="display:none;" onchange="uploadLogo(this)" />
             </div>
-            <button id="btn-excluir-logo" type="button" onclick="event.stopPropagation();excluirLogo();" style="display:none;position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:rgba(220,38,38,0.9);border:none;color:#fff;font-size:12px;line-height:1;cursor:pointer;z-index:10;padding:0;" title="Excluir logo">×</button>
             <div class="fg"><label class="fl">Nome da loja no CRM</label><input class="fi" id="company-name-inp" placeholder="Millennium Fitness" value="Millennium Fitness" /></div>
             <div class="fg"><label class="fl">Slogan / subtítulo</label><input class="fi" id="company-slogan" placeholder="Ex: Suplementos & Moda Fitness" /></div>
             <div class="fg"><label class="fl">CNPJ</label><input class="fi" id="company-cnpj" placeholder="00.000.000/0001-00" /></div>
@@ -4492,6 +4492,8 @@ window.excluirLogo=function(){
   fetch(_SB+'/rest/v1/empresas?cliente_subdominio=eq.'+_sub,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK},body:JSON.stringify({logo:''})});
   localStorage.removeItem('mf_logo');
   var _xBtn=document.getElementById('btn-excluir-logo');if(_xBtn)_xBtn.style.display='none';
+  var _prevImg=document.getElementById('logo-preview-img');if(_prevImg){_prevImg.src='';_prevImg.style.display='none';}
+  var _ph=document.getElementById('logo-upload-placeholder');if(_ph)_ph.style.display='';
   toast('✅ Logomarca removida!');
 };
 window.carregarEmpresa=function(){
