@@ -1976,8 +1976,8 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
                 <div style="font-size:10px;color:var(--dim);margin-top:3px;">PNG, JPG ou SVG — recomendado 200×60px</div>
               </div>
               <input type="file" id="logo-upload" accept="image/*" style="display:none;" onchange="uploadLogo(this)" />
-            <button class="btn btn-ghost" style="font-size:11px;color:var(--danger,#E8000A);padding:4px 8px;margin-top:6px;" onclick="excluirLogo()" type="button">🗑 Excluir logo</button>
             </div>
+            <button id="btn-excluir-logo" type="button" onclick="event.stopPropagation();excluirLogo();" style="display:none;position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:rgba(220,38,38,0.9);border:none;color:#fff;font-size:12px;line-height:1;cursor:pointer;z-index:10;padding:0;" title="Excluir logo">×</button>
             <div class="fg"><label class="fl">Nome da loja no CRM</label><input class="fi" id="company-name-inp" placeholder="Millennium Fitness" value="Millennium Fitness" /></div>
             <div class="fg"><label class="fl">Slogan / subtítulo</label><input class="fi" id="company-slogan" placeholder="Ex: Suplementos & Moda Fitness" /></div>
             <div class="fg"><label class="fl">CNPJ</label><input class="fi" id="company-cnpj" placeholder="00.000.000/0001-00" /></div>
@@ -4474,6 +4474,7 @@ function uploadLogo(input){
     var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);
     fetch(_SB+'/rest/v1/empresas?cliente_subdominio=eq.'+_sub,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK},body:JSON.stringify({logo:_imgData})});
     localStorage.setItem('mf_logo',_imgData);
+    var _xBtn=document.getElementById('btn-excluir-logo');if(_xBtn)_xBtn.style.display='block';
     toast('✅ Logomarca atualizada!');
   };
   reader.readAsDataURL(file);
@@ -4490,6 +4491,7 @@ window.excluirLogo=function(){
   var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);
   fetch(_SB+'/rest/v1/empresas?cliente_subdominio=eq.'+_sub,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK},body:JSON.stringify({logo:''})});
   localStorage.removeItem('mf_logo');
+  var _xBtn=document.getElementById('btn-excluir-logo');if(_xBtn)_xBtn.style.display='none';
   toast('✅ Logomarca removida!');
 };
 window.carregarEmpresa=function(){
@@ -4506,6 +4508,7 @@ window._aplicarDadosEmpresa=function(e){
   if(logoEl&&e.nome){
     if(e.logo&&e.logo.length>10){
       logoEl.innerHTML='<img src="'+e.logo+'" style="height:28px;object-fit:contain;border-radius:6px;" /><span style="color:var(--accent);margin-left:6px;">'+e.nome+'</span>';
+      var _xBtn=document.getElementById('btn-excluir-logo');if(_xBtn)_xBtn.style.display='block';
     } else if(!logoEl.querySelector('img')){
       var parts=e.nome.split(' ');logoEl.innerHTML='<div class="logo-icon">🏋</div><span style="color:var(--accent);">'+parts[0]+(parts.length>1?' '+parts.slice(1).join(' '):'')+'</span>';
     }
