@@ -4484,7 +4484,7 @@ window._aplicarDadosEmpresa=function(e){
   var f=function(id,v){var el=document.getElementById(id);if(el&&v)el.value=v;};
   f('company-name-inp',e.nome);f('company-slogan',e.slogan);f('company-tel',e.tel);f('company-addr',e.addr);f('company-ig',e.ig);
   var logoEl=document.querySelector('.logo');
-  if(logoEl&&e.nome&&!logoEl.querySelector('img')){var parts=e.nome.split(' ');logoEl.innerHTML='<div class="logo-icon">🏋</div><span style="color:var(--accent);">'+parts[0]+'</span>&nbsp;'+parts.slice(1).join(' ')+'';}
+  if(logoEl&&e.nome&&!logoEl.querySelector('img')){var parts=e.nome.split(' ');logoEl.innerHTML='<div class="logo-icon">🏋</div><span style="color:var(--accent);">'+parts[0]+'</span> <span style="margin-left:4px">'+parts.slice(1).join(' ')+'</span>';}
 };
 window.zerarTudo=function(){
   if(!confirm('Apagar TODOS os dados de simulação? Leads, conversas e localStorage serão zerados.'))return;
@@ -4506,7 +4506,7 @@ function salvarEmpresa(){
   const logoEl=document.querySelector('.logo');
   if(logoEl&&!logoEl.querySelector('img')){
     const parts=nome.split(' ');
-    logoEl.innerHTML=`<div class="logo-icon">💪</div><span style="color:var(--accent);">${parts[0]}</span>&nbsp;${parts.slice(1).join(' ')} CR}`}
+    logoEl.innerHTML=`<div class="logo-icon">💪</div><span style="color:var(--accent);">${parts[0]}</span> <span style="margin-left:4px">${parts.slice(1).join(' ')}</span>`}
   var _subdomain=window._gs?window._gs():(location.hostname.split('.')[0]);
   var _payload=JSON.stringify({cliente_subdominio:_subdomain,nome:nome,slogan:document.getElementById('company-slogan')?.value||'',tel:document.getElementById('company-tel')?.value||'',addr:document.getElementById('company-addr')?.value||'',ig:document.getElementById('company-ig')?.value||''});
   fetch(_SB+'/rest/v1/empresas',{method:'POST',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK,'Prefer':'resolution=merge-duplicates'},body:_payload}).then(function(r){if(r.ok){localStorage.setItem('mf_company',_payload);toast('✅ Dados da empresa salvos!');_aplicarDadosEmpresa(JSON.parse(_payload));}else{r.text().then(function(t){toast('❌ Erro ao salvar: '+t.substring(0,80));});}});
