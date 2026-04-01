@@ -1976,6 +1976,7 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
                 <div style="font-size:10px;color:var(--dim);margin-top:3px;">PNG, JPG ou SVG — recomendado 200×60px</div>
               </div>
               <input type="file" id="logo-upload" accept="image/*" style="display:none;" onchange="uploadLogo(this)" />
+            <button class="btn btn-ghost" style="font-size:11px;color:var(--danger,#E8000A);padding:4px 8px;margin-top:6px;" onclick="excluirLogo()" type="button">🗑 Excluir logo</button>
             </div>
             <div class="fg"><label class="fl">Nome da loja no CRM</label><input class="fi" id="company-name-inp" placeholder="Millennium Fitness" value="Millennium Fitness" /></div>
             <div class="fg"><label class="fl">Slogan / subtítulo</label><input class="fi" id="company-slogan" placeholder="Ex: Suplementos & Moda Fitness" /></div>
@@ -4473,6 +4474,19 @@ function uploadLogo(input){
   reader.readAsDataURL(file);
 }
 
+window.excluirLogo=function(){
+  if(!confirm('Remover a logomarca?'))return;
+  var logoEl=document.querySelector('.logo');
+  if(logoEl){
+    var nome=document.getElementById('company-name-inp')?document.getElementById('company-name-inp').value||'Empresa':'Empresa';
+    var parts=nome.split(' ');
+    logoEl.innerHTML='<div class="logo-icon">🏋</div><span style="color:var(--accent);">'+parts[0]+'</span><span>'+parts.slice(1).join(' ')+'</span>';
+  }
+  var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);
+  fetch(_SB+'/rest/v1/empresas?cliente_subdominio=eq.'+_sub,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK},body:JSON.stringify({logo:''})});
+  localStorage.removeItem('mf_logo');
+  toast('✅ Logomarca removida!');
+};
 window.carregarEmpresa=function(){
   var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);
   fetch(_SB+'/rest/v1/empresas?cliente_subdominio=eq.'+_sub+'&limit=1',{headers:{'apikey':_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(d){
@@ -4509,7 +4523,7 @@ function salvarEmpresa(){
     logoEl.innerHTML=`<div class="logo-icon">💪</div><span style="color:var(--accent);">${parts[0]} ${parts.slice(1).join(' ')}</span>`}
   var _subdomain=window._gs?window._gs():(location.hostname.split('.')[0]);
   var _payload=JSON.stringify({cliente_subdominio:_subdomain,nome:nome,slogan:document.getElementById('company-slogan')?.value||'',tel:document.getElementById('company-tel')?.value||'',addr:document.getElementById('company-addr')?.value||'',ig:document.getElementById('company-ig')?.value||''});
-  fetch(_SB+'/rest/v1/empresas',{method:'POST',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK,'Prefer':'resolution=merge-duplicates'},body:_payload}).then(function(r){if(r.ok){localStorage.setItem('mf_company',_payload);toast('✅ Dados da empresa salvos!');_aplicarDadosEmpresa(JSON.parse(_payload));}else{r.text().then(function(t){toast('❌ Erro ao salvar: '+t.substring(0,80));});}});
+  fetch(_SB+'/rest/v1/empresas?cliente_subdominio=eq.'+_subdomain,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK},body:_payload}).then(function(r){if(r.ok){localStorage.setItem('mf_company',_payload);toast('✅ Dados da empresa salvos!');_aplicarDadosEmpresa(JSON.parse(_payload));}else{r.text().then(function(t){toast('❌ Erro ao salvar: '+t.substring(0,80));});}});
 }
 
 // Load saved theme on init
