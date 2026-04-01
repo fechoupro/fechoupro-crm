@@ -760,7 +760,8 @@ window.dbDeletarLead=function(l){if(l&&l._dbId)_rq('leads','DELETE',null,'?id=eq
 window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=created_at.desc').then(function(rows){if(!rows||!rows.length)return;window.LEADS=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa,valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at};});if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();});};
 window.dbSalvarColab=function(c){var row={cliente_subdominio:_gs(),nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(function(p){return p[0];}).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:!!c.online,perms:JSON.stringify(c.perms||{})};if(c._dbId){_rq('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}else{_rq('colaboradores','POST',row).then(function(res){if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}});}};
 window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&ativo=eq.true').then(function(rows){if(!rows||!rows.length)return;window.COLABORADORES=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')};});if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();});};
-var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();setTimeout(window.dbCarregarLeads,600);var convEl=document.getElementById('conversas');if(convEl&&convEl.style.display!=='none')window._injetarAbasConv();console.log('[FP] OK. Contatos:'+window.CONTATOS.length);}},300);</script>
+var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();setTimeout(window.dbCarregarLeads,600);
+window.renderDash=function(){var leads=window.LEADS||[];function upd(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}var hoje=new Date().toDateString();var lh=leads.filter(function(l){return l.data_criacao&&new Date(l.data_criacao).toDateString()===hoje;}).length;var f=leads.filter(function(l){return l.etapa==='Fechado';});var tv=f.reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);var taxa=leads.length>0?Math.round(f.length/leads.length*100):0;upd('m1',lh);upd('m2','R$'+tv.toLocaleString('pt-BR',{minimumFractionDigits:0}));upd('m3',taxa+'%');};setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash();},900);var convEl=document.getElementById('conversas');if(convEl&&convEl.style.display!=='none')window._injetarAbasConv();console.log('[FP] OK. Contatos:'+window.CONTATOS.length);}},300);</script>
 </head>
 <body>
 
@@ -831,26 +832,26 @@ var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}
     <div style="background:linear-gradient(135deg,#E8000A,#FF4500);border-radius:14px;padding:18px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:-15px;right:-15px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.08);"></div>
       <div style="font-size:10px;font-family:var(--font);font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.8);margin-bottom:6px;text-transform:uppercase;">Leads Hoje</div>
-      <div style="font-size:38px;font-family:var(--font);font-weight:900;color:#fff;line-height:1;" id="m1">34</div>
-      <div style="font-size:10px;color:rgba(255,255,255,.8);margin-top:8px;">▲ +12% vs ontem</div>
+      <div style="font-size:38px;font-family:var(--font);font-weight:900;color:#fff;line-height:1;" id="m1">0</div>
+      <div style="font-size:10px;color:rgba(255,255,255,.8);margin-top:8px;">▲ -- vs ontem</div>
     </div>
     <div style="background:#12121e;border:1px solid rgba(0,229,160,.25);border-radius:14px;padding:18px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:-5px;right:-5px;width:60px;height:60px;background:radial-gradient(circle,rgba(0,229,160,.18),transparent);border-radius:50%;"></div>
       <div style="font-size:10px;font-family:var(--font);font-weight:700;letter-spacing:1px;color:rgba(0,229,160,.85);margin-bottom:6px;text-transform:uppercase;">Faturamento</div>
-      <div style="font-size:28px;font-family:var(--font);font-weight:900;color:#00E5A0;line-height:1;" id="m2">R$8.420</div>
-      <div style="font-size:10px;color:rgba(0,229,160,.7);margin-top:8px;">▲ +24% este mês</div>
+      <div style="font-size:28px;font-family:var(--font);font-weight:900;color:#00E5A0;line-height:1;" id="m2">R$0</div>
+      <div style="font-size:10px;color:rgba(0,229,160,.7);margin-top:8px;">▲ -- este mês</div>
     </div>
     <div style="background:#12121e;border:1px solid rgba(251,176,64,.25);border-radius:14px;padding:18px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:-5px;right:-5px;width:60px;height:60px;background:radial-gradient(circle,rgba(251,176,64,.18),transparent);border-radius:50%;"></div>
       <div style="font-size:10px;font-family:var(--font);font-weight:700;letter-spacing:1px;color:rgba(251,176,64,.85);margin-bottom:6px;text-transform:uppercase;">Taxa Fechamento</div>
-      <div style="font-size:38px;font-family:var(--font);font-weight:900;color:#FBB040;line-height:1;" id="m3">38%</div>
-      <div style="font-size:10px;color:rgba(251,176,64,.7);margin-top:8px;">▼ -2% vs semana</div>
+      <div style="font-size:38px;font-family:var(--font);font-weight:900;color:#FBB040;line-height:1;" id="m3">0%</div>
+      <div style="font-size:10px;color:rgba(251,176,64,.7);margin-top:8px;">▼ -- vs semana</div>
     </div>
     <div style="background:#12121e;border:1px solid rgba(167,139,250,.25);border-radius:14px;padding:18px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:-5px;right:-5px;width:60px;height:60px;background:radial-gradient(circle,rgba(167,139,250,.18),transparent);border-radius:50%;"></div>
       <div style="font-size:10px;font-family:var(--font);font-weight:700;letter-spacing:1px;color:rgba(167,139,250,.85);margin-bottom:6px;text-transform:uppercase;">Tempo Resposta</div>
-      <div style="font-size:28px;font-family:var(--font);font-weight:900;color:#A78BFA;line-height:1;" id="m4">3m 24s</div>
-      <div style="font-size:10px;color:rgba(167,139,250,.7);margin-top:8px;">▲ Melhorou 18%</div>
+      <div style="font-size:28px;font-family:var(--font);font-weight:900;color:#A78BFA;line-height:1;" id="m4">--</div>
+      <div style="font-size:10px;color:rgba(167,139,250,.7);margin-top:8px;">▲ --</div>
     </div>
   </div>
 
@@ -913,7 +914,7 @@ var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
         <div style="text-align:center;padding:12px 6px;background:rgba(0,229,160,.06);border-radius:10px;border:1px solid rgba(0,229,160,.18);">
-          <div style="font-size:26px;font-family:var(--font);font-weight:900;color:#00E5A0;">2</div>
+          <div style="font-size:26px;font-family:var(--font);font-weight:900;color:#00E5A0;">0</div>
           <div style="font-size:9px;color:var(--muted);margin-top:3px;font-weight:700;">30 dias</div>
         </div>
         <div style="text-align:center;padding:12px 6px;background:rgba(251,176,64,.06);border-radius:10px;border:1px solid rgba(251,176,64,.18);">
