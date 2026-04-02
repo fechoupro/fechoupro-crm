@@ -796,7 +796,7 @@ window.renderDash=function(){var leads=window.LEADS||[];function upd(id,v){var e
     <polygon points="8,24 18,0 28,24" fill="#FF4500" opacity="0.85"/>
     <polyline points="5,14 12,20 23,7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
   </svg>
-  <div style="line-height:1;"><span style="font-family:'Syne',sans-serif;font-weight:900;font-size:16px;color:#fff;letter-spacing:-.3px;">Fechou</span><span style="font-family:'Syne',sans-serif;font-weight:900;font-size:16px;color:#E8000A;letter-spacing:-.3px;">Pro</span></div>
+  <div style="line-height:1;"><span id="fp-logo-nome" style="font-family:'Syne',sans-serif;font-weight:900;font-size:16px;color:#fff;letter-spacing:-.3px;">Fechou</span><span id="fp-logo-nome2" style="font-family:'Syne',sans-serif;font-weight:900;font-size:16px;color:#E8000A;letter-spacing:-.3px;">Pro</span></div><script>try{var _c=localStorage.getItem('mf_company');if(_c){var _d=JSON.parse(_c);if(_d.nome){var _p=_d.nome.split(' ');var _s1=document.getElementById('fp-logo-nome');var _s2=document.getElementById('fp-logo-nome2');if(_s1&&_s2){_s1.textContent=_p[0];_s2.textContent=_p.slice(1).join(' ');}}}if(_d&&_d.logo&&_d.logo.length>10){var _l=document.querySelector('.logo');if(_l){_l.innerHTML='<img src="'+_d.logo+'" style="height:28px;object-fit:contain;border-radius:6px;" /><span style="color:var(--accent);margin-left:6px;font-family:Syne,sans-serif;font-weight:900;">'+(_d.nome||'')+'</span>';}}}}catch(e){}</script>
 </div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="goView('dashboard',this)">Dashboard</button>
