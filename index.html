@@ -760,7 +760,7 @@ window.dbDeletarLead=function(l){if(l&&l._dbId)_rq('leads','DELETE',null,'?id=eq
 window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=created_at.desc').then(function(rows){if(!rows||!rows.length)return;window.LEADS=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa,valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at};});if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();});};
 window.dbSalvarColab=function(c){var row={cliente_subdominio:_gs(),nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(function(p){return p[0];}).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:!!c.online,perms:JSON.stringify(c.perms||{})};if(c._dbId){_rq('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}else{_rq('colaboradores','POST',row).then(function(res){if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}});}};
 window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&ativo=eq.true').then(function(rows){if(!rows||!rows.length)return;window.COLABORADORES=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')};});if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();});};
-var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();setTimeout(window.dbCarregarLeads,600);
+var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();window.carregarAgente();setTimeout(window.carregarPlaybook,500);setTimeout(window.dbCarregarLeads,600);
 window.renderDash=function(){var leads=window.LEADS||[];function upd(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}var hoje=new Date().toDateString();var lh=leads.filter(function(l){return l.data_criacao&&new Date(l.data_criacao).toDateString()===hoje;}).length;var f=leads.filter(function(l){return l.etapa==='Fechado';});var tv=f.reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);var taxa=leads.length>0?Math.round(f.length/leads.length*100):0;upd('m1',lh);upd('m2','R$'+tv.toLocaleString('pt-BR',{minimumFractionDigits:0}));upd('m3',taxa+'%');};setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash();},900);var convEl=document.getElementById('conversas');if(convEl&&convEl.style.display!=='none')window._injetarAbasConv();console.log('[FP] OK. Contatos:'+window.CONTATOS.length);}},300);</script>
 </head>
 <body>
@@ -4032,18 +4032,7 @@ function removePbFile(id){
   toast('Arquivo removido do playbook.');
 }
 
-function addPlaybookTexto(){
-  const nome=document.getElementById('pb-new-nome')?.value.trim();
-  const texto=document.getElementById('pb-new-texto')?.value.trim();
-  const tagsRaw=document.getElementById('pb-new-tags')?.value.trim();
-  if(!nome){toast('⚠️ Digite o nome do produto/serviço.');return;}
-  if(!texto){toast('⚠️ Preencha as informações.');return;}
-  const tags=tagsRaw?tagsRaw.split(',').map(t=>t.trim()).filter(Boolean):['Novo'];
-  PLAYBOOK_DATA.push({nome,tags,texto});
-  ['pb-new-nome','pb-new-tags','pb-new-texto'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  renderConfigs();
-  toast('✅ "'+nome+'" adicionado ao playbook!');
-}
+function addPlaybookTexto(){window.salvarPlaybookItem();}
 
 // Keep old addPlaybook for compatibility
 function addPlaybook(){pbGoTab('texto',null);document.getElementById('cfg-playbook').scrollIntoView({behavior:'smooth'});}
@@ -4401,10 +4390,78 @@ function desconectarInstagram(){
 
 function testarInstagram(){toast('📤 DM de teste enviado para o Instagram da loja!');}
 
+window.carregarAgente=function(){
+  var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);
+  var cache=localStorage.getItem('mf_agente');
+  if(cache){try{_aplicarAgente(JSON.parse(cache));}catch(e){}}
+  fetch(_SB+'/rest/v1/agente_config?cliente_subdominio=eq.'+_sub+'&limit=1',{headers:{'apikey':_SK,'Authorization':'Bearer '+_SK}})
+    .then(function(r){return r.json();}).then(function(d){
+      if(d&&d.length>0){localStorage.setItem('mf_agente',JSON.stringify(d[0]));_aplicarAgente(d[0]);}
+    }).catch(function(){});
+};
+window._aplicarAgente=function(d){
+  if(!d)return;
+  function sv(id,v){var e=document.getElementById(id);if(e&&v!==undefined&&v!==null){if(e.type==='checkbox')e.checked=!!v;else e.value=v;}}
+  sv('agente-nome',d.nome);sv('agente-prompt',d.prompt);sv('agente-tom',d.tom);
+  sv('agente-timeout',d.timeout_min);sv('agente-wpp',d.canal_wpp);sv('agente-ig',d.canal_ig);
+};
+window.salvarPlaybookItem=function(){
+  var nome=document.getElementById('pb-new-nome')?document.getElementById('pb-new-nome').value.trim():'';
+  var tags=document.getElementById('pb-new-tags')?document.getElementById('pb-new-tags').value.trim():'';
+  var texto=document.getElementById('pb-new-texto')?document.getElementById('pb-new-texto').value.trim():'';
+  if(!nome||!texto){toast('⚠️ Preencha nome e texto do item.');return;}
+  var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);
+  fetch(_SB+'/rest/v1/playbook_itens',{method:'POST',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK,'Prefer':'return=representation'},body:JSON.stringify({cliente_subdominio:_sub,nome:nome,tags:tags,texto:texto})})
+    .then(function(r){return r.json();}).then(function(d){
+      if(d&&d[0]){
+        toast('✅ Item "'+nome+'" salvo no Playbook!');
+        if(document.getElementById('pb-new-nome'))document.getElementById('pb-new-nome').value='';
+        if(document.getElementById('pb-new-tags'))document.getElementById('pb-new-tags').value='';
+        if(document.getElementById('pb-new-texto'))document.getElementById('pb-new-texto').value='';
+        window.carregarPlaybook();
+      } else { toast('❌ Erro ao salvar item.'); }
+    });
+};
+window.carregarPlaybook=function(){
+  var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);
+  fetch(_SB+'/rest/v1/playbook_itens?cliente_subdominio=eq.'+_sub+'&order=created_at.desc',{headers:{'apikey':_SK,'Authorization':'Bearer '+_SK}})
+    .then(function(r){return r.json();}).then(function(d){
+      var list=document.getElementById('playbook-list');
+      if(!list||!d)return;
+      if(d.length===0){list.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0;">Nenhum item no playbook ainda.</div>';return;}
+      list.innerHTML=d.map(function(item){
+        return '<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+          +'<span style="font-weight:700;font-size:13px;">'+item.nome+'</span>'
+          +'<button onclick="excluirPlaybookItem(''+item.id+'')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;" title="Excluir">×</button>'
+          +'</div>'
+          +(item.tags?'<div style="font-size:10px;color:var(--accent2);margin-bottom:4px;">'+item.tags+'</div>':'')
+          +'<div style="font-size:11px;color:var(--dim);white-space:pre-wrap;">'+item.texto.substring(0,200)+(item.texto.length>200?'...':'')+'</div>'
+          +'</div>';
+      }).join('');
+    });
+};
+window.excluirPlaybookItem=function(id){
+  if(!confirm('Excluir este item do Playbook?'))return;
+  fetch(_SB+'/rest/v1/playbook_itens?id=eq.'+id,{method:'DELETE',headers:{'apikey':_SK,'Authorization':'Bearer '+_SK}})
+    .then(function(){toast('✅ Item excluído!');window.carregarPlaybook();});
+};
 function salvarAgenteConfig(){
-  const nome=document.getElementById('agente-nome')?.value||'Zyra';
-  const prompt=document.getElementById('agente-prompt')?.value||'';
-  toast('✅ Agente "'+nome+'" configurado! Mudanças aplicadas em todos os canais.');
+  var nome=document.getElementById('agente-nome')?document.getElementById('agente-nome').value||'Zyra':'Zyra';
+  var prompt=document.getElementById('agente-prompt')?document.getElementById('agente-prompt').value||'':'';
+  var tom=document.getElementById('agente-tom')?document.getElementById('agente-tom').value||'profissional':'profissional';
+  var timeout=parseInt(document.getElementById('agente-timeout')?document.getElementById('agente-timeout').value||30:30);
+  var wpp=document.getElementById('agente-wpp')?document.getElementById('agente-wpp').checked:true;
+  var ig=document.getElementById('agente-ig')?document.getElementById('agente-ig').checked:true;
+  var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);
+  var payload=JSON.stringify({nome:nome,prompt:prompt,tom:tom,timeout_min:timeout,canal_wpp:wpp,canal_ig:ig});
+  fetch(_SB+'/rest/v1/agente_config?cliente_subdominio=eq.'+_sub,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK},body:payload})
+    .then(function(r){
+      if(r.ok){
+        localStorage.setItem('mf_agente',payload);
+        toast('✅ Agente "'+nome+'" salvo! Mudanças aplicadas em todos os canais.');
+      } else { r.text().then(function(t){toast('❌ Erro: '+t.substring(0,80));}); }
+    });
 }
 
 function toggleAgente(){
