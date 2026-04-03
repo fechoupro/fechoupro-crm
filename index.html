@@ -979,7 +979,7 @@ window.renderDash=function(){var leads=window.LEADS||[];function upd(id,v){var e
     <div style="display:flex;gap:8px;align-items:center;">
       <select id="filtro-vendedor" style="background:var(--card);border:1px solid var(--border2);border-radius:var(--r);padding:5px 11px;font-size:11px;color:var(--text);font-family:var(--body);outline:none;" onchange="renderKanban()">
         <option value="">Todos os vendedores</option>
-        <option>Carlos A.</option><option>Marina R.</option><option>Agente IA</option>
+        <option>Agente IA</option>
       </select>
       <button class="btn btn-ghost" style="font-size:11px;display:flex;align-items:center;gap:5px;" onclick="openFunilEditor()">
         ✏️ Personalizar funil
@@ -1392,7 +1392,7 @@ Qualquer dúvida é só chamar 💪</textarea>
     </div>
     <div class="d-right">
       <div class="chat-card">
-        <div class="chat-hdr"><div class="chat-av" id="chat-avatar">RF</div><div><div class="chat-name-el" id="chat-name">Rafael Torres</div><div class="chat-status">Online agora</div></div><div style="margin-left:auto;"><span style="font-size:9px;padding:2px 8px;border-radius:20px;background:rgba(124,92,252,.15);color:#A78BFA;font-family:var(--font);font-weight:700;">🤖 IA ativa</span></div></div>
+        <div class="chat-hdr"><div class="chat-av" id="chat-avatar">RF</div><div><div class="chat-name-el" id="chat-name"></div><div class="chat-status">Online agora</div></div><div style="margin-left:auto;"><span style="font-size:9px;padding:2px 8px;border-radius:20px;background:rgba(124,92,252,.15);color:#A78BFA;font-family:var(--font);font-weight:700;">🤖 IA ativa</span></div></div>
         <div class="chat-msgs" id="chat-msgs"></div>
         <div class="chat-input-row"><input class="chat-inp" id="chat-inp" placeholder="Mensagem para o lead..." onkeydown="if(event.key==='Enter')sendChatMsg()" /><button class="chat-send" onclick="sendChatMsg()">Enviar</button></div>
       </div>
@@ -1712,7 +1712,7 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
       <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
         <span style="font-size:12px;font-family:var(--font);font-weight:700;">Atendimentos por vendedor</span>
         <select id="filtro-vend-rel" style="background:var(--card2);border:1px solid var(--border2);border-radius:var(--r);padding:4px 9px;font-size:11px;color:var(--text);font-family:var(--body);outline:none;" onchange="renderVendTable()">
-          <option value="">Todos</option><option>Carlos A.</option><option>Marina R.</option><option>Agente IA</option>
+          <option value="">Todos</option><option>Agente IA</option>
         </select>
       </div>
       <div style="overflow-x:auto;"><table class="crm-table" id="vend-table"></table></div>
@@ -2100,7 +2100,7 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
     <button class="modal-x" onclick="document.getElementById('modal').classList.remove('open')">✕</button>
     <div class="modal-title">Cadastrar novo lead</div>
     <div class="fr"><div class="fg"><label class="fl">Nome</label><input class="fi" id="nl-nome" placeholder="João Silva" /></div><div class="fg"><label class="fl">WhatsApp</label><input class="fi" id="nl-tel" placeholder="(91) 9 0000-0000" /></div></div>
-    <div class="fr"><div class="fg"><label class="fl">Origem</label><select class="fi" id="nl-origem"><option>Meta Ads</option><option>Google Ads</option><option>WhatsApp direto</option><option>Instagram orgânico</option><option>Loja física</option></select></div><div class="fg"><label class="fl">Vendedor</label><select class="fi" id="nl-vendedor"><option>Agente IA</option><option>Carlos A.</option><option>Marina R.</option></select></div></div>
+    <div class="fr"><div class="fg"><label class="fl">Origem</label><select class="fi" id="nl-origem"><option>Meta Ads</option><option>Google Ads</option><option>WhatsApp direto</option><option>Instagram orgânico</option><option>Loja física</option></select></div><div class="fg"><label class="fl">Vendedor</label><select class="fi" id="nl-vendedor"><option>Agente IA</option></select></div></div>
     <div class="fg"><label class="fl">Produto de interesse</label><input class="fi" id="nl-produto" placeholder="Whey Protein, Mizuno Wave..." /></div>
     <div class="fr"><div class="fg"><label class="fl">Entrega</label><select class="fi" id="nl-entrega"><option>Delivery</option><option>Retirada na loja</option><option>A definir</option></select></div><div class="fg"><label class="fl">Instagram (opcional)</label><input class="fi" id="nl-ig" placeholder="@usuario" /></div></div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="document.getElementById('modal').classList.remove('open')">Cancelar</button><button class="btn btn-primary" onclick="addLead()">Adicionar ao funil ✓</button></div>
@@ -2153,44 +2153,11 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
 // ═══════════════════ DADOS ═══════════════════
 let API_KEY='',AI_MODE=false,currentLead=null,trainSession=null,currentConv=null,roletaIdx=0;
 
-const LEADS=[
-  {id:1,nome:'Lucas Mendes',tel:'(91)99201-1234',origem:'Meta Ads',vendedor:'Agente IA',produto:'Whey Protein Gold + Creatina',entrega:'Delivery',ig:'@lucas.mendes.fit',etapa:'novo',disc:'D',valor:310,tempo:'5min',tasks:[],msgs:[{tipo:'recv',txt:'Oi! Vi o anúncio de vocês do Whey Gold. Quanto tá?',hora:'14:00'},{tipo:'agent',txt:'Olá Lucas! Sou a assistente da Millennium Fitness 💪 O Whey Gold está R$189,90 e Creatina R$89,90. Quer montar um combo?',hora:'14:00'},{tipo:'recv',txt:'Sim! Tem desconto no combo?',hora:'14:02'}]},
-  {id:2,nome:'Fernanda Silva',tel:'(91)98812-5678',origem:'WhatsApp direto',vendedor:'Marina R.',produto:'Conjunto fitness feminino',entrega:'Delivery',ig:'@fernanda.fitness',etapa:'novo',disc:'I',valor:280,tempo:'12min',tasks:[],msgs:[{tipo:'recv',txt:'Oii! Vi vocês no Instagram. Tem conjuntos fitness?',hora:'13:45'},{tipo:'sent',txt:'Oi Fernanda! Temos sim! Legging + Top em várias cores.',hora:'13:46'}]},
-  {id:3,nome:'Rafael Torres',tel:'(91)99945-4321',origem:'Google Ads',vendedor:'Carlos A.',produto:'Pré-treino C4 + Mizuno Wave Rider 26',entrega:'Delivery',ig:'@rafael.torres.fit',etapa:'atendimento',disc:'C',valor:580,tempo:'23min',tasks:[{id:1,desc:'Enviar tabela comparativa Mizuno',data:'18/03/2026',hora:'10:00',done:false}],msgs:[{tipo:'recv',txt:'Oi! Tem pré-treino disponível?',hora:'14:02'},{tipo:'agent',txt:'Olá Rafael! Sou a assistente da Millennium 💪 Sim, temos o C4 Extremo!',hora:'14:02'},{tipo:'recv',txt:'E tênis Mizuno?',hora:'14:04'},{tipo:'sent',txt:'Temos! Wave Rider 26 em promoção. Qual numeração?',hora:'14:05'},{tipo:'recv',txt:'42. Qual a diferença entre o Wave Rider e o Sky?',hora:'14:08'}]},
-  {id:4,nome:'Amanda Costa',tel:'(91)97723-9876',origem:'Instagram',vendedor:'Carlos A.',produto:'Kit suplementação completo',entrega:'Delivery',ig:'@amanda.strong',etapa:'atendimento',disc:'S',valor:620,tempo:'41min',tasks:[],msgs:[{tipo:'recv',txt:'Boa tarde! Quero montar suplementação completa para hipertrofia',hora:'13:20'},{tipo:'sent',txt:'Olá Amanda! Recomendo Whey, Creatina e BCAA. Posso montar um kit?',hora:'13:21'}]},
-  {id:5,nome:'Bruno Lima',tel:'(91)96634-1111',origem:'Orgânico',vendedor:'Marina R.',produto:'Calçados esportivos',entrega:'Retirada na loja',ig:'@brunolima.run',etapa:'observacao',disc:'C',valor:400,tempo:'2h',tasks:[{id:1,desc:'Ligar para confirmar interesse Asics',data:'19/03/2026',hora:'14:00',done:false},{id:2,desc:'Enviar catálogo de tênis 2026',data:'20/03/2026',hora:'09:00',done:false}],msgs:[{tipo:'recv',txt:'Estou comparando tênis. Vocês têm Asics?',hora:'11:30'},{tipo:'sent',txt:'Temos Asics, Mizuno e Nike. Qual modelo?',hora:'11:32'}]},
-  {id:6,nome:'Juliana Pires',tel:'(91)98890-2222',origem:'WhatsApp direto',vendedor:'Agente IA',produto:'BCAA + Albumina',entrega:'Delivery',ig:'@juju.fit',etapa:'entrega',disc:'S',valor:190,tempo:'ontem',tasks:[],msgs:[{tipo:'recv',txt:'Meu pedido foi enviado?',hora:'10:00'},{tipo:'agent',txt:'Oi Juliana! Pedido despachado! Código: BR923847SP',hora:'10:01'}]},
-  {id:7,nome:'Pedro Rocha',tel:'(91)97712-3333',origem:'Loja física',vendedor:'Carlos A.',produto:'Luvas + Cinto musculação',entrega:'Retirada na loja',ig:'',etapa:'entrega',disc:'D',valor:220,tempo:'ontem',tasks:[],msgs:[{tipo:'recv',txt:'Chegou meu pedido?',hora:'09:30'},{tipo:'sent',txt:'Chegou! Pode vir buscar das 8h às 20h',hora:'09:31'}]},
-  {id:8,nome:'Carla Barbosa',tel:'(91)99980-4444',origem:'Meta Ads',vendedor:'Marina R.',produto:'Combo fitgirl',entrega:'Delivery',ig:'@carla.barbosa',etapa:'fechamento',disc:'I',valor:420,tempo:'3h',tasks:[],msgs:[{tipo:'recv',txt:'Quero o combo fitgirl!',hora:'11:00'},{tipo:'sent',txt:'Combo R$420 com frete grátis essa semana!',hora:'11:01'}]},
-  {id:9,nome:'Thiago Viana',tel:'(91)98876-5555',origem:'WhatsApp direto',vendedor:'Carlos A.',produto:'Pré-treino + Nike',entrega:'Delivery',ig:'@thiago.viana',etapa:'fechado',disc:'D',valor:890,tempo:'hoje',compra_data:'17/03/2026',tasks:[],msgs:[{tipo:'recv',txt:'Quero fechar o pedido',hora:'08:00'},{tipo:'sent',txt:'Confirmando: R$890 com entrega amanhã',hora:'08:01'}]},
-  {id:10,nome:'Isabela Nunes',tel:'(91)97765-6666',origem:'Orgânico',vendedor:'Marina R.',produto:'Conjunto fitness Rosa',entrega:'Retirada na loja',ig:'@isa.fitness',etapa:'fechado',disc:'S',valor:340,tempo:'hoje',compra_data:'17/03/2026',tasks:[],msgs:[{tipo:'recv',txt:'Já paguei! Posso buscar?',hora:'10:30'},{tipo:'sent',txt:'Pode! Obrigada! 💪',hora:'10:31'}]},
-  {id:11,nome:'Priya Mendes',tel:'',canal:'ig',origem:'Instagram',vendedor:'Agente IA',produto:'Conjunto fitness + Tênis',entrega:'Delivery',ig:'@priya.fit',etapa:'novo',disc:'I',valor:0,tempo:'2min',tasks:[],msgs:[{tipo:'recv',txt:'Oi! Vi a foto do conjunto no feed de vocês, ainda tem disponível? 😍',hora:'14:55'},{tipo:'agent',txt:'Oi Priya! Temos sim, chegou nova coleção essa semana! Qual cor você curtiu? 💪',hora:'14:55'}]},
-  {id:12,nome:'Diego Costa',tel:'',canal:'ig',origem:'Instagram',vendedor:'Marina R.',produto:'Suplementação para corrida',entrega:'A definir',ig:'@diego.runner',etapa:'atendimento',disc:'D',valor:0,tempo:'18min',tasks:[],msgs:[{tipo:'recv',txt:'Boa tarde! Vocês têm suplementos para corrida? Preciso de algo pré-treino',hora:'14:30'},{tipo:'agent',txt:'Olá Diego! Temos ótimas opções! Qual a distância que você corre? 🏃',hora:'14:30'},{tipo:'recv',txt:'Faço 10km. Procuro algo energético mas sem cafeína em excesso',hora:'14:35'},{tipo:'sent',txt:'Ótimo! Vou te indicar o pré-treino ideal para o seu perfil',hora:'14:36'}]},
-];
+const LEADS=[];
 
-const POSV_LEADS=[
-  {nome:'Thiago Viana',produto:'Pré-treino + Nike',valor:890,vendedor:'Carlos A.',dias:30,ultima:'16/02/2026'},
-  {nome:'Isabela Nunes',produto:'Conjunto fitness Rosa',valor:340,vendedor:'Marina R.',dias:30,ultima:'16/02/2026'},
-  {nome:'Felipe Souza',produto:'Whey + Camiseta',valor:420,vendedor:'Carlos A.',dias:90,ultima:'17/12/2025'},
-  {nome:'Patrícia Lima',produto:'Legging + Top Premium',valor:290,vendedor:'Marina R.',dias:90,ultima:'17/12/2025'},
-  
-  {nome:'Roberto Matos',produto:'Suplementação completa',valor:780,vendedor:'Carlos A.',dias:90,ultima:'17/12/2025'},
-  {nome:'Camila Reis',produto:'Kit runner',valor:650,vendedor:'Agente IA',dias:180,ultima:'16/09/2025'},
-  {nome:'André Pinto',produto:'BCAA + Asics',valor:510,vendedor:'Carlos A.',dias:180,ultima:'16/09/2025'},
-];
+const POSV_LEADS=[];
 
-const HISTORICO=[
-  {id:'H01',data:'17/03/2026',nome:'Thiago Viana',produto:'Pré-treino + Nike',valor:890,vendedor:'Carlos A.',origem:'WhatsApp direto',status:'fechado',motivo:''},
-  {id:'H02',data:'17/03/2026',nome:'Isabela Nunes',produto:'Conjunto fitness Rosa',valor:340,vendedor:'Marina R.',origem:'Orgânico',status:'fechado',motivo:''},
-  {id:'H03',data:'16/03/2026',nome:'Felipe Souza',produto:'Whey + Camiseta',valor:420,vendedor:'Carlos A.',origem:'Meta Ads',status:'fechado',motivo:''},
-  {id:'H04',data:'16/03/2026',nome:'Patrícia Lima',produto:'Legging Premium',valor:290,vendedor:'Marina R.',origem:'Instagram',status:'fechado',motivo:''},
-  {id:'H05',data:'15/03/2026',nome:'Roberto Matos',produto:'Suplementação completa',valor:780,vendedor:'Carlos A.',origem:'Google Ads',status:'fechado',motivo:''},
-  {id:'H06',data:'14/03/2026',nome:'Sônia Mendes',produto:'Kit fitness completo',valor:0,vendedor:'Carlos A.',origem:'Meta Ads',status:'perdido',motivo:'Preço alto'},
-  {id:'H07',data:'14/03/2026',nome:'Paulo Brito',produto:'Whey importado',valor:0,vendedor:'Marina R.',origem:'Instagram',status:'perdido',motivo:'Vai pensar'},
-  {id:'H08',data:'13/03/2026',nome:'Tatiane Rocha',produto:'Nike Air Max',valor:0,vendedor:'Carlos A.',origem:'Google Ads',status:'perdido',motivo:'Preço alto'},
-  {id:'H09',data:'12/03/2026',nome:'Camila Reis',produto:'Kit runner',valor:650,vendedor:'Agente IA',origem:'Meta Ads',status:'fechado',motivo:''},
-  {id:'H10',data:'11/03/2026',nome:'Marcos Teles',produto:'Kit hipertrofia premium',valor:1250,vendedor:'Carlos A.',origem:'Google Ads',status:'fechado',motivo:''},
-];
+const HISTORICO=[];
 
 const ETAPAS=[
   {key:'novo',label:'Novo contato',cor:'#00E5A0'},
@@ -2208,11 +2175,7 @@ const DISC_DATA={
   C:{label:'Conformidade',sub:'Analítico · Detalhista · Cauteloso',cor:'#A78BFA',bg:'rgba(124,92,252,0.2)',bars:{D:22,I:18,S:20,C:40},tip:'Forneça dados, comparativos e especificações técnicas. Dê tempo para analisar e decidir.'},
 };
 
-const COLABORADORES=[
-  {id:1,nome:'Carlos A.',cargo:'Vendedor',ativo:true,online:true,cor:'#FF5C00',bg:'rgba(255,92,0,.2)',ini:'CA',leads:12},
-  {id:2,nome:'Marina R.',cargo:'Vendedora',ativo:true,online:false,cor:'#FBB040',bg:'rgba(251,176,64,.2)',ini:'MR',leads:9},
-  {id:3,nome:'Agente IA',cargo:'Bot',ativo:true,online:true,cor:'#A78BFA',bg:'rgba(124,92,252,.2)',ini:'🤖',leads:18},
-];
+const COLABORADORES=[{id:'ia',nome:'Agente IA',cargo:'Bot',iniciais:'IA',cor:'#FF5C00',online:true,naFila:true,tipo:'ia'}];
 
 const PLAYBOOK_DATA=[
   {nome:'Whey Protein Gold Standard',tags:['Suplemento','Proteína'],texto:'100% whey, 24g proteína por dose. Sabores: baunilha, chocolate, morango, frutas vermelhas. Apresentações: 907g e 2kg. Ideal para pós-treino. Concorrentes: Optimum Nutrition, Max Titanium. Argumento principal: qualidade importada a preço acessível.'},
@@ -3018,11 +2981,7 @@ function abrirNovoCliente(){
 // ═══════════════════ V10: PÓS-VENDA IMEDIATA ═══════════════════
 
 // Demo data: leads that bought yesterday (dia útil anterior)
-const PV_IMEDIATA_LEADS = [
-  {id:1,nome:'Thiago Viana',produto:'Pré-treino C4 + Nike Air Max',valor:890,vendedor:'Carlos A.',compra:'17/03/2026',hora:'14:30',enviado:false},
-  {id:2,nome:'Isabela Nunes',produto:'Conjunto fitness Rosa',valor:340,vendedor:'Marina R.',compra:'17/03/2026',hora:'11:15',enviado:false},
-  {id:3,nome:'Felipe Souza',produto:'Whey Protein Gold + Creatina',valor:420,vendedor:'Carlos A.',compra:'17/03/2026',hora:'16:45',enviado:true},
-];
+const PV_IMEDIATA_LEADS = [];
 
 let pvImediataAtivo=true, pvImediataAnexo=null, pvImediataAnexoTipo=null;
 
@@ -3438,14 +3397,7 @@ function recClearAnexo(tipo,i){
 }
 
 // Dashboard rec panel render
-const REC_DASH_DEMO=[
-  {nome:'Priya Mendes',produto:'Botox',tipo:'Recorrência',diasRestantes:0,status:'hoje',msg:'Mensagem de recorrência Botox'},
-  {nome:'Diego Costa',produto:'Drenagem Linfática',tipo:'Upsell após Lipoaspiração',diasRestantes:0,status:'hoje',msg:'Upsell pós lipoaspiração'},
-  {nome:'Thiago Viana',produto:'Whey Protein',tipo:'Recorrência',diasRestantes:5,status:'futuro',msg:''},
-  {nome:'Isabela Nunes',produto:'Manutenção Sobrancelha',tipo:'Recorrência',diasRestantes:8,status:'futuro',msg:''},
-  {nome:'Carlos S.',produto:'Botox',tipo:'Recorrência',diasRestantes:-3,status:'enviado',msg:'Enviado há 3 dias'},
-  {nome:'Amanda F.',produto:'Creatina + BCAA',tipo:'Upsell após Whey',diasRestantes:-7,status:'enviado',msg:''},
-];
+const REC_DASH_DEMO=[];
 
 function renderRecDash(){
   const el=document.getElementById('rec-dash-list');if(!el)return;
@@ -3577,12 +3529,7 @@ function reativarLead(nome,key){
 
 // ═══════════════════ CASHBACK SYSTEM ═══════════════════
 let cashbackOn=true;
-const CASHBACK_DATA=[
-  {nome:'Thiago Viana',valor:890,dias_passados:2,status:'pending',compra:'17/03/2026'},
-  {nome:'Isabela Nunes',valor:340,dias_passados:2,status:'pending',compra:'17/03/2026'},
-  {nome:'Felipe Souza',valor:420,dias_passados:16,status:'sent',compra:'01/03/2026'},
-  {nome:'Patrícia Lima',valor:290,dias_passados:29,status:'used',compra:'17/02/2026'},
-];
+const CASHBACK_DATA=[];
 
 function toggleCashback(){
   cashbackOn=!cashbackOn;
