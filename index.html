@@ -758,33 +758,29 @@ function _rq(t,m,b,q){var o={method:m||'GET',headers:{'apikey':_SK,'Authorizatio
 window.dbSalvarLead=function(l){var row={cliente_subdominio:_gs(),nome:l.nome||'',telefone:l.tel||l.telefone||'',produto:l.produto||'',origem:l.origem||'Manual',etapa:l.etapa||'novo',valor:parseFloat(l.valor)||0,vendedor:l.vendedor||'',ig:l.ig||'',entrega:l.entrega||'',disc:l.disc||'',tasks:JSON.stringify(l.tasks||[]),notas:l.notas||''};if(l._dbId){_rq('leads','PATCH',row,'?id=eq.'+l._dbId);}else{_rq('leads','POST',row).then(function(res){if(res&&res[0]){l._dbId=res[0].id;l.id=res[0].id;}});}};
 window.dbDeletarLead=function(l){if(l&&l._dbId)_rq('leads','DELETE',null,'?id=eq.'+l._dbId);};
 window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=created_at.desc').then(function(rows){if(!rows||!rows.length)return;window.LEADS=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa,valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at};});if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();});};
-window.window.dbSalvarColab=function(c){
-  if(!c)return;
+window.dbSalvarColab=function(c){
+  if(!c||c.tipo==='ia')return;
   var sub=window._gs?window._gs():'mileniofitness-altamira';
-  var payload={cliente_subdominio:sub,nome:c.nome||'',cargo:c.cargo||'Vendedor',online:c.online!==false,na_fila:c.ativo!==false,cor:c.cor||'#FF5C00',iniciais:(c.nome||'').substring(0,2).toUpperCase(),tipo:c.tipo||'humano'};
   if(c._dbId){
-    // Atualizar
-    fetch(_SB+'/rest/v1/colaboradores?id=eq.'+c._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({online:c.online!==false,na_fila:c.ativo!==false,cargo:c.cargo||'Vendedor'})});
+    fetch(_SB+'/rest/v1/colaboradores?id=eq.'+c._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({online:c.online!==false,na_fila:c.ativo!==false,cargo:c.cargo||'Vendedor'})});
   } else {
-    // Inserir
-    fetch(_SB+'/rest/v1/colaboradores',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify(payload)
-    }).then(function(r){return r.json();}).then(function(d){if(d&&d[0]&&d[0].id){c._dbId=d[0].id;}});
+    fetch(_SB+'/rest/v1/colaboradores',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=representation'},
+      body:JSON.stringify({cliente_subdominio:sub,nome:c.nome||'',cargo:c.cargo||'Vendedor',online:c.online!==false,na_fila:c.ativo!==false,cor:c.cor||'#FF5C00',iniciais:(c.nome||'').substring(0,2).toUpperCase(),tipo:c.tipo||'humano'})
+    }).then(function(r){return r.json();}).then(function(d){if(d&&d[0]&&d[0].id)c._dbId=d[0].id;});
   }
 };
-window.window.dbCarregarColabs=function(){
+window.dbCarregarColabs=function(){
   var sub=window._gs?window._gs():'mileniofitness-altamira';
   fetch(_SB+'/rest/v1/colaboradores?cliente_subdominio=eq.'+sub+'&select=*&order=created_at.asc',{
     headers:{apikey:_SK,'Authorization':'Bearer '+_SK}
   }).then(function(r){return r.json();}).then(function(rows){
+    var ia={id:'ia',_dbId:'ia',nome:'Agente IA',cargo:'Bot',iniciais:'IA',cor:'#FF5C00',online:true,ativo:true,naFila:true,tipo:'ia'};
     if(!rows||!rows.length){
-      // Manter s� o Agente IA
-      if(!window.COLABORADORES)window.COLABORADORES=[];
-      var temIA=window.COLABORADORES.find(function(c){return c.tipo==='ia';});
-      if(!temIA)window.COLABORADORES=[{id:'ia',_dbId:'ia',nome:'Agente IA',cargo:'Bot',iniciais:'IA',cor:'#FF5C00',online:true,ativo:true,naFila:true,tipo:'ia'}];
+      window.COLABORADORES=[ia];
     } else {
       var humanos=rows.map(function(r){return{_dbId:r.id,nome:r.nome,cargo:r.cargo||'Vendedor',iniciais:r.iniciais||(r.nome||'').substring(0,2).toUpperCase(),cor:r.cor||'#FF5C00',online:r.online!==false,ativo:r.na_fila!==false,naFila:r.na_fila!==false,tipo:r.tipo||'humano'};});
-      var iaExistente={id:'ia',_dbId:'ia',nome:'Agente IA',cargo:'Bot',iniciais:'IA',cor:'#FF5C00',online:true,ativo:true,naFila:true,tipo:'ia'};
-      window.COLABORADORES=[iaExistente].concat(humanos);
+      window.COLABORADORES=[ia].concat(humanos);
     }
     if(typeof window.renderColabTable==='function')window.renderColabTable();
     if(typeof window.renderRoleta==='function')window.renderRoleta();
@@ -793,42 +789,9 @@ window.window.dbCarregarColabs=function(){
 var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();window.carregarAgente();setTimeout(window.carregarPlaybook,500);setTimeout(window.dbCarregarLeads,600);
 window.renderDash=function(){var leads=window.LEADS||[];function upd(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}var hoje=new Date().toDateString();var lh=leads.filter(function(l){return l.data_criacao&&new Date(l.data_criacao).toDateString()===hoje;}).length;var f=leads.filter(function(l){return l.etapa==='Fechado';});var tv=f.reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);var taxa=leads.length>0?Math.round(f.length/leads.length*100):0;upd('m1',lh);upd('m2','R$'+tv.toLocaleString('pt-BR',{minimumFractionDigits:0}));upd('m3',taxa+'%');};setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash();},900);var convEl=document.getElementById('conversas');if(convEl&&convEl.style.display!=='none')window._injetarAbasConv();console.log('[FP] OK. Contatos:'+window.CONTATOS.length);}},300);</script>
 <script>
-window.salvarArquivoPlaybook=function(){
-  var nome=document.getElementById('pb-new-nome')?.value?.trim()||'';
-  if(!nome&&window.__pbArqNome)nome=window.__pbArqNome.replace(/\.[^.]+$/,'');
-  if(!nome){alert('Informe o nome do item antes de salvar.');return;}
-  var texto=window.__pbTextoExtraido||document.getElementById('pb-new-texto')?.value?.trim()||'';
-  if(!texto&&!window.__pbArqBase64){alert('Nenhum arquivo carregado.');return;}
-  var status=document.getElementById('pb-arquivo-status');
-  if(status)status.innerHTML='<span style="color:#aaa">Salvando...</span>';
-  var sub=window._gs?window._gs():'mileniofitness-altamira';
-  fetch(_SB+'/rest/v1/playbook_itens',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},
-    body:JSON.stringify({cliente_subdominio:sub,nome:nome,texto:texto,arquivo_nome:window.__pbArqNome||'',arquivo_tipo:window.__pbArqTipo||''})
-  }).then(function(r){
-    if(r.status===201||r.status===200){
-      if(status)status.innerHTML='<span style="color:#00E5A0">Salvo com sucesso!</span>';
-      window.__pbArqBase64=null;window.__pbArqNome=null;window.__pbTextoExtraido=null;
-      var p=document.getElementById('pb-file-preview');if(p)p.innerHTML='';
-      var fi=document.getElementById('pb-file-upload');if(fi)fi.value='';
-      document.getElementById('pb-new-nome').value='';
-      setTimeout(function(){if(typeof window.carregarPlaybook==='function')window.carregarPlaybook();},800);
-    }else{if(status)status.innerHTML='<span style="color:#ff5c00">Erro ao salvar.</span>';}
-  }).catch(function(){if(status)status.innerHTML='<span style="color:#ff5c00">Erro de conexao.</span>';});
-};
-window._carregarPlaybookReal=function(){
-  var sub=window._gs?window._gs():'mileniofitness-altamira';
-  fetch(_SB+'/rest/v1/playbook_itens?cliente_subdominio=eq.'+sub+'&select=id,nome,texto,arquivo_nome,arquivo_tipo,tags&order=created_at.asc',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}
-  }).then(function(r){return r.json();}).then(function(d){
-    if(!d)return;
-    var list=document.getElementById('playbook-list');
-    var listArq=document.getElementById('pb-file-list');
-    var textos=d.filter(function(i){return !i.arquivo_nome||i.arquivo_nome==='';});
-    var arquivos=d.filter(function(i){return i.arquivo_nome&&i.arquivo_nome!=='';});
-    if(list){if(textos.length===0){list.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0;">Nenhum item ainda.</div>';}else{list.innerHTML=textos.map(function(item){return '<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:600;font-size:13px;">'+item.nome+'</span><button onclick="window.excluirPlaybookItem(\''+item.id+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;">x</button></div><div style="font-size:11px;color:var(--muted);margin-top:4px;">'+(item.texto||'').substring(0,80)+'...</div></div>';}).join('');}}
-    if(listArq){if(arquivos.length===0){listArq.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0;">Nenhum arquivo ainda.</div>';}else{listArq.innerHTML=arquivos.map(function(item){return '<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:600;font-size:13px;">'+item.nome+'</span><button onclick="window.excluirPlaybookItem(\''+item.id+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;">x</button></div><div style="font-size:11px;color:var(--muted);margin-top:4px;">PDF - '+(item.arquivo_nome||'Arquivo')+'</div><div style="font-size:11px;color:#00E5A0;margin-top:2px;">'+(item.texto?item.texto.length+' chars':'')+'</div></div>';}).join('');}}
-  });
-};
-setTimeout(function(){window.carregarPlaybook=window._carregarPlaybookReal;},500);
+window.salvarArquivoPlaybook=function(){var nome=document.getElementById('pb-new-nome')?.value?.trim()||'';if(!nome&&window.__pbArqNome)nome=window.__pbArqNome.replace(/\.[^.]+$/,'');if(!nome){alert('Informe o nome antes de salvar.');return;}var texto=window.__pbTextoExtraido||document.getElementById('pb-new-texto')?.value?.trim()||'';if(!texto&&!window.__pbArqBase64){alert('Nenhum arquivo carregado.');return;}var status=document.getElementById('pb-arquivo-status');if(status)status.innerHTML='<span style="color:#aaa">Salvando...</span>';var sub=window._gs?window._gs():'mileniofitness-altamira';fetch(_SB+'/rest/v1/playbook_itens',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,nome:nome,texto:texto,arquivo_nome:window.__pbArqNome||'',arquivo_tipo:window.__pbArqTipo||''})}).then(function(r){if(r.status===201||r.status===200){if(status)status.innerHTML='<span style="color:#00E5A0">Salvo!</span>';window.__pbArqBase64=null;window.__pbArqNome=null;window.__pbTextoExtraido=null;var p=document.getElementById('pb-file-preview');if(p)p.innerHTML='';var fi=document.getElementById('pb-file-upload');if(fi)fi.value='';document.getElementById('pb-new-nome').value='';setTimeout(function(){if(typeof window.carregarPlaybook==='function')window.carregarPlaybook();},800);}else{if(status)status.innerHTML='<span style="color:#ff5c00">Erro.</span>';}}).catch(function(){if(status)status.innerHTML='<span style="color:#ff5c00">Erro de conexao.</span>';});};
+window._carregarPlaybookReal=function(){var sub=window._gs?window._gs():'mileniofitness-altamira';fetch(_SB+'/rest/v1/playbook_itens?cliente_subdominio=eq.'+sub+'&select=id,nome,texto,arquivo_nome,arquivo_tipo,tags&order=created_at.asc',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(d){if(!d)return;var list=document.getElementById('playbook-list');var listArq=document.getElementById('pb-file-list');var textos=d.filter(function(i){return !i.arquivo_nome||i.arquivo_nome==='';});var arquivos=d.filter(function(i){return i.arquivo_nome&&i.arquivo_nome!=='';});if(list){if(textos.length===0){list.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0;">Nenhum item ainda.</div>';}else{list.innerHTML=textos.map(function(item){return '<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:600;font-size:13px;">'+item.nome+'</span><button onclick="window.excluirPlaybookItem(''+item.id+'')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;">x</button></div><div style="font-size:11px;color:var(--muted);margin-top:4px;">'+(item.texto||'').substring(0,80)+'...</div></div>';}).join('');}}if(listArq){if(arquivos.length===0){listArq.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0;">Nenhum arquivo ainda.</div>';}else{listArq.innerHTML=arquivos.map(function(item){return '<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:600;font-size:13px;">'+item.nome+'</span><button onclick="window.excluirPlaybookItem(''+item.id+'')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;">x</button></div><div style="font-size:11px;color:var(--muted);margin-top:4px;">PDF - '+(item.arquivo_nome||'Arquivo')+'</div><div style="font-size:11px;color:#00E5A0;margin-top:2px;">'+(item.texto?item.texto.length+' chars':'')+'</div></div>';}).join('');}}}});};
+setTimeout(function(){if(typeof window.carregarPlaybook==='function'&&window.carregarPlaybook!==window._carregarPlaybookReal){window.carregarPlaybook=window._carregarPlaybookReal;}},500);
 </script>
 </head>
 <body>
@@ -3964,14 +3927,14 @@ function renderConfigs(){
   // Pós-venda cfg
 
 }
-function toggleOnline(c){
+window.toggleOnline=function(c){
   if(!c||c.tipo==='ia')return;
   c.online=!c.online;
   window.dbSalvarColab(c);
   if(typeof window.renderColabTable==='function')window.renderColabTable();
   if(typeof window.renderRoleta==='function')window.renderRoleta();
 }
-function toggleAtivo(c){
+window.toggleAtivo=function(c){
   if(!c||c.tipo==='ia')return;
   c.ativo=!c.ativo;
   c.naFila=c.ativo;
@@ -3979,7 +3942,18 @@ function toggleAtivo(c){
   if(typeof window.renderColabTable==='function')window.renderColabTable();
   if(typeof window.renderRoleta==='function')window.renderRoleta();
 }
-function addColab(){const nome=prompt('Nome do colaborador:');if(!nome)return;COLABORADORES.push({id:Date.now(),nome,cargo:'Vendedor',ativo:true,online:false,cor:'#3B82F6',bg:'rgba(59,130,246,.2)',ini:nome.substring(0,2).toUpperCase(),leads:0});renderConfigs();renderRoleta();toast('✅ Colaborador adicionado!');}
+function addColab(){
+  var nome=prompt('Nome do colaborador:');
+  if(!nome||!nome.trim())return;
+  var cargo=prompt('Cargo (ex: Vendedor, Gerente):')||'Vendedor';
+  var cor=['#FF5C00','#7B61FF','#00E5A0','#FFB800','#FF3B3B','#00BFFF'][Math.floor(Math.random()*6)];
+  var c={nome:nome.trim(),cargo:cargo.trim(),iniciais:nome.trim().substring(0,2).toUpperCase(),cor:cor,online:true,ativo:true,naFila:true,tipo:'humano'};
+  window.COLABORADORES=window.COLABORADORES||[];
+  window.COLABORADORES.push(c);
+  window.dbSalvarColab(c);
+  if(typeof window.renderColabTable==='function')window.renderColabTable();
+  if(typeof window.renderRoleta==='function')window.renderRoleta();
+}
 function addPlaybook(){const nome=prompt('Nome do produto/serviço:');if(!nome)return;const texto=prompt('Informações para a IA e equipe:');if(!texto)return;PLAYBOOK_DATA.push({nome,tags:['Novo'],texto});renderConfigs();toast('✅ Item adicionado ao playbook!');}
 
 // ═══════════════════ NOVO LEAD ═══════════════════
@@ -4644,7 +4618,7 @@ function salvarColab(){
   toast('✅ Colaborador "'+(nome)+'" salvo com acesso configurado!');
 }
 
-function renderColabTable(){
+window.renderColabTable=function(){
   var tbl=document.getElementById('colab-table');
   if(!tbl)return;
   var cols=window.COLABORADORES||[];
@@ -4652,15 +4626,16 @@ function renderColabTable(){
   cols.forEach(function(c){
     var isIA=c.tipo==='ia';
     var online=c.online!==false;
-    var naFila=c.naFila!==false&&c.ativo!==false;
+    var naFila=(c.naFila!==false)&&(c.ativo!==false);
+    var nomeEsc=c.nome.replace(/'/g,"\'");
     html+='<tr>';
     html+='<td><div style="display:flex;align-items:center;gap:8px;"><div style="width:32px;height:32px;border-radius:50%;background:'+c.cor+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;">'+c.iniciais+'</div><span style="font-weight:600;">'+c.nome+'</span></div></td>';
     html+='<td>'+c.cargo+'</td>';
     html+='<td style="color:var(--muted);">--</td>';
-    html+='<td><label class="toggle-sw"><input type="checkbox"'+(online?' checked':'')+(isIA?' disabled':'')+' onchange="toggleOnline(window.COLABORADORES.find(function(x){return x.nome===''+c.nome+'';}))"><span class="toggle-knob"></span></label></td>';
-    html+='<td><label class="toggle-sw"><input type="checkbox"'+(naFila?' checked':'')+(isIA?' disabled':'')+' onchange="toggleAtivo(window.COLABORADORES.find(function(x){return x.nome===''+c.nome+'';}))"><span class="toggle-knob"></span></label></td>';
+    html+='<td><label class="toggle-sw"><input type="checkbox"'+(online?' checked':'')+(isIA?' disabled':'')+' onchange="window.toggleOnline(window.COLABORADORES.find(function(x){return x.nome===''+nomeEsc+'';}))"><span class="toggle-knob"></span></label></td>';
+    html+='<td><label class="toggle-sw"><input type="checkbox"'+(naFila?' checked':'')+(isIA?' disabled':'')+' onchange="window.toggleAtivo(window.COLABORADORES.find(function(x){return x.nome===''+nomeEsc+'';}))"><span class="toggle-knob"></span></label></td>';
     html+='<td style="color:var(--muted);font-size:12px;">Padrao</td>';
-    html+='<td>'+(isIA?'<span style="font-size:11px;color:var(--muted);">Sistema</span>':'<button onclick="editColab(window.COLABORADORES.find(function(x){return x.nome===''+c.nome+'';}))">Editar</button>')+'</td>';
+    html+='<td>'+(isIA?'<span style="font-size:11px;color:var(--muted);">Sistema</span>':'<button onclick="editColab(window.COLABORADORES.find(function(x){return x.nome===''+nomeEsc+'';}))">Editar</button>')+'</td>';
     html+='</tr>';
   });
   html+='</tbody>';
@@ -4840,7 +4815,7 @@ window.addEventListener('DOMContentLoaded',function(){
   }catch(e){console.warn('Init error:',e);}
 });
 
-window.addPlaybookTexto=function(){var nome=document.getElementById('pb-new-nome')?.value?.trim();var texto=document.getElementById('pb-new-texto')?.value?.trim();if(!nome){alert('Informe o nome do item.');return;}if(!texto){alert('Informe o texto do item.');return;}var sub=window._gs?window._gs():'mileniofitness-altamira';fetch(_SB+'/rest/v1/playbook_itens',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,nome:nome,texto:texto,tags:document.getElementById('pb-new-tags')?.value||''})}).then(function(r){if(r.status===201||r.status===200){document.getElementById('pb-new-nome').value='';document.getElementById('pb-new-texto').value='';if(document.getElementById('pb-new-tags'))document.getElementById('pb-new-tags').value='';alert('Item salvo no Playbook!');if(typeof window.carregarPlaybook==='function')window.carregarPlaybook();else location.reload();}else{alert('Erro ao salvar. Tente novamente.');}}).catch(function(){alert('Erro de conexao.');});};
+window.addPlaybookTexto=function(){var nome=document.getElementById('pb-new-nome')?.value?.trim();var texto=document.getElementById('pb-new-texto')?.value?.trim();if(!nome){alert('Informe o nome.');return;}if(!texto){alert('Informe o texto.');return;}var sub=window._gs?window._gs():'mileniofitness-altamira';fetch(_SB+'/rest/v1/playbook_itens',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,nome:nome,texto:texto,tags:document.getElementById('pb-new-tags')?.value||''})}).then(function(r){if(r.status===201||r.status===200){document.getElementById('pb-new-nome').value='';document.getElementById('pb-new-texto').value='';if(document.getElementById('pb-new-tags'))document.getElementById('pb-new-tags').value='';alert('Salvo!');if(typeof window.carregarPlaybook==='function')window.carregarPlaybook();}else{alert('Erro ao salvar.');}}).catch(function(){alert('Erro de conexao.');});};
 
 if(typeof window._gs==="function"&&window._gs()!=="master"){var _bm=document.getElementById("btn-nav-master");if(_bm)_bm.style.display="none";}
 </script>
