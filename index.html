@@ -758,44 +758,8 @@ function _rq(t,m,b,q){var o={method:m||'GET',headers:{'apikey':_SK,'Authorizatio
 window.dbSalvarLead=function(l){var row={cliente_subdominio:_gs(),nome:l.nome||'',telefone:l.tel||l.telefone||'',produto:l.produto||'',origem:l.origem||'Manual',etapa:l.etapa||'novo',valor:parseFloat(l.valor)||0,vendedor:l.vendedor||'',ig:l.ig||'',entrega:l.entrega||'',disc:l.disc||'',tasks:JSON.stringify(l.tasks||[]),notas:l.notas||''};if(l._dbId){_rq('leads','PATCH',row,'?id=eq.'+l._dbId);}else{_rq('leads','POST',row).then(function(res){if(res&&res[0]){l._dbId=res[0].id;l.id=res[0].id;}});}};
 window.dbDeletarLead=function(l){if(l&&l._dbId)_rq('leads','DELETE',null,'?id=eq.'+l._dbId);};
 window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=created_at.desc').then(function(rows){if(!rows||!rows.length)return;window.LEADS=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa,valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at};});if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();});};
-window.dbSalvarColab=function(c){
-  if(!c||c.tipo==='ia')return;
-  var sub=window._gs?window._gs():'mileniofitness-altamira';
-  if(c._dbId&&c._dbId!=='ia'){
-    fetch(_SB+'/rest/v1/colaboradores?id=eq.'+c._dbId,{method:'PATCH',
-      headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},
-      body:JSON.stringify({online:c.online!==false,na_fila:c.ativo!==false,cargo:c.cargo||'Vendedor'})});
-  } else {
-    fetch(_SB+'/rest/v1/colaboradores',{method:'POST',
-      headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=representation'},
-      body:JSON.stringify({cliente_subdominio:sub,nome:c.nome||'',cargo:c.cargo||'Vendedor',
-        online:c.online!==false,na_fila:c.ativo!==false,cor:c.bg||'#7B61FF',
-        iniciais:c.ini||c.iniciais||(c.nome||'').substring(0,2).toUpperCase(),tipo:c.tipo||'humano'})
-    }).then(function(r){return r.json();}).then(function(d){if(d&&d[0]&&d[0].id){c._dbId=d[0].id;c.id=d[0].id;}});
-  }
-};
-window.dbCarregarColabs=function(){
-  var sub=window._gs?window._gs():'mileniofitness-altamira';
-  fetch(_SB+'/rest/v1/colaboradores?cliente_subdominio=eq.'+sub+'&select=*&order=created_at.asc',{
-    headers:{apikey:_SK,'Authorization':'Bearer '+_SK}
-  }).then(function(r){return r.json();}).then(function(rows){
-    var ia={id:'ia',nome:'Agente IA',cargo:'Bot',iniciais:'IA',cor:'#FF5C00',bg:'#FF5C00',ini:'IA',online:true,ativo:true,naFila:true,tipo:'ia',perms:{}};
-    if(!rows||!rows.length){
-      window.COLABORADORES=[ia];
-    } else {
-      var humanos=rows.map(function(row){
-        var ini=(row.nome||'').substring(0,2).toUpperCase();
-        return {id:row.id,_dbId:row.id,nome:row.nome,cargo:row.cargo||'Vendedor',
-          iniciais:ini,ini:ini,cor:'#fff',bg:row.cor||'#7B61FF',
-          online:row.online!==false,ativo:row.na_fila!==false,naFila:row.na_fila!==false,
-          login:'--',tipo:row.tipo||'humano',perms:{}};
-      });
-      window.COLABORADORES=[ia].concat(humanos);
-    }
-    if(typeof renderColabTable==='function')renderColabTable();
-    if(typeof window.renderRoleta==='function')window.renderRoleta();
-  });
-};
+window.dbSalvarColab=function(c){if(!c||c.tipo==='ia')return;var sub=window._gs?window._gs():'mileniofitness-altamira';if(c._dbId&&c._dbId!=='ia'){fetch(_SB+'/rest/v1/colaboradores?id=eq.'+c._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({online:c.online!==false,na_fila:c.ativo!==false,cargo:c.cargo||'Vendedor'})});}else{fetch(_SB+'/rest/v1/colaboradores',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({cliente_subdominio:sub,nome:c.nome||'',cargo:c.cargo||'Vendedor',online:c.online!==false,na_fila:c.ativo!==false,cor:c.bg||'#7B61FF',iniciais:c.ini||c.iniciais||(c.nome||'').substring(0,2).toUpperCase(),tipo:c.tipo||'humano'})}).then(function(r){return r.json();}).then(function(d){if(d&&d[0]&&d[0].id){c._dbId=d[0].id;c.id=d[0].id;}});}};
+window.dbCarregarColabs=function(){var sub=window._gs?window._gs():'mileniofitness-altamira';fetch(_SB+'/rest/v1/colaboradores?cliente_subdominio=eq.'+sub+'&select=*&order=created_at.asc',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(rows){var ia={id:'ia',nome:'Agente IA',cargo:'Bot',iniciais:'IA',ini:'IA',cor:'#fff',bg:'#FF5C00',online:true,ativo:true,naFila:true,tipo:'ia',perms:{}};window.COLABORADORES=!rows||!rows.length?[ia]:[ia].concat(rows.map(function(row){var ini=(row.nome||'').substring(0,2).toUpperCase();return{id:row.id,_dbId:row.id,nome:row.nome,cargo:row.cargo||'Vendedor',iniciais:ini,ini:ini,cor:'#fff',bg:row.cor||'#7B61FF',online:row.online!==false,ativo:row.na_fila!==false,naFila:row.na_fila!==false,login:'--',tipo:row.tipo||'humano',perms:{}};}));if(typeof renderColabTable==='function')renderColabTable();if(typeof window.renderRoleta==='function')window.renderRoleta();});};
 var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();window.carregarAgente();setTimeout(window.carregarPlaybook,500);setTimeout(window.dbCarregarLeads,600);
 window.renderDash=function(){var leads=window.LEADS||[];function upd(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}var hoje=new Date().toDateString();var lh=leads.filter(function(l){return l.data_criacao&&new Date(l.data_criacao).toDateString()===hoje;}).length;var f=leads.filter(function(l){return l.etapa==='Fechado';});var tv=f.reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);var taxa=leads.length>0?Math.round(f.length/leads.length*100):0;upd('m1',lh);upd('m2','R$'+tv.toLocaleString('pt-BR',{minimumFractionDigits:0}));upd('m3',taxa+'%');};setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash();},900);var convEl=document.getElementById('conversas');if(convEl&&convEl.style.display!=='none')window._injetarAbasConv();console.log('[FP] OK. Contatos:'+window.CONTATOS.length);}},300);</script>
 </head>
@@ -3932,37 +3896,9 @@ function renderConfigs(){
   // Pós-venda cfg
 
 }
-function toggleOnline(id){
-  var c=window.COLABORADORES.find(function(x){return x.id===id;});
-  if(!c||c.tipo==='ia')return;
-  c.online=!c.online;
-  window.dbSalvarColab(c);
-  if(typeof renderColabTable==='function')renderColabTable();
-  if(typeof window.renderRoleta==='function')window.renderRoleta();
-}
-function toggleAtivo(id){
-  var c=window.COLABORADORES.find(function(x){return x.id===id;});
-  if(!c||c.tipo==='ia')return;
-  c.ativo=!c.ativo;c.naFila=c.ativo;
-  window.dbSalvarColab(c);
-  if(typeof renderColabTable==='function')renderColabTable();
-  if(typeof window.renderRoleta==='function')window.renderRoleta();
-}
-function addColab(){
-  var nome=prompt('Nome do colaborador:');
-  if(!nome||!nome.trim())return;
-  var cargo=prompt('Cargo:')||'Vendedor';
-  var cores=['#7B61FF','#00E5A0','#FFB800','#FF3B3B','#00BFFF','#FF5C00'];
-  var bg=cores[Math.floor(Math.random()*cores.length)];
-  var ini=nome.trim().substring(0,2).toUpperCase();
-  var c={nome:nome.trim(),cargo:cargo.trim(),iniciais:ini,ini:ini,cor:'#fff',bg:bg,
-    online:true,ativo:true,naFila:true,tipo:'humano',login:'--',perms:{}};
-  window.COLABORADORES=window.COLABORADORES||[];
-  window.COLABORADORES.push(c);
-  window.dbSalvarColab(c);
-  if(typeof renderColabTable==='function')renderColabTable();
-  if(typeof window.renderRoleta==='function')window.renderRoleta();
-}
+function toggleOnline(id){var c=window.COLABORADORES.find(function(x){return x.id===id;});if(!c||c.tipo==='ia')return;c.online=!c.online;window.dbSalvarColab(c);if(typeof renderColabTable==='function')renderColabTable();if(typeof window.renderRoleta==='function')window.renderRoleta();}
+function toggleAtivo(id){var c=window.COLABORADORES.find(function(x){return x.id===id;});if(!c||c.tipo==='ia')return;c.ativo=!c.ativo;c.naFila=c.ativo;window.dbSalvarColab(c);if(typeof renderColabTable==='function')renderColabTable();if(typeof window.renderRoleta==='function')window.renderRoleta();}
+function addColab(){var nome=prompt('Nome do colaborador:');if(!nome||!nome.trim())return;var cargo=prompt('Cargo:')||'Vendedor';var cores=['#7B61FF','#00E5A0','#FFB800','#FF3B3B','#00BFFF','#FF5C00'];var bg=cores[Math.floor(Math.random()*cores.length)];var ini=nome.trim().substring(0,2).toUpperCase();var c={nome:nome.trim(),cargo:cargo.trim(),iniciais:ini,ini:ini,cor:'#fff',bg:bg,online:true,ativo:true,naFila:true,tipo:'humano',login:'--',perms:{}};window.COLABORADORES=window.COLABORADORES||[];window.COLABORADORES.push(c);window.dbSalvarColab(c);if(typeof renderColabTable==='function')renderColabTable();if(typeof window.renderRoleta==='function')window.renderRoleta();}
 function addPlaybook(){const nome=prompt('Nome do produto/serviço:');if(!nome)return;const texto=prompt('Informações para a IA e equipe:');if(!texto)return;PLAYBOOK_DATA.push({nome,tags:['Novo'],texto});renderConfigs();toast('✅ Item adicionado ao playbook!');}
 
 // ═══════════════════ NOVO LEAD ═══════════════════
@@ -4818,6 +4754,188 @@ window.addEventListener('DOMContentLoaded',function(){
 window.addPlaybookTexto=function(){var n=document.getElementById('pb-new-nome')?.value?.trim();var t=document.getElementById('pb-new-texto')?.value?.trim();if(!n||!t){alert('Preencha nome e texto.');return;}var s=window._gs?window._gs():'mileniofitness-altamira';fetch(_SB+'/rest/v1/playbook_itens',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:s,nome:n,texto:t,tags:document.getElementById('pb-new-tags')?.value||''})}).then(function(r){if(r.status===201||r.status===200){document.getElementById('pb-new-nome').value='';document.getElementById('pb-new-texto').value='';alert('Salvo!');window.carregarPlaybook&&window.carregarPlaybook();}else{alert('Erro ao salvar.');}}).catch(function(){alert('Erro.');});};
 
 if(typeof window._gs==="function"&&window._gs()!=="master"){var _bm=document.getElementById("btn-nav-master");if(_bm)_bm.style.display="none";}
+</script>
+<script>
+setTimeout(function(){
+
+// ============================================================
+// SALVAR ARQUIVO PLAYBOOK
+// ============================================================
+window.salvarArquivoPlaybook=function(){
+  var n=document.getElementById('pb-new-nome')?.value?.trim()||'';
+  if(!n&&window.__pbArqNome)n=window.__pbArqNome.replace(/\.[^.]+$/,'');
+  if(!n){alert('Informe o nome.');return;}
+  var t=window.__pbTextoExtraido||'';
+  if(!t){alert('Sem texto extraido.');return;}
+  var st=document.getElementById('pb-arquivo-status');
+  if(st)st.innerHTML='<span style="color:#aaa">Salvando...</span>';
+  var s=window._gs?window._gs():'mileniofitness-altamira';
+  fetch(_SB+'/rest/v1/playbook_itens',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},
+    body:JSON.stringify({cliente_subdominio:s,nome:n,texto:t,arquivo_nome:window.__pbArqNome||'',arquivo_tipo:window.__pbArqTipo||''})
+  }).then(function(res){
+    if(res.status===201||res.status===200){
+      if(st)st.innerHTML='<span style="color:#00E5A0">Salvo!</span>';
+      window.__pbTextoExtraido=null;window.__pbArqNome=null;window.__pbArqBase64=null;
+      document.getElementById('pb-new-nome').value='';
+      setTimeout(function(){window.carregarPlaybook&&window.carregarPlaybook();},600);
+    }else{if(st)st.innerHTML='<span style="color:#f00">Erro.</span>';}
+  }).catch(function(){if(st)st.innerHTML='<span style="color:#f00">Erro.</span>';});
+};
+
+// ============================================================
+// CARREGAR PLAYBOOK DO BANCO
+// ============================================================
+window.carregarPlaybook=function(){
+  var s=window._gs?window._gs():'mileniofitness-altamira';
+  fetch(_SB+'/rest/v1/playbook_itens?cliente_subdominio=eq.'+s+'&select=id,nome,texto,arquivo_nome&order=created_at.asc',{
+    headers:{apikey:_SK,'Authorization':'Bearer '+_SK}
+  }).then(function(r){return r.json();}).then(function(d){
+    if(!d)return;
+    var L=document.getElementById('playbook-list');
+    var LA=document.getElementById('pb-file-list');
+    var tx=d.filter(function(i){return !i.arquivo_nome||i.arquivo_nome==='';});
+    var arq=d.filter(function(i){return i.arquivo_nome&&i.arquivo_nome!=='';});
+    if(L){L.innerHTML=!tx.length?'<div style="color:var(--muted);padding:12px 0;font-size:12px;">Nenhum item.</div>':tx.map(function(x){return '<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:600;">'+x.nome+'</span><button onclick="window.excluirPlaybookItem(this.dataset.id)" data-id="'+x.id+'" style="background:none;border:none;color:var(--muted);cursor:pointer;">x</button></div><div style="font-size:11px;color:var(--muted);margin-top:4px;">'+(x.texto||'').substring(0,80)+'...</div></div>';}).join('');}
+    if(LA){LA.innerHTML=!arq.length?'<div style="color:var(--muted);padding:12px 0;font-size:12px;">Nenhum arquivo ainda.</div>':arq.map(function(x){return '<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:600;">'+x.nome+'</span><button onclick="window.excluirPlaybookItem(this.dataset.id)" data-id="'+x.id+'" style="background:none;border:none;color:var(--muted);cursor:pointer;">x</button></div><div style="font-size:11px;color:#00E5A0;margin-top:2px;">'+(x.texto?x.texto.length+' chars':x.arquivo_nome)+'</div></div>';}).join('');}
+  });
+};
+
+// ============================================================
+// CONVERSAS -- busca peri�dica do banco e cria leads no funil
+// ============================================================
+window.__convNosCache={};
+
+window._syncConversas=function(){
+  var sub=window._gs?window._gs():'mileniofitness-altamira';
+  // Buscar ultimas mensagens por numero (ultima de cada conversa)
+  fetch(_SB+'/rest/v1/conversas_wpp?cliente_subdominio=eq.'+sub+'&select=numero,role,content,created_at&order=created_at.desc&limit=200',{
+    headers:{apikey:_SK,'Authorization':'Bearer '+_SK}
+  }).then(function(r){return r.json();}).then(function(msgs){
+    if(!msgs||!msgs.length)return;
+    // Agrupar por numero -- pegar ultima mensagem de cada
+    var byNum={};
+    msgs.forEach(function(m){
+      if(!byNum[m.numero])byNum[m.numero]={numero:m.numero,ultima:m.content,ultimaRole:m.role,ts:m.created_at};
+    });
+    // Buscar contatos para nome
+    fetch(_SB+'/rest/v1/contatos?cliente_subdominio=eq.'+sub+'&select=numero,nome',{
+      headers:{apikey:_SK,'Authorization':'Bearer '+_SK}
+    }).then(function(r){return r.json();}).then(function(contatos){
+      var nomeMap={};
+      (contatos||[]).forEach(function(c){nomeMap[c.numero]=c.nome;});
+
+      Object.keys(byNum).forEach(function(num){
+        var conv=byNum[num];
+        var nome=nomeMap[num]||('WhatsApp '+num.substring(num.length-4));
+        var ini=nome.substring(0,2).toUpperCase();
+        var leadId='wpp_'+num;
+
+        // Verificar se lead j� existe no array LEADS
+        var leadExist=window.LEADS&&window.LEADS.find(function(l){return l.tel===num||l.id===leadId;});
+
+        if(!leadExist){
+          // Criar lead no array LEADS
+          var novoLead={
+            id:leadId,
+            nome:nome,
+            tel:num,
+            canal:'wpp',
+            etapa:'novo_contato',
+            origem:'WhatsApp',
+            vendedor:'Agente IA',
+            produto:'',
+            valor:0,
+            msgs:[{de:'cliente',txt:conv.ultima,ts:conv.ts}],
+            disc:null,
+            bg:'#00B0FF',
+            ini:ini
+          };
+          window.LEADS=window.LEADS||[];
+          window.LEADS.unshift(novoLead);
+          // Salvar no banco
+          window._salvarLeadBanco(novoLead);
+        } else {
+          // Atualizar ultima mensagem
+          if(leadExist.msgs)leadExist.msgs.push({de:conv.ultimaRole==='user'?'cliente':'agente',txt:conv.ultima,ts:conv.ts});
+        }
+      });
+
+      // Re-renderizar conversas e kanban
+      if(typeof renderConvs==='function')renderConvs();
+      if(typeof renderKanban==='function')renderKanban();
+    });
+  });
+};
+
+// Salvar lead no banco
+window._salvarLeadBanco=function(lead){
+  var sub=window._gs?window._gs():'mileniofitness-altamira';
+  fetch(_SB+'/rest/v1/leads',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},
+    body:JSON.stringify({
+      cliente_subdominio:sub,
+      nome:lead.nome,
+      numero:lead.tel,
+      canal:lead.canal||'wpp',
+      etapa:lead.etapa||'novo_contato',
+      origem:lead.origem||'WhatsApp',
+      vendedor:lead.vendedor||'Agente IA'
+    })
+  });
+};
+
+// Atualizar etapa do lead no banco
+window._atualizarEtapaLead=function(tel,etapa){
+  var sub=window._gs?window._gs():'mileniofitness-altamira';
+  fetch(_SB+'/rest/v1/leads?numero=eq.'+tel+'&cliente_subdominio=eq.'+sub,{
+    method:'PATCH',
+    headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},
+    body:JSON.stringify({etapa:etapa})
+  });
+};
+
+// Sobrescrever moverParaFunil para tamb�m salvar no banco
+var _moverOriginal=window.moverParaFunil;
+window.moverParaFunil=function(lead,etapa){
+  if(_moverOriginal)_moverOriginal(lead,etapa);
+  if(lead&&lead.tel)window._atualizarEtapaLead(lead.tel,etapa);
+};
+
+// Carregar leads do banco na inicializa��o
+window._carregarLeadsBanco=function(){
+  var sub=window._gs?window._gs():'mileniofitness-altamira';
+  fetch(_SB+'/rest/v1/leads?cliente_subdominio=eq.'+sub+'&select=*&order=created_at.desc&limit=100',{
+    headers:{apikey:_SK,'Authorization':'Bearer '+_SK}
+  }).then(function(r){return r.json();}).then(function(rows){
+    if(!rows||!rows.length)return;
+    var novos=rows.filter(function(row){
+      return !(window.LEADS&&window.LEADS.find(function(l){return l.tel===row.numero||l.id==='wpp_'+row.numero;}));
+    });
+    novos.forEach(function(row){
+      var nome=row.nome||('WhatsApp '+(row.numero||'').substring((row.numero||'').length-4));
+      window.LEADS=window.LEADS||[];
+      window.LEADS.push({
+        id:'wpp_'+row.numero,
+        nome:nome,
+        tel:row.numero,
+        canal:row.canal||'wpp',
+        etapa:row.etapa||'novo_contato',
+        origem:row.origem||'WhatsApp',
+        vendedor:row.vendedor||'Agente IA',
+        produto:'',valor:0,msgs:[],disc:null,
+        bg:'#00B0FF',ini:nome.substring(0,2).toUpperCase()
+      });
+    });
+    if(typeof renderConvs==='function')renderConvs();
+    if(typeof renderKanban==='function')renderKanban();
+  });
+};
+
+// Iniciar polling a cada 15 segundos
+window._carregarLeadsBanco();
+window._syncConversas();
+setInterval(function(){window._syncConversas();},15000);
+
+},1500);
 </script>
 </body>
 </html>
