@@ -3929,7 +3929,63 @@ function pbGoTab(tab,btn){
   document.getElementById('pb-tab-arquivos').style.display=tab==='arquivos'?'block':'none';
 }
 
-function pbHandleFiles(input){var files=Array.from(input.files);files.forEach(function(file){if(file.size>10*1024*1024){toast('⚠️ Arquivo "'+file.name+'" excede 10MB.');return;}var reader=new FileReader();toast('⏳ Salvando "'+file.name+'"...');reader.onload=function(e){var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);var payload={cliente_subdominio:_sub,nome:file.name,tags:'arquivo,'+file.type,texto:'[ARQUIVO]',arquivo_base64:e.target.result,arquivo_nome:file.name,arquivo_tipo:file.type};fetch(_SB+'/rest/v1/playbook_itens',{method:'POST',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK,'Prefer':'return=representation'},body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(d){if(d&&d[0]){toast('✅ "'+file.name+'" salvo no Playbook!');window.carregarPlaybook();}else{toast('❌ Erro ao salvar. Arquivo pode ser grande demais (limite 10MB).');}});};reader.readAsDataURL(file);});}
+function pbHandleFiles(input){
+  var file=input.files[0];
+  if(!file)return;
+  var MAX=5*1024*1024;
+  if(file.size>MAX){alert('Arquivo muito grande. M�ximo 5MB.');return;}
+  var nome=file.name;
+  var tipo=file.type||'';
+  var isPDF=tipo==='application/pdf'||nome.toLowerCase().endsWith('.pdf');
+  var nomeInput=document.getElementById('pb-new-nome');
+  if(nomeInput&&!nomeInput.value){nomeInput.value=nome.replace(/\.[^.]+$/,'');}
+  if(isPDF){
+    var reader=new FileReader();
+    reader.onload=function(e){
+      window.__pbArqBase64=e.target.result;
+      window.__pbArqNome=nome;
+      window.__pbArqTipo=tipo;
+      if(typeof pdfjsLib==='undefined'){
+        var script=document.createElement('script');
+        script.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        script.onload=function(){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';extrairTextoPDF(e.target.result,nome);};
+        document.head.appendChild(script);
+      } else {extrairTextoPDF(e.target.result,nome);}
+    };
+    reader.readAsDataURL(file);
+  } else {
+    var reader2=new FileReader();
+    reader2.onload=function(e){
+      window.__pbArqBase64=e.target.result;
+      window.__pbArqNome=nome;
+      window.__pbArqTipo=tipo;
+      var preview=document.getElementById('pb-file-preview');
+      if(preview)preview.innerHTML='<span style="color:#00E5A0">'+nome+' carregado ('+Math.round(file.size/1024)+'KB)</span>';
+    };
+    reader2.readAsDataURL(file);
+  }
+}
+async function extrairTextoPDF(base64,nome){
+  try{
+    var preview=document.getElementById('pb-file-preview');
+    if(preview)preview.innerHTML='<span style="color:#aaa">Extraindo texto do PDF...</span>';
+    var b64=base64.split(',')[1];
+    var binary=atob(b64);
+    var bytes=new Uint8Array(binary.length);
+    for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    var pdf=await pdfjsLib.getDocument({data:bytes}).promise;
+    var txt='';
+    for(var p=1;p<=pdf.numPages;p++){var pg=await pdf.getPage(p);var c=await pg.getTextContent();txt+=c.items.map(function(x){return x.str;}).join(' ')+'\n';}
+    txt=txt.trim();
+    var textoInput=document.getElementById('pb-new-texto');
+    if(textoInput&&!textoInput.value)textoInput.value=txt;
+    if(preview)preview.innerHTML='<span style="color:#00E5A0">'+nome+' - texto extraido ('+txt.length+' caracteres)</span>';
+    window.__pbTextoExtraido=txt;
+  }catch(e){
+    var preview=document.getElementById('pb-file-preview');
+    if(preview)preview.innerHTML='<span style="color:#ff5c00">Nao foi possivel extrair texto do PDF. Adicione manualmente.</span>';
+  }
+}
 
 function renderPbFiles(){
   const el=document.getElementById('pb-file-list');if(!el)return;
