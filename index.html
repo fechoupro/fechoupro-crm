@@ -2469,33 +2469,19 @@ function openConv(id){
   }
 }
 
-function toggleIA(id){
-  const wasOn=getIaOn(id);
-  setIaOn(id,!wasOn);
-  const nowOn=!wasOn;
-  // Update UI
-  const btn=document.getElementById('ia-toggle');
-  const lbl=document.getElementById('ia-lbl');
-  const dot=document.getElementById('ia-dot');
-  const inp=document.getElementById('conv-inp');
-  const send=document.querySelector('.conv-send');
-  if(btn){btn.className='ia-toggle-btn '+(nowOn?'on':'off');}
-  if(lbl)lbl.textContent=nowOn?'IA Ativa':'IA Pausada';
-  if(dot)dot.style.background=nowOn?'var(--accent2)':'rgba(255,255,255,.2)';
-  if(inp){inp.disabled=nowOn;inp.placeholder=nowOn?'IA respondendo automaticamente...':'Digite mensagem...';}
-  if(send)send.style.opacity=nowOn?'.4':'1';
-  if(nowOn){
-    clearResponseTimer();
-    // IA reassumes — evaluate context and continue
-    iaResumeContext(id);
-    toast('🤖 Agente IA assumiu o atendimento e está analisando o contexto...');
-  } else {
-    toast('👤 Atendimento humano ativado. Agente IA pausado.');
-    // Start 90s timer for human response
-    if(currentConv && currentConv.msgs.length>0 && currentConv.msgs[currentConv.msgs.length-1].tipo==='recv'){
-      startResponseTimer();
-    }
-  }
+function toggleIA(){
+  var el=document.getElementById('toggle-ia');
+  if(!el)return;
+  var ativo=el.checked;
+  window.toggleAgente&&window.toggleAgente(ativo);
+  var numero=window.currentConv&&window.currentConv.tel?window.currentConv.tel.replace(/[^0-9]/g,''):'';
+  if(!numero)return;
+  var sub=window._gs?window._gs():'mileniofitness-altamira';
+  fetch(_SB+'/rest/v1/ia_status',{
+    method:'POST',
+    headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify({cliente_subdominio:sub,numero:numero,ia_ativa:ativo,updated_at:new Date().toISOString()})
+  }).then(function(r){console.log('ia_status salvo:',r.status,'ativo:',ativo);});
 }
 
 async function iaResumeContext(leadId){
