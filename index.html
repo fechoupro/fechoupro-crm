@@ -1,4 +1,4 @@
-function salvarArquivoPlaybook(){
+window.salvarArquivoPlaybook=function(){
   var nome=document.getElementById('pb-new-nome')?.value?.trim()||window.__pbArqNome||'';
   if(!nome&&window.__pbArqNome)nome=window.__pbArqNome.replace(/\.[^.]+$/,'');
   if(!nome){alert('Informe o nome do item antes de salvar.');return;}
