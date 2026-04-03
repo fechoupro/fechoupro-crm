@@ -1,28 +1,12 @@
-window.salvarArquivoPlaybook=function(){
-  var nome=document.getElementById('pb-new-nome')?.value?.trim()||window.__pbArqNome||'';
-  if(!nome&&window.__pbArqNome)nome=window.__pbArqNome.replace(/\.[^.]+$/,'');
-  if(!nome){alert('Informe o nome do item antes de salvar.');return;}
-  var texto=window.__pbTextoExtraido||document.getElementById('pb-new-texto')?.value?.trim()||'';
-  if(!texto&&!window.__pbArqBase64){alert('Nenhum arquivo carregado.');return;}
-  var status=document.getElementById('pb-arquivo-status');
-  if(status)status.innerHTML='<span style="color:#aaa">Salvando...</span>';
-  var sub=window._gs?window._gs():'mileniofitness-altamira';
-  var payload={cliente_subdominio:sub,nome:nome,texto:texto,arquivo_nome:window.__pbArqNome||'',arquivo_tipo:window.__pbArqTipo||''};
-  fetch(_SB+'/rest/v1/playbook_itens',{
-    method:'POST',
-    headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},
-    body:JSON.stringify(payload)
-  }).then(function(r){
-    if(r.status===201||r.status===200){
-      if(status)status.innerHTML='<span style="color:#00E5A0">Salvo com sucesso!</span>';
-      window.__pbArqBase64=null;window.__pbArqNome=null;window.__pbTextoExtraido=null;
-      var preview=document.getElementById('pb-file-preview');if(preview)preview.innerHTML='';
-      var fileInput=document.getElementById('pb-file-upload');if(fileInput)fileInput.value='';
-      document.getElementById('pb-new-nome').value='';
-      setTimeout(function(){if(typeof window.carregarPlaybook==='function')window.carregarPlaybook();else location.reload();},800);
-    }else{if(status)status.innerHTML='<span style="color:#ff5c00">Erro ao salvar. Tente novamente.</span>';}
-  }).catch(function(){if(status)status.innerHTML='<span style="color:#ff5c00">Erro de conexao.</span>';});
-}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Milênio Fitness — CRM Inteligente</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#09090b;--surface:#111115;--card:#18181d;--card2:#1f1f26;
   --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
@@ -778,6 +762,22 @@ window.dbSalvarColab=function(c){var row={cliente_subdominio:_gs(),nome:c.nome,c
 window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&ativo=eq.true').then(function(rows){if(!rows||!rows.length)return;window.COLABORADORES=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')};});if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();});};
 var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();window.carregarAgente();setTimeout(window.carregarPlaybook,500);setTimeout(window.dbCarregarLeads,600);
 window.renderDash=function(){var leads=window.LEADS||[];function upd(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}var hoje=new Date().toDateString();var lh=leads.filter(function(l){return l.data_criacao&&new Date(l.data_criacao).toDateString()===hoje;}).length;var f=leads.filter(function(l){return l.etapa==='Fechado';});var tv=f.reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);var taxa=leads.length>0?Math.round(f.length/leads.length*100):0;upd('m1',lh);upd('m2','R$'+tv.toLocaleString('pt-BR',{minimumFractionDigits:0}));upd('m3',taxa+'%');};setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash();},900);var convEl=document.getElementById('conversas');if(convEl&&convEl.style.display!=='none')window._injetarAbasConv();console.log('[FP] OK. Contatos:'+window.CONTATOS.length);}},300);</script>
+
+<script>
+window.salvarArquivoPlaybook=function(){
+  var nome=document.getElementById('pb-new-nome')?.value?.trim()||'';
+  if(!nome&&window.__pbArqNome)nome=window.__pbArqNome.replace(/\.[^.]+$/,'');
+  if(!nome){alert('Informe o nome do item antes de salvar.');return;}
+  var texto=window.__pbTextoExtraido||document.getElementById('pb-new-texto')?.value?.trim()||'';
+  if(!texto&&!window.__pbArqBase64){alert('Nenhum arquivo carregado. Faca o upload primeiro.');return;}
+  var status=document.getElementById('pb-arquivo-status');
+  if(status)status.innerHTML='<span style="color:#aaa">Salvando...</span>';
+  var sub=window._gs?window._gs():'mileniofitness-altamira';
+  fetch(_SB+'/rest/v1/playbook_itens',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,nome:nome,texto:texto,arquivo_nome:window.__pbArqNome||'',arquivo_tipo:window.__pbArqTipo||''})
+  }).then(function(r){if(r.status===201||r.status===200){if(status)status.innerHTML='<span style="color:#00E5A0">Salvo com sucesso!</span>';window.__pbArqBase64=null;window.__pbArqNome=null;window.__pbTextoExtraido=null;var p=document.getElementById('pb-file-preview');if(p)p.innerHTML='';var fi=document.getElementById('pb-file-upload');if(fi)fi.value='';document.getElementById('pb-new-nome').value='';setTimeout(function(){if(typeof window.carregarPlaybook==='function')window.carregarPlaybook();else location.reload();},800);}else{if(status)status.innerHTML='<span style="color:#ff5c00">Erro ao salvar. Tente novamente.</span>';}
+  }).catch(function(){if(status)status.innerHTML='<span style="color:#ff5c00">Erro de conexao.</span>';});
+};
+</script>
 </head>
 <body>
 
@@ -2050,7 +2050,7 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
               <div class="pb-file-list" id="pb-file-list">
                 <div style="font-size:11px;color:var(--dim);text-align:center;padding:10px;">Nenhum arquivo enviado ainda.</div>
               </div>
-              <div id="pb-file-preview" style="margin:8px 0;font-size:12px;color:#aaa;min-height:18px;"></div><button onclick="salvarArquivoPlaybook()" style="width:100%;padding:10px;background:#FF5C00;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:6px;" id="btn-salvar-arquivo-pb">Salvar no Playbook</button><div id="pb-arquivo-status" style="margin-top:6px;font-size:12px;text-align:center;min-height:16px;"></div><div style="padding:10px 12px;border-radius:var(--r);background:rgba(124,92,252,.06);border:1px solid rgba(124,92,252,.15);font-size:11px;color:var(--muted);line-height:1.7;margin-top:8px;">
+              <div id="pb-file-preview" style="margin:8px 0;font-size:12px;color:#aaa;min-height:18px;"></div><button onclick="window.salvarArquivoPlaybook()" style="width:100%;padding:10px;background:#FF5C00;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:6px;">Salvar no Playbook</button><div id="pb-arquivo-status" style="margin-top:6px;font-size:12px;text-align:center;min-height:16px;"></div><div style="padding:10px 12px;border-radius:var(--r);background:rgba(124,92,252,.06);border:1px solid rgba(124,92,252,.15);font-size:11px;color:var(--muted);line-height:1.7;margin-top:8px;">
                 🤖 Os arquivos enviados são processados pelo agente de IA e usados como base de conhecimento para responder perguntas sobre produtos, preços e serviços. Quanto mais completo o playbook, mais preciso será o atendimento.
               </div>
             </div>
@@ -4773,20 +4773,8 @@ window.addPlaybookTexto=function(){
   if(!nome){alert('Informe o nome do item.');return;}
   if(!texto){alert('Informe o texto do item.');return;}
   var sub=window._gs?window._gs():'mileniofitness-altamira';
-  fetch(_SB+'/rest/v1/playbook_itens',{
-    method:'POST',
-    headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},
-    body:JSON.stringify({cliente_subdominio:sub,nome:nome,texto:texto,tags:document.getElementById('pb-new-tags')?.value||''})
-  }).then(function(r){
-    if(r.status===201||r.status===200){
-      document.getElementById('pb-new-nome').value='';
-      document.getElementById('pb-new-texto').value='';
-      if(document.getElementById('pb-new-tags'))document.getElementById('pb-new-tags').value='';
-      alert('Item salvo no Playbook!');
-      if(typeof window.carregarPlaybook==='function')window.carregarPlaybook();
-      else location.reload();
-    }else{alert('Erro ao salvar. Tente novamente.');}
-  }).catch(function(){alert('Erro de conexao. Verifique sua internet.');});
+  fetch(_SB+'/rest/v1/playbook_itens',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,nome:nome,texto:texto,tags:document.getElementById('pb-new-tags')?.value||''})
+  }).then(function(r){if(r.status===201||r.status===200){document.getElementById('pb-new-nome').value='';document.getElementById('pb-new-texto').value='';if(document.getElementById('pb-new-tags'))document.getElementById('pb-new-tags').value='';alert('Item salvo no Playbook!');if(typeof window.carregarPlaybook==='function')window.carregarPlaybook();else location.reload();}else{alert('Erro ao salvar. Tente novamente.');}}).catch(function(){alert('Erro de conexao.');});
 };
 
 if(typeof window._gs==="function"&&window._gs()!=="master"){var _bm=document.getElementById("btn-nav-master");if(_bm)_bm.style.display="none";}
