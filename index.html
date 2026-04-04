@@ -4769,5 +4769,92 @@ window.addPlaybookTexto=function(){window.salvarPlaybookItem();};
 
 if(typeof window._gs==="function"&&window._gs()!=="master"){var _bm=document.getElementById("btn-nav-master");if(_bm)_bm.style.display="none";}
 </script>
+<script>
+setTimeout(function(){
+
+// Carregar playbook do banco
+window.carregarPlaybook=function(){
+  var s=window._gs?window._gs():'mileniofitness-altamira';
+  fetch(_SB+'/rest/v1/playbook_itens?cliente_subdominio=eq.'+s+'&select=id,nome,texto,arquivo_nome&order=created_at.asc',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(d){
+    if(!d)return;
+    var L=document.getElementById('playbook-list');
+    var LA=document.getElementById('pb-file-list');
+    var tx=d.filter(function(i){return !i.arquivo_nome||i.arquivo_nome==='';});
+    var arq=d.filter(function(i){return i.arquivo_nome&&i.arquivo_nome!=='';});
+    if(L)L.innerHTML=!tx.length?'<div style="color:var(--muted);padding:12px 0;font-size:12px;">Nenhum item.</div>':tx.map(function(x){return '<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:600;">'+x.nome+'</span><button onclick="window.excluirPlaybookItem(this.dataset.id)" data-id="'+x.id+'" style="background:none;border:none;color:var(--muted);cursor:pointer;">x</button></div><div style="font-size:11px;color:var(--muted);margin-top:4px;">'+(x.texto||'').substring(0,80)+'...</div></div>';}).join('');
+    if(LA)LA.innerHTML=!arq.length?'<div style="color:var(--muted);padding:12px 0;font-size:12px;">Nenhum arquivo ainda.</div>':arq.map(function(x){return '<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:600;">'+x.nome+'</span><button onclick="window.excluirPlaybookItem(this.dataset.id)" data-id="'+x.id+'" style="background:none;border:none;color:var(--muted);cursor:pointer;">x</button></div><div style="font-size:11px;color:#00E5A0;margin-top:2px;">'+(x.texto?x.texto.length+' chars':x.arquivo_nome)+'</div></div>';}).join('');
+  });
+};
+
+// Salvar arquivo playbook
+window.salvarArquivoPlaybook=function(){
+  var n=document.getElementById('pb-new-nome')?.value?.trim()||'';
+  if(!n&&window.__pbArqNome)n=window.__pbArqNome.replace(/\.[^.]+$/,'');
+  if(!n){alert('Informe o nome.');return;}
+  var t=window.__pbTextoExtraido||'';
+  if(!t){alert('Sem texto extraido.');return;}
+  var st=document.getElementById('pb-arquivo-status');
+  if(st)st.innerHTML='<span style="color:#aaa">Salvando...</span>';
+  var s=window._gs?window._gs():'mileniofitness-altamira';
+  fetch(_SB+'/rest/v1/playbook_itens',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:s,nome:n,texto:t,arquivo_nome:window.__pbArqNome||'',arquivo_tipo:window.__pbArqTipo||''})}).then(function(res){
+    if(res.status===201||res.status===200){if(st)st.innerHTML='<span style="color:#00E5A0">Salvo!</span>';window.__pbTextoExtraido=null;window.__pbArqNome=null;document.getElementById('pb-new-nome').value='';setTimeout(function(){window.carregarPlaybook&&window.carregarPlaybook();},600);}
+    else{if(st)st.innerHTML='<span style="color:#f00">Erro.</span>';}
+  }).catch(function(){if(st)st.innerHTML='<span style="color:#f00">Erro.</span>';});
+};
+
+// SYNC CONVERSAS -- busca banco e popula LEADS corretamente
+function _syncConvs(){
+  var sub=window._gs?window._gs():'mileniofitness-altamira';
+  fetch(_SB+'/rest/v1/conversas_wpp?cliente_subdominio=eq.'+sub+'&select=numero,role,content,created_at&order=created_at.desc&limit=300',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}})
+  .then(function(r){return r.json();}).then(function(msgs){
+    if(!msgs||!msgs.length)return;
+    // Buscar contatos para nomes
+    fetch(_SB+'/rest/v1/contatos?cliente_subdominio=eq.'+sub+'&select=numero,nome',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}})
+    .then(function(r){return r.json();}).then(function(cts){
+      var nm={};
+      (cts||[]).forEach(function(c){nm[c.numero]=c.nome;});
+      // Agrupar por numero -- limpar JID
+      var byNum={};
+      msgs.forEach(function(m){
+        var num=m.numero.replace(/@s\.whatsapp\.net/,'').replace(/@g\.us/,'').replace(/@lid/,'');
+        if(!byNum[num])byNum[num]={numero:num,ultima:m.content,ts:m.created_at,all:[]};
+        byNum[num].all.push({de:m.role==='user'?'cliente':'agente',txt:m.content,ts:m.created_at});
+      });
+      Object.keys(byNum).forEach(function(num){
+        var conv=byNum[num];
+        var nome=nm[num]||('WhatsApp +'+num.slice(-4));
+        var leadId='wpp_'+num;
+        var existe=LEADS.find(function(l){return l.id===leadId||l.tel===num;});
+        var msgsArr=conv.all.slice().reverse();
+        var ini=nome.replace(/[^A-Za-z]/g,'').substring(0,2).toUpperCase()||'WP';
+        if(!existe){
+          LEADS.unshift({
+            id:leadId,nome:nome,tel:num,canal:'wpp',
+            etapa:'novo_contato',origem:'WhatsApp',vendedor:'Agente IA',
+            produto:'',valor:0,msgs:msgsArr,disc:null,
+            bg:'#00B0FF',ini:ini,
+            tempo:new Date(conv.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+          });
+          // Salvar no banco de leads
+          fetch(_SB+'/rest/v1/leads',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},
+            body:JSON.stringify({cliente_subdominio:sub,nome:nome,numero:num,canal:'wpp',etapa:'novo_contato',origem:'WhatsApp',vendedor:'Agente IA'})
+          }).catch(function(){});
+        } else {
+          existe.msgs=msgsArr;
+          if(nm[num])existe.nome=nm[num];
+          existe.ini=(existe.nome||'WP').replace(/[^A-Za-z]/g,'').substring(0,2).toUpperCase()||'WP';
+          existe.tempo=new Date(conv.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        }
+      });
+      if(typeof renderConvs==='function')renderConvs();
+      if(typeof renderKanban==='function')renderKanban();
+    });
+  });
+}
+_syncConvs();
+setInterval(_syncConvs,10000);
+
+},1500);
+</script>
 </body>
 </html>
