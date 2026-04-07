@@ -742,11 +742,12 @@ body.font-serif{--font:'Georgia',serif;}
 .nav-tab{font-size:11px!important;padding:5px 8px!important;white-space:nowrap!important;}
 .topbar-right button{font-size:11px!important;padding:6px 10px!important;white-space:nowrap!important;}
 </style>
-<script id="fp-globals">window.CONTATOS=JSON.parse(localStorage.getItem('mf_contatos')||'[]');
-window._saveContatos=function(){localStorage.setItem('mf_contatos',JSON.stringify(window.CONTATOS));};
-window.adicionarContato=function(d){var c={id:Date.now(),nome:d.nome||'',tel:d.tel||'',ig:d.ig||'',produto:d.produto||'',origem:d.origem||'Manual',obs:d.obs||'',criado:new Date().toISOString()};window.CONTATOS.unshift(c);window._saveContatos();if(typeof window._renderContatos==='function')window._renderContatos();};
-window.moverParaFunil=function(id){var idx=window.CONTATOS.findIndex(function(c){return c.id===id;});if(idx<0)return;var c=window.CONTATOS[idx];var l={id:Date.now(),nome:c.nome,tel:c.tel,ig:c.ig,produto:c.produto,origem:c.origem,etapa:'novo',valor:0,hora:new Date().toISOString(),tasks:[],notas:c.obs||''};if(typeof LEADS!=='undefined'){LEADS.unshift(l);if(window.dbSalvarLead)window.dbSalvarLead(l);}window.CONTATOS.splice(idx,1);window._saveContatos();if(typeof renderKanban==='function')renderKanban();if(typeof renderDash==='function')renderDash();if(typeof window._renderContatos==='function')window._renderContatos();if(typeof toast==='function')toast('Contato movido para o funil!');};
-window.moverLeadParaContatos=function(id){if(typeof LEADS==='undefined')return;var idx=LEADS.findIndex(function(l){return l.id===id;});if(idx<0)return;var l=LEADS[idx];window.CONTATOS.unshift({id:l.id,nome:l.nome,tel:l.tel,ig:l.ig,produto:l.produto,origem:l.origem,obs:l.notas||'',criado:l.hora});window._saveContatos();LEADS.splice(idx,1);if(window.dbDeletarLead)window.dbDeletarLead(l);if(typeof renderKanban==='function')renderKanban();if(typeof window._renderContatos==='function')window._renderContatos();};
+<script id="fp-globals">window.CONTATOS=[];
+window._saveContatos=function(){};
+window._carregarContatos=function(){var sub=window._gs?window._gs():'master';fetch(_SB+'/rest/v1/contatos?cliente_subdominio=eq.'+sub+'&order=created_at.desc',{headers:{'apikey':_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(rows){if(!rows)return;window.CONTATOS=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome||'',tel:r.numero||r.tel||'',ig:r.ig||'',produto:r.produto||'',origem:r.origem||'Manual',obs:r.obs||'',criado:r.created_at};});if(typeof window._renderContatos==='function')window._renderContatos();});};
+window.adicionarContato=function(d){var c={id:Date.now(),nome:d.nome||'',tel:d.tel||'',ig:d.ig||'',produto:d.produto||'',origem:d.origem||'Manual',obs:d.obs||'',criado:new Date().toISOString()};window.CONTATOS.unshift(c);if(typeof window._renderContatos==='function')window._renderContatos();var sub=window._gs?window._gs():'master';fetch(_SB+'/rest/v1/contatos',{method:'POST',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK,'Prefer':'return=representation'},body:JSON.stringify({cliente_subdominio:sub,nome:c.nome,numero:c.tel,ig:c.ig,produto:c.produto,origem:c.origem,obs:c.obs})}).then(function(r){return r.json();}).then(function(res){if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}});};
+window.moverParaFunil=function(id){var idx=window.CONTATOS.findIndex(function(c){return c.id===id||c._dbId===id;});if(idx<0)return;var c=window.CONTATOS[idx];var l={id:Date.now(),nome:c.nome,tel:c.tel,ig:c.ig,produto:c.produto,origem:c.origem,etapa:'novo',valor:0,hora:new Date().toISOString(),tasks:[],notas:c.obs||''};if(typeof LEADS!=='undefined'){LEADS.unshift(l);if(window.dbSalvarLead)window.dbSalvarLead(l);}if(c._dbId){fetch(_SB+'/rest/v1/contatos?id=eq.'+c._dbId+'&cliente_subdominio=eq.'+(window._gs?window._gs():'master'),{method:'DELETE',headers:{'apikey':_SK,'Authorization':'Bearer '+_SK}});}window.CONTATOS.splice(idx,1);if(typeof renderKanban==='function')renderKanban();if(typeof renderDash==='function')renderDash();if(typeof window._renderContatos==='function')window._renderContatos();if(typeof toast==='function')toast('Contato movido para o funil!');};
+window.moverLeadParaContatos=function(id){if(typeof LEADS==='undefined')return;var idx=LEADS.findIndex(function(l){return l.id===id||String(l.id)===String(id);});if(idx<0)return;var l=LEADS[idx];var contato={id:Date.now(),nome:l.nome,tel:l.tel,ig:l.ig,produto:l.produto,origem:l.origem,obs:l.notas||'',criado:l.hora};window.CONTATOS.unshift(contato);window.adicionarContato(contato);LEADS.splice(idx,1);if(window.dbDeletarLead)window.dbDeletarLead(l);if(typeof renderKanban==='function')renderKanban();if(typeof window._renderContatos==='function')window._renderContatos();};
 window._renderContatos=function(){var el=document.getElementById('fp-cl');if(!el)return;if(!window.CONTATOS.length){el.innerHTML='<div style="padding:32px 16px;text-align:center;color:var(--muted);font-size:13px">Nenhum contato salvo.<br><small style="opacity:.6;margin-top:8px;display:block">Use + Contato para adicionar.</small></div>';}else{var rows='';for(var i=0;i<window.CONTATOS.length;i++){var c=window.CONTATOS[i];var ini=(c.nome||'?').split(' ').map(function(p){return p[0]||'';}).slice(0,2).join('').toUpperCase();rows+='<div class="conv-item" style="cursor:default"><div class="conv-av" style="background:rgba(255,255,255,.07);color:var(--muted)">'+ini+'</div><div class="conv-body"><div class="conv-name">'+c.nome+'</div><div class="conv-preview">'+(c.tel||c.ig||'sem contato')+(c.produto?' · '+c.produto:'')+'</div><div style="display:flex;gap:6px;margin-top:6px"><button onclick="event.stopPropagation();window.moverParaFunil('+c.id+')" style="font-size:10px;padding:3px 10px;border-radius:6px;border:1px solid var(--accent);background:rgba(255,92,0,.08);color:var(--accent);cursor:pointer;font-family:var(--font)">Iniciar conversa</button><button onclick="event.stopPropagation();window.CONTATOS=window.CONTATOS.filter(function(x){return x.id!=='+c.id+'});window._saveContatos();window._renderContatos()" style="font-size:10px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer">X</button></div></div></div>';}el.innerHTML=rows;}};
 window._switchConvTab=function(tab,btn){document.querySelectorAll('.fp-ct').forEach(b=>{b.style.background='transparent';b.style.color='var(--muted)';b.style.borderBottom='none'});if(btn){btn.style.background='var(--card)';btn.style.color='var(--text)';btn.style.border='none'}var det=document.getElementById('conv-detail');if(det)det.style.display='none';var cEl=document.getElementById('fp-cl');if(cEl)cEl.style.display='none';if(tab==='contatos'){if(cEl)cEl.style.display='block';document.querySelectorAll('.conv-item').forEach(function(it){it.style.setProperty('display','none','important');});if(typeof window._renderContatos==='function')window._renderContatos();return;}window._injetarAbasConv();setTimeout(function(){var mapa={whatsapp:'wpp',instagra:'ig',instagram:'ig'};var canalFiltro=mapa[tab]||tab;document.querySelectorAll('.conv-item').forEach(function(item){var canal=item.dataset.canal||'';item.style.setProperty('display',(tab==='todos'||canal===canalFiltro)?'flex':'none','important');});},100);};
 window._injetarAbasConv=function(){if(document.getElementById('fp-ct-bar'))return;var sb=document.querySelector('.conv-sidebar');if(!sb)return;var bar=document.createElement('div');bar.id='fp-ct-bar';bar.style.cssText='display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none';var ts=[['contatos','Contatos'],['todos','Todos'],['whatsapp','WhatsApp'],['instagram','Instagram']];var bh='';for(var i=0;i<ts.length;i++){var a=i===1;bh+='<button class="fp-ct" onclick="window._switchConvTab(\''+ts[i][0]+'\',this)" style="white-space:nowrap;flex-shrink:0;padding:5px 11px;border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--font);'+(a?'background:var(--card);color:var(--text);border:none':'background:transparent;color:var(--muted);border:1px solid var(--border)')+'">'+ts[i][1]+'</button>';}bar.innerHTML=bh;sb.insertBefore(bar,sb.firstChild);if(!document.getElementById('fp-cl')){var cd=document.createElement('div');cd.id='fp-cl';cd.style.cssText='display:none;flex:1;overflow-y:auto';var cl=sb.querySelector('.conv-list');if(cl)sb.insertBefore(cd,cl);else sb.appendChild(cd);}window._renderContatos();};
@@ -760,7 +761,7 @@ window.dbDeletarLead=function(l){if(l&&l._dbId)_rq('leads','DELETE',null,'?id=eq
 window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=created_at.desc').then(function(rows){if(!rows||!rows.length)return;window.LEADS=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa,valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at};});if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();});};
 window.dbSalvarColab=function(c){var row={cliente_subdominio:_gs(),nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(function(p){return p[0];}).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:!!c.online,perms:JSON.stringify(c.perms||{})};if(c._dbId){_rq('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}else{_rq('colaboradores','POST',row).then(function(res){if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}});}};
 window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&ativo=eq.true').then(function(rows){if(!rows||!rows.length)return;window.COLABORADORES=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')};});if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();});};
-var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();window.carregarAgente();setTimeout(window.carregarPlaybook,500);setTimeout(window.dbCarregarLeads,600);
+var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();window.carregarAgente();setTimeout(window.carregarPlaybook,500);setTimeout(window.dbCarregarLeads,600);setTimeout(window._carregarContatos,700);
 window.renderDash=function(){var leads=window.LEADS||[];function upd(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}var hoje=new Date().toDateString();var lh=leads.filter(function(l){return l.data_criacao&&new Date(l.data_criacao).toDateString()===hoje;}).length;var f=leads.filter(function(l){return l.etapa==='Fechado';});var tv=f.reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);var taxa=leads.length>0?Math.round(f.length/leads.length*100):0;upd('m1',lh);upd('m2','R$'+tv.toLocaleString('pt-BR',{minimumFractionDigits:0}));upd('m3',taxa+'%');};setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash();},900);var convEl=document.getElementById('conversas');if(convEl&&convEl.style.display!=='none')window._injetarAbasConv();console.log('[FP] OK. Contatos:'+window.CONTATOS.length);}},300);</script>
 </head>
 <body>
@@ -2354,19 +2355,21 @@ function renderConvs(filter=''){
   if(!list)return;
   const filtered=LEADS.filter(l=>!filter||l.nome.toLowerCase().includes(filter.toLowerCase())||l.canal&&l.canal.toLowerCase().includes(filter.toLowerCase()));
   list.innerHTML=``+filtered.map(l=>{
-    const last=l.msgs[l.msgs.length-1];
-    const unread=l.msgs.filter(m=>m.tipo==='recv').length;
+    const msgs=l.msgs||[];
+    const last=msgs[msgs.length-1];
+    const unread=msgs.filter(m=>m.tipo==='recv').length;
     const canal=l.canal||'wpp';
+    const origem=l.origem||'Manual';
     const canalBadge=canal==='ig'?'<span class="ch-badge ch-ig">📷 Instagram</span>':'<span class="ch-badge ch-wpp">💬 WhatsApp</span>';
-    return`<div class="conv-item ${currentConv&&currentConv.id===l.id?'active':''}" onclick="openConv(${l.id})" data-canal="${canal}">
+    return`<div class="conv-item ${currentConv&&currentConv.id===l.id?'active':''}" onclick="openConv('${l.id}')" data-canal="${canal}">
       <div class="conv-av" style="${canal==='ig'?'background:linear-gradient(135deg,#E1306C,#833AB4);':''}">${ini(l.nome)}${l.etapa==='atendimento'?'<div class="conv-online"></div>':''}</div>
       <div class="conv-body">
         <div class="conv-name">${l.nome}</div>
         <div class="conv-preview">${last?last.txt.substring(0,48)+(last.txt.length>48?'...':''):'Sem mensagens'}</div>
-        <div style="display:flex;gap:5px;margin-top:3px;align-items:center;">${canalBadge}<span class="src-tag ${srcClass(l.origem)}">${l.origem.split(' ')[0]}</span></div>
+        <div style="display:flex;gap:5px;margin-top:3px;align-items:center;">${canalBadge}<span class="src-tag ${srcClass(origem)}">${origem.split(' ')[0]}</span></div>
       </div>
       <div class="conv-meta">
-        <div class="conv-time">${l.tempo}</div>
+        <div class="conv-time">${l.tempo||''}</div>
         ${unread>0?`<div class="conv-badge">${unread}</div>`:''}
       </div>
     </div>`;
@@ -2393,11 +2396,13 @@ function getIaOn(id){return iaState[id]!==false;}
 function setIaOn(id,val){iaState[id]=val;}
 
 function openConv(id){
-  currentConv=LEADS.find(l=>l.id===id);
+  currentConv=LEADS.find(l=>String(l.id)===String(id));
+  if(!currentConv)return;
+  if(!currentConv.msgs)currentConv.msgs=[];
   renderConvs();
   clearResponseTimer();
   const main=document.getElementById('conv-main');
-  const etapa=ETAPAS.find(e=>e.key===currentConv.etapa);
+  const etapa=ETAPAS.find(e=>e.key===currentConv.etapa)||{key:'novo',label:'Novo contato',cor:'#00E5A0'};
   const iaOn=getIaOn(currentConv.id);
   const canal=currentConv.canal||'wpp';
   const canalBadgeHdr=canal==='ig'?'<span class="ch-badge ch-ig">📷 Instagram Direct</span>':'<span class="ch-badge ch-wpp">💬 WhatsApp</span>';
@@ -2409,10 +2414,10 @@ function openConv(id){
         <div class="ia-toggle-wrap">
           <div class="ia-status-dot" id="ia-dot" style="background:${iaOn?'var(--accent2)':'rgba(255,255,255,.2)'}"></div>
           <span class="ia-toggle-lbl" id="ia-lbl">${iaOn?'IA Ativa':'IA Pausada'}</span>
-          <button class="ia-toggle-btn ${iaOn?'on':'off'}" id="ia-toggle" onclick="toggleIA(${currentConv.id})"></button>
+          <button class="ia-toggle-btn ${iaOn?'on':'off'}" id="ia-toggle" onclick="toggleIA('${currentConv.id}')"></button>
         </div>
-        <span class="src-tag ${srcClass(currentConv.origem)}">${currentConv.origem}</span>
-        <button class="btn btn-ghost" style="font-size:10px;" onclick="openLeadFromConv(${currentConv.id})">Ver dossiê →</button>
+        <span class="src-tag ${srcClass(currentConv.origem||'Manual')}">${(currentConv.origem||'Manual').split(' ')[0]}</span>
+        <button class="btn btn-ghost" style="font-size:10px;" onclick="openLeadFromConv('${currentConv.id}')">Ver dossiê →</button>
       </div>
     </div>
     <div id="timer-wrap" style="padding:4px 14px 0;display:none;">
@@ -2500,7 +2505,7 @@ function clearResponseTimer(){
 }
 
 function openLeadFromConv(id){
-  const lead=LEADS.find(l=>l.id===id);openLead(lead);
+  const lead=LEADS.find(l=>String(l.id)===String(id));openLead(lead);
   var btn=document.querySelector('.nav-tab[onclick*="dossie"]');
   goView('dossie',btn);
 }
@@ -2526,15 +2531,34 @@ function renderKanban(){
   document.getElementById('kanban-board').innerHTML=ETAPAS.map(e=>{
     const cards=filtered.filter(l=>l.etapa===e.key);
     return`<div><div class="col-hdr"><div class="col-title" style="color:${e.cor};">${e.label}</div><div class="col-badge">${cards.length}</div></div>
-    <div style="border-top:2px solid ${e.cor};padding-top:9px;">${cards.map(l=>`<div class="lead-card" onclick="openLeadFromKanban(${l.id})">
+    <div style="border-top:2px solid ${e.cor};padding-top:9px;">${cards.map(l=>`<div class="lead-card" onclick="openLeadFromKanban('${l.id}')">
       <div class="lead-name">${l.nome}</div>
       <div class="lead-info">${l.produto.length>36?l.produto.substring(0,36)+'...':l.produto}<br>${l.vendedor}</div>
-      <div class="lead-foot"><span class="src-tag ${srcClass(l.origem)}">${l.origem.split(' ')[0]}</span><div class="disc-dot ${discClass(l.disc)}">${l.disc}</div><span class="lead-time">${l.tempo}</span></div>
+      <div class="lead-foot"><span class="src-tag ${srcClass(l.origem)}">${l.origem.split(' ')[0]}</span><div class="disc-dot ${discClass(l.disc)}">${l.disc||''}</div><span class="lead-time">${l.tempo||''}</span></div>
+      <div style="display:flex;gap:4px;margin-top:6px;">
+        <button onclick="event.stopPropagation();moverEtapa('${l.id}',-1)" style="flex:1;padding:3px 0;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:10px;font-family:var(--font);" title="Voltar etapa">◀</button>
+        <button onclick="event.stopPropagation();moverEtapa('${l.id}',1)" style="flex:1;padding:3px 0;border-radius:5px;border:1px solid var(--accent2);background:rgba(0,229,160,.08);color:var(--accent2);cursor:pointer;font-size:10px;font-family:var(--font);" title="Avançar etapa">▶</button>
+      </div>
     </div>`).join('')}</div></div>`;
   }).join('');
 }
+function moverEtapa(id,dir){
+  var lead=LEADS.find(l=>String(l.id)===String(id));
+  if(!lead)return;
+  var keys=ETAPAS.map(e=>e.key);
+  var idx=keys.indexOf(lead.etapa);
+  if(idx<0)idx=0;
+  var novo=idx+dir;
+  if(novo<0||novo>=keys.length)return;
+  lead.etapa=keys[novo];
+  if(window.dbSalvarLead)window.dbSalvarLead(lead);
+  renderKanban();
+  if(typeof renderConvs==='function')renderConvs();
+  var etapaObj=ETAPAS[novo];
+  toast('Lead movido para '+etapaObj.label);
+}
 function openLeadFromKanban(id){
-  openLead(LEADS.find(l=>l.id===id));
+  openLead(LEADS.find(l=>String(l.id)===String(id)));
   var btn=document.querySelector('.nav-tab[onclick*="dossie"]');
   goView('dossie',btn);
 }
@@ -4387,8 +4411,8 @@ window.carregarAgente=function(){
 };
 window._aplicarAgente=function(d){if(!d)return;function sv(id,v){var e=document.getElementById(id);if(e&&v!==undefined&&v!==null){if(e.type==='checkbox')e.checked=!!v;else e.value=v;}}sv('agente-nome',d.nome);sv('agente-prompt',d.prompt);sv('agente-tom',d.tom);sv('agente-timeout',d.timeout_min);sv('agente-wpp',d.canal_wpp);sv('agente-ig',d.canal_ig);};
 window.salvarPlaybookItem=function(){var nome=document.getElementById('pb-new-nome')?document.getElementById('pb-new-nome').value.trim():'';var tags=document.getElementById('pb-new-tags')?document.getElementById('pb-new-tags').value.trim():'';var texto=document.getElementById('pb-new-texto')?document.getElementById('pb-new-texto').value.trim():'';if(!nome||!texto){toast('⚠️ Preencha nome e texto.');return;}var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);fetch(_SB+'/rest/v1/playbook_itens',{method:'POST',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK,'Prefer':'return=representation'},body:JSON.stringify({cliente_subdominio:_sub,nome:nome,tags:tags,texto:texto})}).then(function(r){return r.json();}).then(function(d){if(d&&d[0]){toast('✅ Item salvo!');var e1=document.getElementById('pb-new-nome');if(e1)e1.value='';var e2=document.getElementById('pb-new-tags');if(e2)e2.value='';var e3=document.getElementById('pb-new-texto');if(e3)e3.value='';window.carregarPlaybook();}else{toast('❌ Erro ao salvar item.');}});};
-window.carregarPlaybook=function(){var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);fetch(_SB+'/rest/v1/playbook_itens?cliente_subdominio=eq.'+_sub+'&order=created_at.desc',{headers:{'apikey':_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(d){var list=document.getElementById('playbook-list');var listArq=document.getElementById('pb-file-list');if(!d)return;var textos=d.filter(function(i){return i.texto!=='[ARQUIVO]';});var arquivos=d.filter(function(i){return i.texto==='[ARQUIVO]';});if(list){if(textos.length===0){list.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0;">Nenhum item ainda.</div>';}else{list.innerHTML=textos.map(function(item){return '<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;">'+'<div style="display:flex;justify-content:space-between;">'+'<b style="font-size:13px;">'+item.nome+'</b>'+'<button onclick="window.excluirPlaybookItem(\''+ item.id +'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;">×</button>'+'</div>'+(item.tags?'<div style="font-size:10px;color:var(--accent2);">'+item.tags+'</div>':'')+'<div style="font-size:11px;color:var(--dim);margin-top:4px;">'+item.texto.substring(0,150)+(item.texto.length>150?'...':'')+'</div>'+'</div>';}).join('');}}if(listArq){if(arquivos.length===0){listArq.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0;">Nenhum arquivo ainda.</div>';}else{listArq.innerHTML=arquivos.map(function(item){var ext=item.arquivo_nome?item.arquivo_nome.split('.').pop().toUpperCase():'ARQ';return '<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">'+'<div style="background:var(--accent);color:#fff;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700;">'+ext+'</div>'+'<div style="flex:1;font-size:13px;font-weight:600;">'+item.arquivo_nome+'</div>'+(item.arquivo_base64?'<a href="'+item.arquivo_base64+'" download="'+item.arquivo_nome+'" style="font-size:11px;color:var(--accent);">Baixar</a>':'')+'<button onclick="window.excluirPlaybookItem(\''+ item.id +'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;">×</button>'+'</div>';}).join('');}}});};
-window.excluirPlaybookItem=function(id){if(!confirm('Excluir?'))return;fetch(_SB+'/rest/v1/playbook_itens?id=eq.'+id,{method:'DELETE',headers:{'apikey':_SK,'Authorization':'Bearer '+_SK}}).then(function(){toast('✅ Excluído!');window.carregarPlaybook();});};
+/* carregarPlaybook definida no patch abaixo */
+window.excluirPlaybookItem=function(id){if(!confirm('Excluir?'))return;var sub=window._gs?window._gs():'master';fetch(_SB+'/rest/v1/playbook_itens?id=eq.'+id+'&cliente_subdominio=eq.'+sub,{method:'DELETE',headers:{'apikey':_SK,'Authorization':'Bearer '+_SK}}).then(function(){toast('✅ Excluído!');window.carregarPlaybook();});};
 function salvarAgenteConfig(){var nome=document.getElementById('agente-nome')?document.getElementById('agente-nome').value.trim()||'Zyra':'Zyra';var prompt=document.getElementById('agente-prompt')?document.getElementById('agente-prompt').value.trim()||'':'';var tom=document.getElementById('agente-tom')?document.getElementById('agente-tom').value||'profissional':'profissional';var tout=parseInt(document.getElementById('agente-timeout')?document.getElementById('agente-timeout').value:30)||30;var wpp=document.getElementById('agente-wpp')?document.getElementById('agente-wpp').checked:true;var ig=document.getElementById('agente-ig')?document.getElementById('agente-ig').checked:true;var _sub=window._gs?window._gs():(location.hostname.split('.')[0]);var payload={nome:nome,prompt:prompt,tom:tom,timeout_min:tout,canal_wpp:wpp,canal_ig:ig,ativo:true};fetch(_SB+'/rest/v1/agente_config?cliente_subdominio=eq.'+_sub,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':_SK,'Authorization':'Bearer '+_SK},body:JSON.stringify(payload)}).then(function(r){if(r.ok){localStorage.setItem('mf_agente',JSON.stringify(Object.assign(payload,{cliente_subdominio:_sub})));toast('✅ Agente "'+nome+'" salvo com sucesso!');} else {r.text().then(function(t){toast('❌ Erro ao salvar: '+t.substring(0,100));});}});}
 
 function toggleAgente(){
@@ -4818,7 +4842,8 @@ function _syncConvs(){
       msgs.forEach(function(m){
         var num=m.numero.replace(/@s\.whatsapp\.net/,'').replace(/@g\.us/,'').replace(/@lid/,'');
         if(!byNum[num])byNum[num]={numero:num,ultima:m.content,ts:m.created_at,all:[]};
-        byNum[num].all.push({de:m.role==='user'?'cliente':'agente',txt:m.content,ts:m.created_at});
+        var hora=new Date(m.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        byNum[num].all.push({tipo:m.role==='user'?'recv':'agent',txt:m.content,hora:hora,ts:m.created_at});
       });
       Object.keys(byNum).forEach(function(num){
         var conv=byNum[num];
@@ -4830,14 +4855,14 @@ function _syncConvs(){
         if(!existe){
           LEADS.unshift({
             id:leadId,nome:nome,tel:num,canal:'wpp',
-            etapa:'novo_contato',origem:'WhatsApp',vendedor:'Agente IA',
+            etapa:'novo',origem:'WhatsApp',vendedor:'Agente IA',
             produto:'',valor:0,msgs:msgsArr,disc:null,
             bg:'#00B0FF',ini:ini,
             tempo:new Date(conv.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
           });
           // Salvar no banco de leads
           fetch(_SB+'/rest/v1/leads',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},
-            body:JSON.stringify({cliente_subdominio:sub,nome:nome,numero:num,canal:'wpp',etapa:'novo_contato',origem:'WhatsApp',vendedor:'Agente IA'})
+            body:JSON.stringify({cliente_subdominio:sub,nome:nome,numero:num,canal:'wpp',etapa:'novo',origem:'WhatsApp',vendedor:'Agente IA'})
           }).catch(function(){});
         } else {
           existe.msgs=msgsArr;
