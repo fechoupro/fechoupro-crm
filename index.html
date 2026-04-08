@@ -790,6 +790,7 @@ window.renderDash=function(){var leads=window.LEADS||[];function upd(id,v){var e
 
 <!-- APP -->
 <div id="app" style="display:none;">
+<script>try{var _sv=sessionStorage.getItem('fp_view');if(_sv&&_sv!=='dashboard'){document.addEventListener('DOMContentLoaded',function(){var dd=document.getElementById('view-dashboard');if(dd)dd.classList.remove('active','fade');});}}catch(e){}</script>
 <div class="topbar">
   <div class="logo" style="display:flex;align-items:center;gap:8px;">
   <svg width="28" height="24" viewBox="0 0 28 24" fill="none">
@@ -2218,6 +2219,7 @@ function safeRun(name, fn){
 function launchApp(){
   document.getElementById('setup-screen').style.display='none';
   document.getElementById('app').style.display='block';
+  var savedView=null;try{savedView=sessionStorage.getItem('fp_view');}catch(e){}
   safeRun('initDashboard', initDashboard);
   safeRun('renderKanban', renderKanban);
   safeRun('renderConvs', renderConvs);
@@ -2225,7 +2227,6 @@ function launchApp(){
   safeRun('renderRelatorios', renderRelatorios);
   safeRun('renderTreinamento', renderTreinamento);
   safeRun('renderConfigs', renderConfigs);
-  safeRun('openLead', function(){ openLead(LEADS[2]); });
   safeRun('checkAutoDisparo', checkAutoDisparo);
   safeRun('renderCashbackLeads', renderCashbackLeads);
   safeRun('loadSavedTheme', loadSavedTheme);
@@ -2234,11 +2235,13 @@ function launchApp(){
   safeRun('renderPvImediataLeads', renderPvImediataLeads);
   safeRun('renderPosv30Segs', renderPosv30Segs);
   safeRun('renderPosv30Counts', renderPosv30Counts);
+  if(savedView&&savedView!=='dashboard'){goView(savedView);}
 }
 
 // ═══════════════════ NAV ═══════════════════
 function goView(id,btn){
-  if(id==='dossie'){safeRun('populateDossieSelector',populateDossieSelector);if(!currentLead&&LEADS.length>0){safeRun('openFirstLead',function(){openLead(LEADS[0]);});}if(!currentLead&&LEADS.length===0){var _dRetry=0;var _dInt=setInterval(function(){_dRetry++;if(LEADS.length>0){clearInterval(_dInt);safeRun('populateDossieSelector',populateDossieSelector);safeRun('openFirstLead',function(){openLead(LEADS[0]);});}if(_dRetry>15)clearInterval(_dInt);},1000);}}
+  try{sessionStorage.setItem('fp_view',id);}catch(e){}
+  if(id==='dossie'){safeRun('populateDossieSelector',populateDossieSelector);var savedLeadId=null;try{savedLeadId=sessionStorage.getItem('fp_lead_id');}catch(e){}if(!currentLead&&LEADS.length>0){var targetLead=null;if(savedLeadId){targetLead=LEADS.find(function(l){return String(l.id)===savedLeadId;});}if(!targetLead)targetLead=LEADS[0];safeRun('openSavedLead',function(){openLead(targetLead);});}if(!currentLead&&LEADS.length===0){var _dRetry=0;var _dInt=setInterval(function(){_dRetry++;if(LEADS.length>0){clearInterval(_dInt);safeRun('populateDossieSelector',populateDossieSelector);var tgt=null;if(savedLeadId){tgt=LEADS.find(function(l){return String(l.id)===savedLeadId;});}if(!tgt)tgt=LEADS[0];safeRun('openSavedLead',function(){openLead(tgt);});}if(_dRetry>15)clearInterval(_dInt);},1000);}}
   if(id==='conselho'){safeRun('renderConselheiroGrid',renderConselheiroGrid);}
   if(id==='master'){safeRun('renderMasterClients',renderMasterClients);}
   if(id==='dashboard'){safeRun('initDashboard',initDashboard);}
@@ -3682,6 +3685,7 @@ function configurarCadencia(){
 function openLead(lead){
   if(!lead)return;
   currentLead=lead;
+  try{sessionStorage.setItem('fp_lead_id',String(lead.id));}catch(e){}
   const etapa=ETAPAS.find(e=>e.key===lead.etapa)||{key:'novo',label:'Novo contato',cor:'#00E5A0'};
   const i=ini(lead.nome||'??');
   const produto=lead.produto||'';
