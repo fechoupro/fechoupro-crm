@@ -3639,13 +3639,15 @@ function selectMotivo(btn,motivo){
 
 function salvarMotivo(){
   if(!currentLead||!motivoSelecionado){toast('⚠️ Selecione um motivo.');return;}
-  const obs=document.getElementById('motivo-obs')?.value||'';
+  var obs=document.getElementById('motivo-obs')?document.getElementById('motivo-obs').value:'';
   currentLead.motivo_nao_fechamento=motivoSelecionado;
   currentLead.motivo_obs=obs;
-  currentLead.etapa='perdido'||currentLead.etapa;
-  const saved=document.getElementById('motivo-saved');
-  if(saved){saved.style.display='block';saved.textContent=`✓ Registrado: "${motivoSelecionado}"${obs?' — '+obs:''}`;}
-  toast(`✅ Motivo registrado: ${motivoSelecionado}`);
+  currentLead.etapa='perdido';
+  var saved=document.getElementById('motivo-saved');
+  if(saved){saved.style.display='block';saved.textContent='✓ Registrado: "'+motivoSelecionado+'"'+(obs?' — '+obs:'');}
+  try{var mk='fp_motivo_'+String(currentLead.id);localStorage.setItem(mk,JSON.stringify({motivo:motivoSelecionado,obs:obs}));}catch(e){}
+  if(currentLead._dbId){fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({etapa:'perdido',motivo_nao_fechamento:motivoSelecionado,motivo_obs:obs})}).catch(function(e){console.error('[FP] Erro ao salvar motivo:',e);});}
+  toast('✅ Motivo registrado: '+motivoSelecionado);
   renderKanban();
 }
 
@@ -3687,6 +3689,8 @@ function openLead(lead){
   if(!lead)return;
   currentLead=lead;
   try{sessionStorage.setItem('fp_lead_id',String(lead.id));}catch(e){}
+  try{_loadTasks(lead);}catch(e){}
+  try{var _mk='fp_motivo_'+String(lead.id);var _ms=localStorage.getItem(_mk);if(_ms){var _mo=JSON.parse(_ms);lead.motivo_nao_fechamento=_mo.motivo;lead.motivo_obs=_mo.obs;}}catch(e){}
   const etapa=ETAPAS.find(e=>e.key===lead.etapa)||{key:'novo',label:'Novo contato',cor:'#00E5A0'};
   const i=ini(lead.nome||'??');
   const produto=lead.produto||'';
@@ -3758,22 +3762,24 @@ function renderTasks(){
   list.innerHTML=currentLead.tasks.length===0?'<div style="font-size:11px;color:var(--dim);padding:6px 0;">Nenhuma tarefa cadastrada.</div>':
     currentLead.tasks.map(t=>`<div class="task-item"><div class="task-check ${t.done?'done':''}" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div><div class="task-info"><div class="task-title" style="${t.done?'text-decoration:line-through;opacity:.5;':''}">${t.desc}</div><div class="task-meta">📅 ${t.data} às ${t.hora}</div></div><button class="task-del" onclick="delTask(${t.id})">✕</button></div>`).join('');
 }
+function _saveTasks(){if(!currentLead)return;try{var tk='fp_tasks_'+String(currentLead.id);localStorage.setItem(tk,JSON.stringify(currentLead.tasks||[]));}catch(e){}}
+function _loadTasks(lead){if(!lead)return;try{var tk='fp_tasks_'+String(lead.id);var s=localStorage.getItem(tk);if(s){lead.tasks=JSON.parse(s);}}catch(e){}}
 function addTask(){
   if(!currentLead)return;
-  const desc=document.getElementById('task-desc').value.trim();
-  const date=document.getElementById('task-date').value;
-  const time=document.getElementById('task-time').value;
+  var desc=document.getElementById('task-desc').value.trim();
+  var date=document.getElementById('task-date').value;
+  var time=document.getElementById('task-time').value;
   if(!desc)return;
   if(!currentLead.tasks)currentLead.tasks=[];
-  const id=Date.now();
-  const dt=date?date.split('-').reverse().join('/'):new Date().toLocaleDateString('pt-BR');
-  const hr=time||'--:--';
-  currentLead.tasks.push({id,desc,data:dt,hora:hr,done:false});
+  var id=Date.now();
+  var dt=date?date.split('-').reverse().join('/'):new Date().toLocaleDateString('pt-BR');
+  var hr=time||'--:--';
+  currentLead.tasks.push({id:id,desc:desc,data:dt,hora:hr,done:false});
   document.getElementById('task-desc').value='';
-  renderTasks();toast('✅ Tarefa adicionada!');
+  _saveTasks();renderTasks();toast('✅ Tarefa adicionada!');
 }
-function toggleTask(id){if(!currentLead)return;const t=currentLead.tasks.find(t=>t.id===id);if(t)t.done=!t.done;renderTasks();}
-function delTask(id){if(!currentLead)return;currentLead.tasks=currentLead.tasks.filter(t=>t.id!==id);renderTasks();}
+function toggleTask(id){if(!currentLead)return;var t=currentLead.tasks.find(function(t){return t.id===id;});if(t)t.done=!t.done;_saveTasks();renderTasks();}
+function delTask(id){if(!currentLead)return;currentLead.tasks=currentLead.tasks.filter(function(t){return t.id!==id;});_saveTasks();renderTasks();}
 
 // ═══════════════════ CHAT DOSSIE ═══════════════════
 function sendChatMsg(){
