@@ -1338,7 +1338,7 @@ Qualquer dúvida é só chamar 💪</textarea>
   <div class="dossie-grid">
     <div class="d-left">
       <div class="profile-card" id="dossie-profile"></div>
-      <div class="disc-card"><div class="section-title">Análise DISC</div><div id="disc-content"><div style="color:var(--muted);font-size:11px;">Carregando análise DISC...</div></div></div>
+      <div class="disc-card"><div class="section-title">Análise DISC</div><div id="disc-content"><div style="color:var(--muted);font-size:11px;">Selecione um lead para ver a análise DISC.</div></div></div>
       <div class="disc-card"><div class="section-title">Abordagem com IA</div><div id="disc-abordagem"></div><button class="btn btn-ia" id="btn-disc" onclick="runDISC()">🧠 Gerar abordagem com IA</button></div>
       <div class="section-card"><div class="section-title">Cadência WhatsApp</div><div class="cad-steps" id="cadencia"></div></div>
       <!-- TAREFAS -->
@@ -2238,7 +2238,7 @@ function launchApp(){
 
 // ═══════════════════ NAV ═══════════════════
 function goView(id,btn){
-  if(id==='dossie'){safeRun('populateDossieSelector',populateDossieSelector);if(!currentLead&&LEADS.length>0){safeRun('openFirstLead',function(){openLead(LEADS[0]);});}}
+  if(id==='dossie'){safeRun('populateDossieSelector',populateDossieSelector);if(!currentLead&&LEADS.length>0){safeRun('openFirstLead',function(){openLead(LEADS[0]);});}if(!currentLead&&LEADS.length===0){var _dRetry=0;var _dInt=setInterval(function(){_dRetry++;if(LEADS.length>0){clearInterval(_dInt);safeRun('populateDossieSelector',populateDossieSelector);safeRun('openFirstLead',function(){openLead(LEADS[0]);});}if(_dRetry>15)clearInterval(_dInt);},1000);}}
   if(id==='conselho'){safeRun('renderConselheiroGrid',renderConselheiroGrid);}
   if(id==='master'){safeRun('renderMasterClients',renderMasterClients);}
   if(id==='dashboard'){safeRun('initDashboard',initDashboard);}
@@ -2247,7 +2247,7 @@ function goView(id,btn){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('view-'+id).classList.add('active','fade');
-  if(btn)btn.classList.add('active');
+  if(btn){btn.classList.add('active');}else{document.querySelectorAll('.nav-tab').forEach(function(t){var oc=t.getAttribute('onclick')||'';if(oc.indexOf("'"+id+"'")>=0)t.classList.add('active');});}
 }
 function goRelTab(id,btn){
   document.querySelectorAll('.rel-view').forEach(v=>v.classList.remove('active'));
