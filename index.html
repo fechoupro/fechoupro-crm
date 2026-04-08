@@ -3650,12 +3650,13 @@ function salvarMotivo(){
 }
 
 // ═══════════════════ CADÊNCIA RECUPERAÇÃO ═══════════════════
-const CADENCIA_REC_DEFAULT=[
+var CADENCIA_REC_DEFAULT=[
   {delay:'1h',titulo:'1ª mensagem',msg:'Oi {nome}! Ficamos no aguardo. Posso te ajudar com alguma dúvida? 😊'},
   {delay:'24h',titulo:'2ª mensagem — oferta',msg:'Oi {nome}! Queria te fazer uma proposta especial. Ainda tem interesse em {produto}?'},
   {delay:'3d',titulo:'3ª mensagem — urgência',msg:'{nome}, última chance! O estoque de {produto} está acabando. Quer garantir o seu? 💪'},
   {delay:'7d',titulo:'4ª mensagem — encerramento',msg:'Olá {nome}! Se precisar da gente, é só chamar. Estamos aqui! 🏋️'},
 ];
+try{var _savedRec=localStorage.getItem('fp_rec_cfg_'+_gs());if(_savedRec){CADENCIA_REC_DEFAULT=JSON.parse(_savedRec);}}catch(e){}
 
 function renderCadenciaRec(){
   const el=document.getElementById('rec-steps-list');
@@ -4697,14 +4698,14 @@ function cbClearMedia(){
 }
 
 // ═══════════════════ V5: CADÊNCIA RECUPERAÇÃO EDITÁVEL ═══════════════════
-let recCfgSteps=[...CADENCIA_REC_DEFAULT];
+var recCfgSteps=CADENCIA_REC_DEFAULT.map(function(s){return{delay:s.delay,titulo:s.titulo,msg:s.msg};});
 let recCfgVisible=false;
 
 function toggleRecCfg(){
   recCfgVisible=!recCfgVisible;
-  const panel=document.getElementById('rec-cfg-panel');
+  var panel=document.getElementById('rec-cfg-panel');
   if(panel)panel.style.display=recCfgVisible?'block':'none';
-  if(recCfgVisible)renderRecCfgSteps();
+  if(recCfgVisible){recCfgSteps=CADENCIA_REC_DEFAULT.map(function(s){return{delay:s.delay,titulo:s.titulo,msg:s.msg};});renderRecCfgSteps();}
 }
 
 function renderRecCfgSteps(){
@@ -4729,7 +4730,8 @@ function removeRecStep(i){
 
 function salvarRecCfg(){
   CADENCIA_REC_DEFAULT.length=0;
-  recCfgSteps.forEach(s=>CADENCIA_REC_DEFAULT.push(s));
+  recCfgSteps.forEach(s=>CADENCIA_REC_DEFAULT.push({delay:s.delay,titulo:s.titulo,msg:s.msg}));
+  try{localStorage.setItem('fp_rec_cfg_'+_gs(),JSON.stringify(CADENCIA_REC_DEFAULT));}catch(e){}
   renderCadenciaRec();
   toggleRecCfg();
   toast('✅ Cadência de recuperação salva com '+recCfgSteps.length+' etapas!');
