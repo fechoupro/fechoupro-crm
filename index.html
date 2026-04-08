@@ -226,13 +226,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:1
 .conv-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
 .conv-time{font-size:10px;color:var(--dim);}
 .conv-badge{width:17px;height:17px;border-radius:50%;background:var(--accent2);color:#09090b;font-size:10px;font-weight:800;font-family:var(--font);display:flex;align-items:center;justify-content:center;}
-.conv-main{display:flex;flex-direction:column;}
+.conv-main{display:flex;flex-direction:column;overflow:hidden;min-height:0;}
 .conv-chat-hdr{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);background:rgba(0,229,160,.04);}
 .conv-chat-hdr-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;font-family:var(--font);}
 .conv-chat-name{font-size:13px;font-family:var(--font);font-weight:700;}
 .conv-chat-sub{font-size:11px;color:var(--muted);}
 .conv-chat-actions{margin-left:auto;display:flex;gap:7px;}
-.conv-messages{flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+.conv-messages{flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:8px;overflow-y:scroll;min-height:0;height:0;}
 .conv-input-row{display:flex;gap:8px;padding:11px 14px;border-top:1px solid var(--border);}
 .conv-inp{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:20px;padding:9px 15px;font-size:12px;color:var(--text);font-family:var(--body);outline:none;}
 .conv-inp:focus{border-color:var(--accent2);}
@@ -2505,8 +2505,11 @@ function clearResponseTimer(){
 }
 
 function openLeadFromConv(id){
-  const lead=LEADS.find(l=>String(l.id)===String(id));openLead(lead);
-  var btn=document.querySelector('.nav-tab[onclick*="dossie"]');
+  var lead=LEADS.find(function(l){return String(l.id)===String(id);});
+  if(!lead){toast('Lead não encontrado.');return;}
+  try{openLead(lead);}catch(e){console.error('[FP] openLead erro:',e);toast('Erro ao abrir dossiê: '+e.message);return;}
+  var btn=null;
+  document.querySelectorAll('.nav-tab').forEach(function(b){if(b.textContent.indexOf('Dossi')>=0)btn=b;});
   goView('dossie',btn);
 }
 
@@ -3613,11 +3616,11 @@ function checkAutoDisparo(){
 function populateDossieSelector(){
   const sel=document.getElementById('dossie-lead-sel');
   if(!sel)return;
-  sel.innerHTML=LEADS.map(l=>`<option value="${l.id}" ${currentLead&&currentLead.id===l.id?'selected':''}>${l.nome} — ${l.etapa==='novo'?'Novo':l.etapa==='atendimento'?'Atendimento':l.etapa==='observacao'?'Observação':l.etapa==='entrega'?'Entrega':l.etapa==='fechamento'?'Fechamento':'Fechado'} · ${l.produto.split('+')[0].trim()}</option>`).join('');
+  sel.innerHTML=LEADS.map(l=>`<option value="${l.id}" ${currentLead&&String(currentLead.id)===String(l.id)?'selected':''}>${l.nome} — ${l.etapa==='novo'?'Novo':l.etapa==='atendimento'?'Atendimento':l.etapa==='observacao'?'Observação':l.etapa==='entrega'?'Entrega':l.etapa==='fechamento'?'Fechamento':'Fechado'}${l.produto?' · '+(l.produto.split('+')[0].trim()):''}</option>`).join('');
 }
 
 function openLeadById(id){
-  const lead=LEADS.find(l=>l.id===parseInt(id));
+  const lead=LEADS.find(l=>String(l.id)===String(id));
   if(lead)openLead(lead);
 }
 
@@ -3675,22 +3678,31 @@ function configurarCadencia(){
 
 // ═══════════════════ DOSSIÊ ═══════════════════
 function openLead(lead){
+  if(!lead)return;
   currentLead=lead;
-  const etapa=ETAPAS.find(e=>e.key===lead.etapa);
-  const i=ini(lead.nome);
-  document.getElementById('dossie-profile').innerHTML=`<div class="p-avatar">${i}</div><div class="p-name">${lead.nome}</div><div class="p-sub">Lead via ${lead.origem} · ${lead.vendedor}</div><div class="p-tags">${lead.produto.split('+').map(p=>`<span class="p-tag">${p.trim()}</span>`).join('')}<span class="p-tag" style="color:${etapa.cor};">${etapa.label}</span></div><div class="p-rows"><div class="p-row"><span class="p-key">WhatsApp</span><span class="p-val">${lead.tel}</span></div><div class="p-row"><span class="p-key">Status</span><span class="p-val" style="color:${etapa.cor};">${etapa.label}</span></div><div class="p-row"><span class="p-key">Valor est.</span><span class="p-val" style="color:var(--accent2);">R$${lead.valor.toFixed(2).replace('.',',')}</span></div><div class="p-row"><span class="p-key">Entrega</span><span class="p-val">${lead.entrega}</span></div></div>${lead.ig?`<div style="display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:var(--r);background:rgba(225,48,108,.08);border:1px solid rgba(225,48,108,.18);margin-top:11px;cursor:pointer;" onclick="window.open('https://instagram.com/${lead.ig.replace('@','')}','_blank')"><span style="font-size:16px;">📷</span><div><div style="font-size:12px;font-family:var(--font);font-weight:700;color:#E1306C;">${lead.ig}</div><div style="font-size:10px;color:var(--dim);">Ver perfil →</div></div></div>`:''}`;
-  const d=DISC_DATA[lead.disc];
-  document.getElementById('disc-content').innerHTML=`<div style="display:flex;align-items:center;gap:9px;margin-bottom:11px;"><div style="width:32px;height:32px;border-radius:50%;background:${d.bg};color:${d.cor};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;font-family:var(--font);">${lead.disc}</div><div><div style="font-size:12px;font-family:var(--font);font-weight:700;">${d.label}</div><div style="font-size:10px;color:var(--muted);">${d.sub}</div></div></div><div class="disc-rows">${Object.entries(d.bars).map(([k,v])=>`<div class="disc-row"><div class="disc-ltr" style="color:${DISC_DATA[k].cor};">${k}</div><div class="disc-track"><div class="disc-fill" style="width:${v}%;background:${DISC_DATA[k].cor};"></div></div><div class="disc-pct">${v}%</div></div>`).join('')}</div><div class="disc-tip">💡 ${d.tip}</div>`;
-  const cads=[{ico:'🤖',nome:'Boas-vindas (IA)',desc:'Qualificação automática',s:'done'},{ico:'💬',nome:'Apresentação produto',desc:'Catálogo + preço',s:lead.etapa==='novo'?'now':'done'},{ico:'📦',nome:'Confirmar entrega',desc:'Delivery ou retirada',s:lead.etapa==='entrega'?'now':(['fechamento','fechado'].includes(lead.etapa)?'done':'wait')},{ico:'🤝',nome:'Fechamento',desc:'Oferta + urgência',s:lead.etapa==='fechamento'?'now':(lead.etapa==='fechado'?'done':'wait')},{ico:'⭐',nome:'Pós-venda',desc:'Satisfação + recompra',s:lead.etapa==='fechado'?'now':'wait'}];
+  const etapa=ETAPAS.find(e=>e.key===lead.etapa)||{key:'novo',label:'Novo contato',cor:'#00E5A0'};
+  const i=ini(lead.nome||'??');
+  const produto=lead.produto||'';
+  const valor=parseFloat(lead.valor)||0;
+  const origem=lead.origem||'Manual';
+  const vendedor=lead.vendedor||'-';
+  const entrega=lead.entrega||'-';
+  if(!lead.msgs)lead.msgs=[];
+  document.getElementById('dossie-profile').innerHTML=`<div class="p-avatar">${i}</div><div class="p-name">${lead.nome}</div><div class="p-sub">Lead via ${origem} · ${vendedor}</div><div class="p-tags">${produto?produto.split('+').map(p=>`<span class="p-tag">${p.trim()}</span>`).join(''):'<span class="p-tag">Sem produto</span>'}<span class="p-tag" style="color:${etapa.cor};">${etapa.label}</span></div><div class="p-rows"><div class="p-row"><span class="p-key">WhatsApp</span><span class="p-val">${lead.tel||'-'}</span></div><div class="p-row"><span class="p-key">Status</span><span class="p-val" style="color:${etapa.cor};">${etapa.label}</span></div><div class="p-row"><span class="p-key">Valor est.</span><span class="p-val" style="color:var(--accent2);">R$${valor.toFixed(2).replace('.',',')}</span></div><div class="p-row"><span class="p-key">Entrega</span><span class="p-val">${entrega}</span></div></div>${lead.ig?`<div style="display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:var(--r);background:rgba(225,48,108,.08);border:1px solid rgba(225,48,108,.18);margin-top:11px;cursor:pointer;" onclick="window.open('https://instagram.com/${lead.ig.replace('@','')}','_blank')"><span style="font-size:16px;">📷</span><div><div style="font-size:12px;font-family:var(--font);font-weight:700;color:#E1306C;">${lead.ig}</div><div style="font-size:10px;color:var(--dim);">Ver perfil →</div></div></div>`:''}`;
+  const d=DISC_DATA[lead.disc]||DISC_DATA['C'];
+  const discLetra=lead.disc||'?';
+  document.getElementById('disc-content').innerHTML=`<div style="display:flex;align-items:center;gap:9px;margin-bottom:11px;"><div style="width:32px;height:32px;border-radius:50%;background:${d.bg};color:${d.cor};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;font-family:var(--font);">${discLetra}</div><div><div style="font-size:12px;font-family:var(--font);font-weight:700;">${lead.disc?d.label:'Perfil não analisado'}</div><div style="font-size:10px;color:var(--muted);">${lead.disc?d.sub:'Clique em "Gerar abordagem com IA" para analisar'}</div></div></div><div class="disc-rows">${Object.entries(d.bars).map(([k,v])=>`<div class="disc-row"><div class="disc-ltr" style="color:${DISC_DATA[k].cor};">${k}</div><div class="disc-track"><div class="disc-fill" style="width:${v}%;background:${DISC_DATA[k].cor};"></div></div><div class="disc-pct">${v}%</div></div>`).join('')}</div><div class="disc-tip">${lead.disc?'💡 '+d.tip:'💡 Analise o perfil DISC para obter dicas de abordagem personalizada.'}</div>`;
+  const le=lead.etapa||'novo';
+  const cads=[{ico:'🤖',nome:'Boas-vindas (IA)',desc:'Qualificação automática',s:'done'},{ico:'💬',nome:'Apresentação produto',desc:'Catálogo + preço',s:le==='novo'?'now':'done'},{ico:'📦',nome:'Confirmar entrega',desc:'Delivery ou retirada',s:le==='entrega'?'now':(['fechamento','fechado'].includes(le)?'done':'wait')},{ico:'🤝',nome:'Fechamento',desc:'Oferta + urgência',s:le==='fechamento'?'now':(le==='fechado'?'done':'wait')},{ico:'⭐',nome:'Pós-venda',desc:'Satisfação + recompra',s:le==='fechado'?'now':'wait'}];
   document.getElementById('cadencia').innerHTML=cads.map(c=>`<div class="cad-step ${c.s==='done'?'done':c.s==='now'?'now':''}"><div class="cad-icon" style="background:rgba(255,255,255,.04);">${c.ico}</div><div class="cad-info"><div class="cad-name">${c.nome}</div><div class="cad-desc">${c.desc}</div></div><span class="cad-badge ${c.s==='done'?'cb-done':c.s==='now'?'cb-now':'cb-wait'}">${c.s==='done'?'Feito':c.s==='now'?'Agora':'Pendente'}</span></div>`).join('');
   document.getElementById('chat-avatar').textContent=i;
   document.getElementById('chat-name').textContent=lead.nome;
   const msgs=document.getElementById('chat-msgs');
   msgs.innerHTML=lead.msgs.map(m=>`<div class="msg ${m.tipo==='recv'?'recv':m.tipo==='agent'?'agent':'sent'}">${m.txt}<div class="msg-time">${m.hora}${m.tipo==='agent'?' · IA':''}</div></div>`).join('');
   msgs.scrollTop=msgs.scrollHeight;
-  const prods=lead.produto.split('+').map(p=>p.trim());
+  const prods=produto?produto.split('+').map(p=>p.trim()):[];
   const prices=[189.90,389.90,129.90,99.90];
-  document.getElementById('produto-content').innerHTML=`<div class="produto-grid">${prods.slice(0,2).map((p,idx)=>`<div class="produto-item"><div class="prod-lbl">Produto ${idx+1}</div><div class="prod-name">${p}</div><div class="prod-price">R$${prices[idx].toFixed(2).replace('.',',')}</div></div>`).join('')}</div><div class="total-bar"><div><div class="total-lbl">Valor estimado</div><div class="total-val">R$${lead.valor.toFixed(2).replace('.',',')}</div></div><button class="btn btn-primary" style="font-size:11px;">Enviar proposta</button></div>`;
+  document.getElementById('produto-content').innerHTML=prods.length?`<div class="produto-grid">${prods.slice(0,2).map((p,idx)=>`<div class="produto-item"><div class="prod-lbl">Produto ${idx+1}</div><div class="prod-name">${p}</div><div class="prod-price">R$${prices[idx].toFixed(2).replace('.',',')}</div></div>`).join('')}</div><div class="total-bar"><div><div class="total-lbl">Valor estimado</div><div class="total-val">R$${valor.toFixed(2).replace('.',',')}</div></div><button class="btn btn-primary" style="font-size:11px;">Enviar proposta</button></div>`:'<div style="color:var(--muted);font-size:12px;padding:12px 0;">Nenhum produto identificado ainda.</div>';
   ['ai-avaliacao-content','ai-fechamento-content'].forEach(id=>document.getElementById(id).innerHTML='<div style="font-size:11px;color:var(--muted);line-height:1.6;">Clique no botão abaixo para análise com IA.</div>');
   ['btn-avaliar','btn-fechar','btn-disc'].forEach(id=>{const b=document.getElementById(id);if(b){b.disabled=false;b.textContent=b.id==='btn-disc'?'🧠 Gerar abordagem com IA':b.id==='btn-avaliar'?'🔍 Analisar atendimento com IA':'💡 Gerar script com IA';}});
   // TAREFAS — mostrar só para "observacao"
@@ -4853,17 +4865,18 @@ function _syncConvs(){
         var msgsArr=conv.all.slice().reverse();
         var ini=nome.replace(/[^A-Za-z]/g,'').substring(0,2).toUpperCase()||'WP';
         if(!existe){
-          LEADS.unshift({
+          var newLead={
             id:leadId,nome:nome,tel:num,canal:'wpp',
             etapa:'novo',origem:'WhatsApp',vendedor:'Agente IA',
-            produto:'',valor:0,msgs:msgsArr,disc:null,
+            produto:'',valor:0,msgs:msgsArr,disc:null,tasks:[],notas:'',
             bg:'#00B0FF',ini:ini,
             tempo:new Date(conv.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
-          });
-          // Salvar no banco de leads
-          fetch(_SB+'/rest/v1/leads',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},
-            body:JSON.stringify({cliente_subdominio:sub,nome:nome,numero:num,canal:'wpp',etapa:'novo',origem:'WhatsApp',vendedor:'Agente IA'})
-          }).catch(function(){});
+          };
+          LEADS.unshift(newLead);
+          // Salvar no banco de leads e guardar _dbId
+          fetch(_SB+'/rest/v1/leads',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=representation'},
+            body:JSON.stringify({cliente_subdominio:sub,nome:nome,telefone:num,canal:'wpp',etapa:'novo',origem:'WhatsApp',vendedor:'Agente IA',produto:'',valor:0,tasks:'[]',notas:''})
+          }).then(function(r){return r.json();}).then(function(res){if(res&&res[0]){newLead._dbId=res[0].id;}}).catch(function(){});
         } else {
           existe.msgs=msgsArr;
           if(nm[num])existe.nome=nm[num];
