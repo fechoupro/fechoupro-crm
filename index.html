@@ -3708,6 +3708,33 @@ function desativarRecuperacao(){
 function configurarCadencia(){
   toggleRecCfg();
 }
+async function _processarFilaCadencia(){
+  try{
+    var agora=new Date().toISOString();
+    var r=await fetch(_SB+'/rest/v1/cadencia_queue?enviado=eq.false&enviar_em=lte.'+agora+'&order=enviar_em.asc&limit=5',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var items=await r.json();
+    if(!items||!items.length)return;
+    for(var i=0;i<items.length;i++){
+      var item=items[i];
+      var cfgR=await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+item.cliente_subdominio+'&chave=eq.evolution_api&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+      var cfgs=await cfgR.json();
+      if(!cfgs||!cfgs.length)continue;
+      var evo=JSON.parse(cfgs[0].valor);
+      if(!evo.url||!evo.token||!evo.instance)continue;
+      var jid=item.numero.replace(/\D/g,'');
+      if(jid.indexOf('@')<0)jid=jid+'@s.whatsapp.net';
+      try{
+        await fetch(evo.url.replace(/\/$/,'')+'/message/sendText/'+evo.instance,{method:'POST',headers:{'Content-Type':'application/json','apikey':evo.token},body:JSON.stringify({number:jid,text:item.mensagem})});
+        await fetch(_SB+'/rest/v1/cadencia_queue?id=eq.'+item.id,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({enviado:true,enviado_em:new Date().toISOString()})});
+        await fetch(_SB+'/rest/v1/conversas_wpp',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:item.cliente_subdominio,numero:jid,role:'assistant',content:item.mensagem})});
+        console.log('[CADENCIA] Enviado para '+item.lead_nome+': '+item.titulo);
+        toast('📤 Recuperação enviada para '+item.lead_nome+': '+item.titulo);
+      }catch(e){console.error('[CADENCIA] Erro envio:',e);}
+    }
+  }catch(e){console.error('[CADENCIA] Erro processar fila:',e);}
+}
+setInterval(_processarFilaCadencia,60000);
+setTimeout(_processarFilaCadencia,8000);
 
 // ═══════════════════ DOSSIÊ ═══════════════════
 function openLead(lead){
