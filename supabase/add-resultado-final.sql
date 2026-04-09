@@ -1,15 +1,16 @@
 -- =====================================================
--- ADICIONAR COLUNA resultado_final NA TABELA leads
--- FechouPro CRM
---
+-- CORREÇÕES TABELA leads - FechouPro CRM
 -- Execute este SQL no Supabase SQL Editor
 -- =====================================================
 
--- Adicionar coluna resultado_final para distinguir venda de não-venda
+-- 1. Adicionar coluna created_at (não existia!)
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 2. Adicionar coluna resultado_final
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS resultado_final TEXT DEFAULT '';
 
--- Atualizar leads existentes que já tinham etapa 'fechado' para 'finalizado' com resultado_final='venda'
+-- 3. Atualizar leads antigos com etapa 'fechado' → 'finalizado'
 UPDATE leads SET etapa = 'finalizado', resultado_final = 'venda' WHERE etapa = 'fechado';
 
--- Atualizar leads existentes que tinham observacao com finalizado_em para 'finalizado' com resultado_final='nao_venda'
+-- 4. Atualizar leads antigos com observacao finalizada → 'finalizado'
 UPDATE leads SET etapa = 'finalizado', resultado_final = 'nao_venda' WHERE etapa = 'observacao' AND finalizado_em IS NOT NULL;
