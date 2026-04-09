@@ -758,7 +758,7 @@ function _gs(){var h=location.hostname;if(h==='localhost'||h==='127.0.0.1')retur
 function _rq(t,m,b,q){var o={method:m||'GET',headers:{'apikey':_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':m==='POST'?'return=representation':''}};if(b)o.body=JSON.stringify(b);return fetch(_SB+'/rest/v1/'+t+(q||''),o).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
 window.dbSalvarLead=function(l){var row={cliente_subdominio:_gs(),nome:l.nome||'',telefone:l.tel||l.telefone||'',produto:l.produto||'',origem:l.origem||'Manual',etapa:l.etapa||'novo',valor:parseFloat(l.valor)||0,vendedor:l.vendedor||'',ig:l.ig||'',entrega:l.entrega||'',disc:l.disc||'',tasks:JSON.stringify(l.tasks||[]),notas:l.notas||''};if(l._dbId){_rq('leads','PATCH',row,'?id=eq.'+l._dbId);}else{_rq('leads','POST',row).then(function(res){if(res&&res[0]){l._dbId=res[0].id;l.id=res[0].id;}});}};
 window.dbDeletarLead=function(l){if(l&&l._dbId)_rq('leads','DELETE',null,'?id=eq.'+l._dbId);};
-window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=created_at.desc').then(function(rows){if(!rows||!rows.length)return;var ref=window._LEADS_REF||[];ref.length=0;rows.forEach(function(r){ref.push({_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa||'novo',valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at,created_at:r.created_at,motivo_nao_fechamento:r.motivo_nao_fechamento||'',motivo_obs:r.motivo_obs||''});});if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();});};
+window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=created_at.desc').then(function(rows){if(!rows||!rows.length)return;var ref=window._LEADS_REF||[];ref.length=0;rows.forEach(function(r){ref.push({_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa||'novo',valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at,created_at:r.created_at,motivo_nao_fechamento:r.motivo_nao_fechamento||'',motivo_obs:r.motivo_obs||'',finalizado_em:r.finalizado_em||null,atendimento_finalizado:!!r.finalizado_em});});if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();});};
 window.dbSalvarColab=function(c){var row={cliente_subdominio:_gs(),nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(function(p){return p[0];}).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:!!c.online,perms:JSON.stringify(c.perms||{})};if(c._dbId){_rq('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}else{_rq('colaboradores','POST',row).then(function(res){if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}});}};
 window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&ativo=eq.true').then(function(rows){if(!rows||!rows.length)return;window.COLABORADORES=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')};});if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();});};
 var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();window.carregarAgente();setTimeout(window.carregarPlaybook,500);setTimeout(window.dbCarregarLeads,600);setTimeout(window._carregarContatos,700);
@@ -2644,9 +2644,19 @@ function sendConvMsg(){
 }
 
 // ═══════════════════ KANBAN ═══════════════════
+function _leadVisivelNoFunil(l){
+  // Lead finalizado sai do funil no dia seguinte
+  if(l.finalizado_em){
+    var finDt=new Date(l.finalizado_em);
+    var hoje=new Date();
+    // Se finalizou ontem ou antes, sai do funil
+    if(finDt.toDateString()!==hoje.toDateString()&&finDt<hoje)return false;
+  }
+  return true;
+}
 function renderKanban(){
   const filtro=document.getElementById('filtro-vendedor').value;
-  const filtered=filtro?LEADS.filter(l=>l.vendedor===filtro):LEADS;
+  const filtered=(filtro?LEADS.filter(l=>l.vendedor===filtro):LEADS).filter(_leadVisivelNoFunil);
   document.getElementById('kanban-board').innerHTML=ETAPAS.map(e=>{
     const cards=filtered.filter(l=>l.etapa===e.key);
     return`<div><div class="col-hdr"><div class="col-title" style="color:${e.cor};">${e.label}</div><div class="col-badge">${cards.length}</div></div>
@@ -2727,8 +2737,9 @@ function _finalizarComVenda(){
   currentLead.etapa='fechado';
   currentLead.valor=valor;
   currentLead.atendimento_finalizado=true;
+  currentLead.finalizado_em=new Date().toISOString();
   if(currentLead._dbId){
-    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'fechado',valor:valor})});
+    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'fechado',valor:valor,finalizado_em:new Date().toISOString()})});
   } else if(window.dbSalvarLead){window.dbSalvarLead(currentLead);}
   document.getElementById('modal-finalizar').remove();
   renderKanban();
@@ -2742,8 +2753,9 @@ function _finalizarSemVenda(){
   currentLead.etapa='observacao';
   currentLead.motivo_nao_fechamento=motivo;
   currentLead.atendimento_finalizado=true;
+  currentLead.finalizado_em=new Date().toISOString();
   if(currentLead._dbId){
-    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'observacao',motivo_nao_fechamento:motivo})});
+    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'observacao',motivo_nao_fechamento:motivo,finalizado_em:new Date().toISOString()})});
   } else if(window.dbSalvarLead){window.dbSalvarLead(currentLead);}
   try{localStorage.setItem('fp_motivo_'+String(currentLead.id),JSON.stringify({motivo:motivo,obs:''}));}catch(e){}
   document.getElementById('modal-finalizar').remove();
@@ -2756,8 +2768,9 @@ function _finalizarSemResposta(){
   currentLead.etapa='observacao';
   currentLead.motivo_nao_fechamento='Não respondeu';
   currentLead.atendimento_finalizado=true;
+  currentLead.finalizado_em=new Date().toISOString();
   if(currentLead._dbId){
-    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'observacao',motivo_nao_fechamento:'Não respondeu'})});
+    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'observacao',motivo_nao_fechamento:'Não respondeu',finalizado_em:new Date().toISOString()})});
   } else if(window.dbSalvarLead){window.dbSalvarLead(currentLead);}
   try{localStorage.setItem('fp_motivo_'+String(currentLead.id),JSON.stringify({motivo:'Não respondeu',obs:'Lead não respondeu mais'}));}catch(e){}
   document.getElementById('modal-finalizar').remove();
@@ -4022,7 +4035,15 @@ async function _processarFilaCadencia(){
           // Lead respondeu! Cancelar TODAS as msgs pendentes deste lead
           await fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+item.cliente_subdominio+'&lead_id=eq.'+encodeURIComponent(item.lead_id)+'&enviado=eq.false',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
           var ld=LEADS.find(function(l){return String(l.id)===String(item.lead_id);});
-          if(ld)ld.recuperacao_ativa=false;
+          if(ld){
+            ld.recuperacao_ativa=false;
+            ld.finalizado_em=null;
+            ld.atendimento_finalizado=false;
+            // Resetar no banco — lead voltou a interagir
+            if(ld._dbId){
+              fetch(_SB+'/rest/v1/leads?id=eq.'+ld._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({finalizado_em:null})}).catch(function(){});
+            }
+          }
           console.log('[CADENCIA] Auto-pausado para '+item.lead_nome+' (lead respondeu!)');
           toast('⏸ Cadência pausada automaticamente — '+item.lead_nome+' respondeu!');
           continue;
@@ -4042,6 +4063,22 @@ async function _processarFilaCadencia(){
         await fetch(_SB+'/rest/v1/conversas_wpp',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:item.cliente_subdominio,numero:jid,role:'assistant',content:item.mensagem})});
         console.log('[CADENCIA] Enviado para '+item.lead_nome+': '+item.titulo);
         toast('📤 Recuperação enviada para '+item.lead_nome+': '+item.titulo);
+        // Verificar se foi a ÚLTIMA mensagem de cadência deste lead
+        var pendR=await fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+item.cliente_subdominio+'&lead_id=eq.'+encodeURIComponent(item.lead_id)+'&enviado=eq.false&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+        var pend=await pendR.json();
+        if(!pend||pend.length===0){
+          // Última mensagem de cadência enviada — marcar finalizado_em para sair do funil no dia seguinte
+          var ld=LEADS.find(function(l){return String(l.id)===String(item.lead_id);});
+          if(ld&&!ld.finalizado_em){
+            ld.finalizado_em=new Date().toISOString();
+            ld.atendimento_finalizado=true;
+            ld.motivo_nao_fechamento=ld.motivo_nao_fechamento||'Não respondeu cadência';
+            if(ld._dbId){
+              fetch(_SB+'/rest/v1/leads?id=eq.'+ld._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({finalizado_em:ld.finalizado_em,motivo_nao_fechamento:ld.motivo_nao_fechamento})}).catch(function(){});
+            }
+            console.log('[CADENCIA] Última msg enviada para '+item.lead_nome+' — sairá do funil amanhã');
+          }
+        }
       }catch(e){console.error('[CADENCIA] Erro envio:',e);}
     }
   }catch(e){console.error('[CADENCIA] Erro processar fila:',e);}
