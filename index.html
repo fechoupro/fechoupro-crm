@@ -2792,32 +2792,48 @@ async function _autoClassificarFunil(){
       if(lead.atendimento_finalizado)return; // já finalizado manualmente
       if(lead.etapa==='fechado')return;
 
-      // Analisar mensagens para determinar etapa
-      var textoCompleto=convMsgs.map(function(m){return m.content.toLowerCase();}).join(' ');
-      var temMsgAssistente=convMsgs.some(function(m){return m.role!=='user';});
-      var temMsgCliente=convMsgs.some(function(m){return m.role==='user';});
+      // Separar mensagens por remetente
+      var msgsCliente=convMsgs.filter(function(m){return m.role==='user';});
+      var msgsAgente=convMsgs.filter(function(m){return m.role!=='user';});
+      var temMsgAgente=msgsAgente.length>0;
+      var temMsgCliente=msgsCliente.length>0;
       var totalMsgs=convMsgs.length;
+
+      // Textos separados para análise contextual
+      var textoCliente=msgsCliente.map(function(m){return m.content.toLowerCase();}).join(' ');
+      var textoAgente=msgsAgente.map(function(m){return m.content.toLowerCase();}).join(' ');
 
       var novaEtapa=null;
 
-      // FECHADO: palavras de confirmação de pagamento
-      if(/pago|paguei|pagamento (realizado|feito|confirmado)|comprovante|pix (enviado|feito)|ja paguei|transferi|pagou/i.test(textoCompleto)){
+      // FECHADO: Só quando o AGENTE confirma a venda (agradece pela compra, confirma pagamento recebido)
+      // NÃO usar palavras como "comprovante" isoladas — o agente pode estar apenas orientando
+      var agenteConfirmouVenda=/(obrigad.*(compra|prefer[eê]ncia|pedido)|pagamento (recebido|confirmado|aprovado)|venda (realizada|confirmada|conclu[ií]da)|pedido (confirmado|registrado|feito)|compra (finalizada|realizada|confirmada)|pix (recebido|confirmado)|recebemos (seu|o) (pix|pagamento))/i.test(textoAgente);
+      var clienteConfirmouPagamento=/(ja paguei|paguei|fiz o pix|pix (enviado|feito)|transferi|pagamento (feito|realizado)|mandei o comprovante|segue o comprovante|toma.*comprovante)/i.test(textoCliente);
+      if(agenteConfirmouVenda||(clienteConfirmouPagamento&&agenteConfirmouVenda)){
         novaEtapa='fechado';
       }
-      // FECHAMENTO: negociação de pagamento
-      else if(/(pix|cart[aã]o|pagamento|pagar|parcel|boleto|transfer|como (pago|paga|faço para pagar)|chave pix|dados para pagamento|maquininha)/i.test(textoCompleto)&&totalMsgs>=4){
-        novaEtapa='fechamento';
+      // FECHAMENTO: cliente ou agente discutindo pagamento ativamente
+      else if(totalMsgs>=4){
+        var clienteQuerPagar=/(como (pago|fa[cç]o para pagar)|quero pagar|vou pagar|pode ser (pix|cart[aã]o)|aceita (pix|cart[aã]o)|qual.*chave pix|manda.*pix|passa.*dados)/i.test(textoCliente);
+        var agenteOfereceuPagamento=/(chave pix|dados para pagamento|formas de pagamento|pode pagar|aceitamos (pix|cart[aã]o)|maquininha|valor total|parcela)/i.test(textoAgente);
+        if(clienteQuerPagar||agenteOfereceuPagamento){
+          novaEtapa='fechamento';
+        }
       }
-      // ENTREGA: logística definida
-      else if(/(entreg|delivery|retir|buscar na loja|endere[cç]o|cep|frete|enviar para|receber em casa|motoboy)/i.test(textoCompleto)&&totalMsgs>=4){
-        novaEtapa='entrega';
+      // ENTREGA: logística sendo definida (cliente perguntou ou agente informou)
+      if(!novaEtapa&&totalMsgs>=4){
+        var logisticaCliente=/(entreg|delivery|retir|buscar na loja|como recebo|receber em casa|manda.*endere|meu cep|enviar para)/i.test(textoCliente);
+        var logisticaAgente=/(entreg|delivery|retir|endere[cç]o|cep|frete|motoboy|prazo de entrega|retirada na loja)/i.test(textoAgente)&&!/(caso|se|quando|ap[oó]s)/i.test(textoAgente.substring(0,50));
+        if(logisticaCliente){
+          novaEtapa='entrega';
+        }
       }
-      // ATENDIMENTO: conversa iniciada com respostas
-      else if(temMsgAssistente&&temMsgCliente&&totalMsgs>=2){
+      // ATENDIMENTO: conversa em andamento
+      if(!novaEtapa&&temMsgAgente&&temMsgCliente&&totalMsgs>=2){
         novaEtapa='atendimento';
       }
-      // NOVO: só mensagem inicial sem resposta do agente
-      else if(temMsgCliente&&!temMsgAssistente){
+      // NOVO: só mensagem do cliente sem resposta
+      if(!novaEtapa&&temMsgCliente&&!temMsgAgente){
         novaEtapa='novo';
       }
 
