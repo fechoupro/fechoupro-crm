@@ -758,7 +758,7 @@ function _gs(){var h=location.hostname;if(h==='localhost'||h==='127.0.0.1')retur
 function _rq(t,m,b,q){var o={method:m||'GET',headers:{'apikey':_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':m==='POST'?'return=representation':''}};if(b)o.body=JSON.stringify(b);return fetch(_SB+'/rest/v1/'+t+(q||''),o).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
 window.dbSalvarLead=function(l){var row={cliente_subdominio:_gs(),nome:l.nome||'',telefone:l.tel||l.telefone||'',produto:l.produto||'',origem:l.origem||'Manual',etapa:l.etapa||'novo',valor:parseFloat(l.valor)||0,vendedor:l.vendedor||'',ig:l.ig||'',entrega:l.entrega||'',disc:l.disc||'',tasks:JSON.stringify(l.tasks||[]),notas:l.notas||''};if(l._dbId){_rq('leads','PATCH',row,'?id=eq.'+l._dbId);}else{_rq('leads','POST',row).then(function(res){if(res&&res[0]){l._dbId=res[0].id;l.id=res[0].id;}});}};
 window.dbDeletarLead=function(l){if(l&&l._dbId)_rq('leads','DELETE',null,'?id=eq.'+l._dbId);};
-window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=created_at.desc').then(function(rows){if(!rows||!rows.length)return;window.LEADS=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa,valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at};});if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();});};
+window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=created_at.desc').then(function(rows){if(!rows||!rows.length)return;var ref=window._LEADS_REF||[];ref.length=0;rows.forEach(function(r){ref.push({_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa||'novo',valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at,created_at:r.created_at,motivo_nao_fechamento:r.motivo_nao_fechamento||'',motivo_obs:r.motivo_obs||''});});if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();});};
 window.dbSalvarColab=function(c){var row={cliente_subdominio:_gs(),nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(function(p){return p[0];}).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:!!c.online,perms:JSON.stringify(c.perms||{})};if(c._dbId){_rq('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}else{_rq('colaboradores','POST',row).then(function(res){if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}});}};
 window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&ativo=eq.true').then(function(rows){if(!rows||!rows.length)return;window.COLABORADORES=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')};});if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();});};
 var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();window.carregarAgente();setTimeout(window.carregarPlaybook,500);setTimeout(window.dbCarregarLeads,600);setTimeout(window._carregarContatos,700);
@@ -1446,9 +1446,16 @@ Qualquer dúvida é só chamar 💪</textarea>
     </div>
     <div class="d-right">
       <div class="chat-card">
-        <div class="chat-hdr"><div class="chat-av" id="chat-avatar">RF</div><div><div class="chat-name-el" id="chat-name"></div><div class="chat-status">Online agora</div></div><div style="margin-left:auto;"><span style="font-size:9px;padding:2px 8px;border-radius:20px;background:rgba(124,92,252,.15);color:#A78BFA;font-family:var(--font);font-weight:700;">🤖 IA ativa</span></div></div>
+        <div class="chat-hdr"><div class="chat-av" id="chat-avatar">RF</div><div><div class="chat-name-el" id="chat-name"></div><div class="chat-status">Online agora</div></div><div style="margin-left:auto;display:flex;align-items:center;gap:6px;"><span id="chat-etapa-badge" style="font-size:9px;padding:2px 8px;border-radius:20px;font-family:var(--font);font-weight:700;cursor:pointer;" onclick="toggleEtapaPanel()" title="Clique para alterar etapa"></span><span style="font-size:9px;padding:2px 8px;border-radius:20px;background:rgba(124,92,252,.15);color:#A78BFA;font-family:var(--font);font-weight:700;">🤖 IA ativa</span></div></div>
+        <div id="etapa-panel" style="display:none;padding:8px 12px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border);">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:700;">Mover lead para:</div>
+          <div id="etapa-btns" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+        </div>
         <div class="chat-msgs" id="chat-msgs"></div>
-        <div class="chat-input-row"><input class="chat-inp" id="chat-inp" placeholder="Mensagem para o lead..." onkeydown="if(event.key==='Enter')sendChatMsg()" /><button class="chat-send" onclick="sendChatMsg()">Enviar</button></div>
+        <div style="display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--border);background:rgba(255,255,255,.02);">
+          <div class="chat-input-row" style="flex:1;margin:0;"><input class="chat-inp" id="chat-inp" placeholder="Mensagem para o lead..." onkeydown="if(event.key==='Enter')sendChatMsg()" style="margin:0;" /><button class="chat-send" onclick="sendChatMsg()">Enviar</button></div>
+          <button onclick="finalizarAtendimento()" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(16,185,129,.3);background:rgba(16,185,129,.1);color:#10B981;cursor:pointer;font-size:10px;font-family:var(--font);font-weight:700;white-space:nowrap;" title="Finalizar este atendimento">✓ Finalizar</button>
+        </div>
       </div>
       <div class="ai-box"><div class="ai-header"><div class="ai-icon">🧠</div><div class="ai-title">Avaliação IA do atendimento</div></div><div id="ai-avaliacao-content"><div style="font-size:11px;color:var(--muted);line-height:1.6;">Clique para avaliação com pontuação, pontos fortes, erros e próxima ação.</div></div><button class="btn btn-ia" id="btn-avaliar" onclick="runAvaliacao()">🔍 Analisar atendimento com IA</button></div>
       <div class="ai-box"><div class="ai-header"><div class="ai-icon">🎯</div><div class="ai-title">Script de fechamento</div></div><div id="ai-fechamento-content"><div style="font-size:11px;color:var(--muted);line-height:1.6;">Script personalizado baseado no perfil DISC e histórico do lead.</div></div><button class="btn btn-ia" id="btn-fechar" onclick="runFechamento()">💡 Gerar script com IA</button></div>
@@ -2208,6 +2215,7 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
 let API_KEY='',AI_MODE=false,currentLead=null,trainSession=null,currentConv=null,roletaIdx=0;
 
 const LEADS=[];
+window._LEADS_REF=LEADS; // Expor referência para dbCarregarLeads poder popular o mesmo array
 
 const POSV_LEADS=[];
 
@@ -2673,6 +2681,168 @@ function openLeadFromKanban(id){
   var btn=document.querySelector('.nav-tab[onclick*="dossie"]');
   goView('dossie',btn);
 }
+
+// ═══════════════════ ETAPA MANUAL + FINALIZAR ATENDIMENTO ═══════════════════
+function toggleEtapaPanel(){
+  var p=document.getElementById('etapa-panel');
+  if(p)p.style.display=p.style.display==='none'?'block':'none';
+}
+function moverEtapaManual(novaEtapa){
+  if(!currentLead)return;
+  currentLead.etapa=novaEtapa;
+  if(currentLead._dbId){
+    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:novaEtapa})});
+  } else if(window.dbSalvarLead){window.dbSalvarLead(currentLead);}
+  var etObj=ETAPAS.find(function(e){return e.key===novaEtapa;})||{label:novaEtapa,cor:'#888'};
+  var eb=document.getElementById('chat-etapa-badge');
+  if(eb){eb.textContent=etObj.label;eb.style.background=etObj.cor+'22';eb.style.color=etObj.cor;}
+  document.getElementById('etapa-panel').style.display='none';
+  renderKanban();
+  toast('Lead movido para '+etObj.label);
+}
+function finalizarAtendimento(){
+  if(!currentLead){toast('Selecione um lead.');return;}
+  var nome=currentLead.nome||'Cliente';
+  // Criar modal de finalização
+  var modal=document.createElement('div');
+  modal.id='modal-finalizar';
+  modal.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  modal.innerHTML='<div style="background:#1a1a2e;border:1px solid var(--border);border-radius:16px;padding:24px;width:400px;max-width:90vw;">'
+    +'<div style="font-size:16px;font-family:var(--font);font-weight:800;margin-bottom:4px;">Finalizar atendimento</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:16px;">Lead: <strong>'+nome+'</strong></div>'
+    +'<div style="font-size:12px;font-family:var(--font);font-weight:700;margin-bottom:12px;">Resultado do atendimento:</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:16px;">'
+    +'<button onclick="_finalizarComVenda()" style="flex:1;padding:14px;border-radius:10px;border:2px solid #10B981;background:rgba(16,185,129,.1);color:#10B981;cursor:pointer;font-size:13px;font-family:var(--font);font-weight:800;">✓ Venda realizada</button>'
+    +'<button onclick="_finalizarSemVenda()" style="flex:1;padding:14px;border-radius:10px;border:2px solid #F87171;background:rgba(248,113,113,.1);color:#F87171;cursor:pointer;font-size:13px;font-family:var(--font);font-weight:800;">✕ Não vendeu</button>'
+    +'</div>'
+    +'<button onclick="_finalizarSemResposta()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;font-size:11px;font-family:var(--font);font-weight:700;margin-bottom:12px;">📵 Lead não respondeu mais</button>'
+    +'<button onclick="document.getElementById(\'modal-finalizar\').remove()" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-size:11px;font-family:var(--font);">Cancelar</button>'
+    +'</div>';
+  document.body.appendChild(modal);
+}
+function _finalizarComVenda(){
+  if(!currentLead)return;
+  var valorStr=prompt('Valor da venda (R$):','0');
+  var valor=parseFloat((valorStr||'0').replace(',','.').replace(/[^0-9.]/g,''))||0;
+  currentLead.etapa='fechado';
+  currentLead.valor=valor;
+  currentLead.atendimento_finalizado=true;
+  if(currentLead._dbId){
+    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'fechado',valor:valor})});
+  } else if(window.dbSalvarLead){window.dbSalvarLead(currentLead);}
+  document.getElementById('modal-finalizar').remove();
+  renderKanban();
+  openLead(currentLead);
+  toast('🎉 Venda finalizada! R$'+valor.toFixed(2).replace('.',',')+' — '+currentLead.nome);
+}
+function _finalizarSemVenda(){
+  if(!currentLead)return;
+  var motivo=prompt('Motivo de não venda:\n(Preço alto, Vai pensar, Indisponível, Concorrência, Outro)','Vai pensar');
+  if(!motivo)return;
+  currentLead.etapa='observacao';
+  currentLead.motivo_nao_fechamento=motivo;
+  currentLead.atendimento_finalizado=true;
+  if(currentLead._dbId){
+    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'observacao',motivo_nao_fechamento:motivo})});
+  } else if(window.dbSalvarLead){window.dbSalvarLead(currentLead);}
+  try{localStorage.setItem('fp_motivo_'+String(currentLead.id),JSON.stringify({motivo:motivo,obs:''}));}catch(e){}
+  document.getElementById('modal-finalizar').remove();
+  renderKanban();
+  openLead(currentLead);
+  toast('Atendimento finalizado — Motivo: '+motivo);
+}
+function _finalizarSemResposta(){
+  if(!currentLead)return;
+  currentLead.etapa='observacao';
+  currentLead.motivo_nao_fechamento='Não respondeu';
+  currentLead.atendimento_finalizado=true;
+  if(currentLead._dbId){
+    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'observacao',motivo_nao_fechamento:'Não respondeu'})});
+  } else if(window.dbSalvarLead){window.dbSalvarLead(currentLead);}
+  try{localStorage.setItem('fp_motivo_'+String(currentLead.id),JSON.stringify({motivo:'Não respondeu',obs:'Lead não respondeu mais'}));}catch(e){}
+  document.getElementById('modal-finalizar').remove();
+  renderKanban();
+  openLead(currentLead);
+  toast('Atendimento finalizado — Lead não respondeu');
+}
+
+// ═══════════════════ AUTO-CLASSIFICAÇÃO FUNIL (IA) ═══════════════════
+async function _autoClassificarFunil(){
+  try{
+    var sub=_gs();
+    var r=await fetch(_SB+'/rest/v1/conversas_wpp?cliente_subdominio=eq.'+sub+'&select=numero,role,content,created_at&order=created_at.desc&limit=300',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var msgs=await r.json();
+    if(!msgs||!msgs.length)return;
+
+    // Agrupar por numero
+    var byNum={};
+    msgs.forEach(function(m){
+      var num=m.numero.replace(/@s\.whatsapp\.net/,'').replace(/@g\.us/,'');
+      if(!byNum[num])byNum[num]=[];
+      byNum[num].push(m);
+    });
+
+    Object.keys(byNum).forEach(function(num){
+      var convMsgs=byNum[num];
+      var lead=LEADS.find(function(l){
+        var ltel=(l.tel||'').replace(/\D/g,'');
+        return ltel===num||l.id==='wpp_'+num;
+      });
+      if(!lead)return;
+      if(lead.atendimento_finalizado)return; // já finalizado manualmente
+      if(lead.etapa==='fechado')return;
+
+      // Analisar mensagens para determinar etapa
+      var textoCompleto=convMsgs.map(function(m){return m.content.toLowerCase();}).join(' ');
+      var temMsgAssistente=convMsgs.some(function(m){return m.role!=='user';});
+      var temMsgCliente=convMsgs.some(function(m){return m.role==='user';});
+      var totalMsgs=convMsgs.length;
+
+      var novaEtapa=null;
+
+      // FECHADO: palavras de confirmação de pagamento
+      if(/pago|paguei|pagamento (realizado|feito|confirmado)|comprovante|pix (enviado|feito)|ja paguei|transferi|pagou/i.test(textoCompleto)){
+        novaEtapa='fechado';
+      }
+      // FECHAMENTO: negociação de pagamento
+      else if(/(pix|cart[aã]o|pagamento|pagar|parcel|boleto|transfer|como (pago|paga|faço para pagar)|chave pix|dados para pagamento|maquininha)/i.test(textoCompleto)&&totalMsgs>=4){
+        novaEtapa='fechamento';
+      }
+      // ENTREGA: logística definida
+      else if(/(entreg|delivery|retir|buscar na loja|endere[cç]o|cep|frete|enviar para|receber em casa|motoboy)/i.test(textoCompleto)&&totalMsgs>=4){
+        novaEtapa='entrega';
+      }
+      // ATENDIMENTO: conversa iniciada com respostas
+      else if(temMsgAssistente&&temMsgCliente&&totalMsgs>=2){
+        novaEtapa='atendimento';
+      }
+      // NOVO: só mensagem inicial sem resposta do agente
+      else if(temMsgCliente&&!temMsgAssistente){
+        novaEtapa='novo';
+      }
+
+      // Só mover se for uma etapa MAIS avançada (nunca retroceder automaticamente)
+      if(novaEtapa){
+        var etapasOrdem=['novo','atendimento','observacao','entrega','fechamento','fechado'];
+        var idxAtual=etapasOrdem.indexOf(lead.etapa);
+        var idxNovo=etapasOrdem.indexOf(novaEtapa);
+        if(idxNovo>idxAtual){
+          lead.etapa=novaEtapa;
+          if(lead._dbId){
+            fetch(_SB+'/rest/v1/leads?id=eq.'+lead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:novaEtapa})}).catch(function(){});
+          }
+          console.log('[FUNIL] Auto: '+lead.nome+' → '+novaEtapa);
+        }
+      }
+    });
+
+    // Re-render se houve mudanças
+    if(typeof renderKanban==='function')renderKanban();
+  }catch(e){console.error('[FUNIL] Erro auto-classificar:',e);}
+}
+// Rodar auto-classificação a cada 2 minutos
+setInterval(_autoClassificarFunil,120000);
+setTimeout(_autoClassificarFunil,15000);
 
 // ═══════════════════ PÓS-VENDA ═══════════════════
 // Brazilian public holidays (fixed dates MM-DD)
@@ -3887,6 +4057,13 @@ function openLead(lead){
   document.getElementById('cadencia').innerHTML=cads.map(c=>`<div class="cad-step ${c.s==='done'?'done':c.s==='now'?'now':''}"><div class="cad-icon" style="background:rgba(255,255,255,.04);">${c.ico}</div><div class="cad-info"><div class="cad-name">${c.nome}</div><div class="cad-desc">${c.desc}</div></div><span class="cad-badge ${c.s==='done'?'cb-done':c.s==='now'?'cb-now':'cb-wait'}">${c.s==='done'?'Feito':c.s==='now'?'Agora':'Pendente'}</span></div>`).join('');
   document.getElementById('chat-avatar').textContent=i;
   document.getElementById('chat-name').textContent=lead.nome;
+  // Badge etapa no chat
+  var _eb=document.getElementById('chat-etapa-badge');
+  if(_eb){_eb.textContent=etapa.label;_eb.style.background=etapa.cor+'22';_eb.style.color=etapa.cor;}
+  // Painel de etapas manuais
+  var _ep=document.getElementById('etapa-btns');
+  if(_ep){_ep.innerHTML=ETAPAS.map(function(e){return '<button onclick="moverEtapaManual(\''+e.key+'\')" style="padding:4px 10px;border-radius:6px;border:1px solid '+e.cor+'44;background:'+(e.key===lead.etapa?e.cor+'33':'transparent')+';color:'+e.cor+';cursor:pointer;font-size:10px;font-family:var(--font);font-weight:700;">'+e.label+'</button>';}).join('');}
+  document.getElementById('etapa-panel').style.display='none';
   const msgs=document.getElementById('chat-msgs');
   msgs.innerHTML=lead.msgs.map(m=>`<div class="msg ${m.tipo==='recv'?'recv':m.tipo==='agent'?'agent':'sent'}">${m.txt}<div class="msg-time">${m.hora}${m.tipo==='agent'?' · IA':''}</div></div>`).join('');
   msgs.scrollTop=msgs.scrollHeight;
@@ -4755,7 +4932,7 @@ window.zerarTudo=function(){
     fetch(_SB+'/rest/v1/conversas?cliente_subdominio=eq.'+_sub,{method:'DELETE',headers:h})
   ]).then(function(){
     ['mf_leads','mf_colabs','CONTATOS','fp_contatos','mf_company','leads','colabs','fp_lastTab'].forEach(function(k){localStorage.removeItem(k);});
-    window.LEADS=[];window.CONTATOS=[];
+    var _lr=window._LEADS_REF||[];_lr.length=0;window.CONTATOS=[];
     if(typeof renderKanban==='function')renderKanban();
     if(typeof window._renderContatos==='function')window._renderContatos();
     toast('✅ Dados zerados! CRM pronto para uso real.');
@@ -5085,10 +5262,16 @@ function _syncConvs(){
         var conv=byNum[num];
         var nome=nm[num]||('WhatsApp +'+num.slice(-4));
         var leadId='wpp_'+num;
-        var existe=LEADS.find(function(l){return l.id===leadId||l.tel===num;});
+        // Buscar lead existente por tel (formato limpo) ou id
+        var existe=LEADS.find(function(l){
+          var ltel=(l.tel||l.telefone||'').replace(/\D/g,'').replace(/@s\.whatsapp\.net/,'');
+          var numClean=num.replace(/\D/g,'');
+          return l.id===leadId||ltel===numClean||(ltel.length>4&&numClean.indexOf(ltel)>=0)||(numClean.length>4&&ltel.indexOf(numClean)>=0);
+        });
         var msgsArr=conv.all.slice().reverse();
         var ini=nome.replace(/[^A-Za-z]/g,'').substring(0,2).toUpperCase()||'WP';
         if(!existe){
+          // Verificar se ja existe no banco antes de criar duplicata
           var newLead={
             id:leadId,nome:nome,tel:num,canal:'wpp',
             etapa:'novo',origem:'WhatsApp',vendedor:'Agente IA',
@@ -5097,15 +5280,31 @@ function _syncConvs(){
             tempo:new Date(conv.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
           };
           LEADS.unshift(newLead);
-          // Salvar no banco de leads e guardar _dbId
-          fetch(_SB+'/rest/v1/leads',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=representation'},
-            body:JSON.stringify({cliente_subdominio:sub,nome:nome,telefone:num,canal:'wpp',etapa:'novo',origem:'WhatsApp',vendedor:'Agente IA',produto:'',valor:0,tasks:'[]',notas:''})
-          }).then(function(r){return r.json();}).then(function(res){if(res&&res[0]){newLead._dbId=res[0].id;}}).catch(function(){});
+          fetch(_SB+'/rest/v1/leads?cliente_subdominio=eq.'+sub+'&telefone=eq.'+encodeURIComponent(num),{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}})
+          .then(function(r){return r.json();}).then(function(existing){
+            if(existing&&existing.length>0){
+              // Lead ja existe no banco — usar os dados do banco
+              var db=existing[0];
+              newLead._dbId=db.id;newLead.id=db.id;
+              newLead.etapa=db.etapa||'novo';
+              newLead.produto=db.produto||'';
+              newLead.valor=db.valor||0;
+              newLead.vendedor=db.vendedor||'Agente IA';
+              newLead.motivo_nao_fechamento=db.motivo_nao_fechamento||'';
+              if(typeof renderKanban==='function')renderKanban();
+            } else {
+              // Realmente novo — salvar no banco
+              fetch(_SB+'/rest/v1/leads',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=representation'},
+                body:JSON.stringify({cliente_subdominio:sub,nome:nome,telefone:num,canal:'wpp',etapa:'novo',origem:'WhatsApp',vendedor:'Agente IA',produto:'',valor:0,tasks:'[]',notas:''})
+              }).then(function(r){return r.json();}).then(function(res){if(res&&res[0]){newLead._dbId=res[0].id;newLead.id=res[0].id;}}).catch(function(){});
+            }
+          }).catch(function(){});
         } else {
           existe.msgs=msgsArr;
           if(nm[num])existe.nome=nm[num];
           existe.ini=(existe.nome||'WP').replace(/[^A-Za-z]/g,'').substring(0,2).toUpperCase()||'WP';
           existe.tempo=new Date(conv.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+          // NÃO sobrescrever etapa — manter a etapa do banco
         }
       });
       if(typeof renderConvs==='function')renderConvs();
