@@ -762,7 +762,54 @@ window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq
 window.dbSalvarColab=function(c){var row={cliente_subdominio:_gs(),nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(function(p){return p[0];}).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:!!c.online,perms:JSON.stringify(c.perms||{})};if(c._dbId){_rq('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}else{_rq('colaboradores','POST',row).then(function(res){if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}});}};
 window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&ativo=eq.true').then(function(rows){if(!rows||!rows.length)return;window.COLABORADORES=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')};});if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();});};
 var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();window.carregarAgente();setTimeout(window.carregarPlaybook,500);setTimeout(window.dbCarregarLeads,600);setTimeout(window._carregarContatos,700);
-window.renderDash=function(){var leads=window.LEADS||[];function upd(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}var hoje=new Date().toDateString();var lh=leads.filter(function(l){return l.data_criacao&&new Date(l.data_criacao).toDateString()===hoje;}).length;var f=leads.filter(function(l){return l.etapa==='Fechado';});var tv=f.reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);var taxa=leads.length>0?Math.round(f.length/leads.length*100):0;upd('m1',lh);upd('m2','R$'+tv.toLocaleString('pt-BR',{minimumFractionDigits:0}));upd('m3',taxa+'%');};setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash();},900);var convEl=document.getElementById('conversas');if(convEl&&convEl.style.display!=='none')window._injetarAbasConv();console.log('[FP] OK. Contatos:'+window.CONTATOS.length);}},300);</script>
+window.renderDash=function(){
+  var leads=window.LEADS||[];
+  function upd(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+  var agora=new Date();
+  var hoje=agora.toDateString();
+  var ontem=new Date(agora.getTime()-86400000).toDateString();
+  var mesAtual=agora.getMonth()+'-'+agora.getFullYear();
+
+  // m1: Leads hoje (usando hora = created_at do DB)
+  var leadsHoje=leads.filter(function(l){var dt=l.hora||l.created_at;return dt&&new Date(dt).toDateString()===hoje;}).length;
+  var leadsOntem=leads.filter(function(l){var dt=l.hora||l.created_at;return dt&&new Date(dt).toDateString()===ontem;}).length;
+  upd('m1',leadsHoje);
+  var diffOntem=leadsHoje-leadsOntem;
+  upd('m1-sub',(diffOntem>=0?'▲ +':'▼ ')+diffOntem+' vs ontem');
+
+  // m2: Faturamento (leads fechados)
+  var fechados=leads.filter(function(l){return l.etapa==='fechado';});
+  var fatTotal=fechados.reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);
+  var fatMes=leads.filter(function(l){if(l.etapa!=='fechado')return false;var dt=l.hora||l.created_at;if(!dt)return false;var d=new Date(dt);return(d.getMonth()+'-'+d.getFullYear())===mesAtual;}).reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);
+  upd('m2','R$'+fatTotal.toLocaleString('pt-BR',{minimumFractionDigits:0}));
+  upd('m2-sub','R$'+fatMes.toLocaleString('pt-BR',{minimumFractionDigits:0})+' este mês');
+
+  // m3: Taxa de fechamento
+  var taxa=leads.length>0?Math.round(fechados.length/leads.length*100):0;
+  upd('m3',taxa+'%');
+  upd('m3-sub',fechados.length+' de '+leads.length+' leads');
+
+  // m4: Tempo resposta (agente IA = instantâneo)
+  var temIA=leads.some(function(l){return l.vendedor==='Agente IA';});
+  upd('m4',temIA?'< 1min':leads.length>0?'< 5min':'--');
+  upd('m4-sub',temIA?'Agente IA ativo':'Aguardando dados');
+
+  // Pós-venda contadores
+  var now=Date.now();
+  var pv30=0,pv90=0,pv180=0;
+  fechados.forEach(function(l){
+    var dt=l.hora||l.created_at;if(!dt)return;
+    var dias=Math.floor((now-new Date(dt).getTime())/86400000);
+    if(dias>=25&&dias<=35)pv30++;
+    if(dias>=85&&dias<=95)pv90++;
+    if(dias>=175&&dias<=185)pv180++;
+  });
+  upd('pv-30',pv30);upd('pv-90',pv90);upd('pv-180',pv180);
+
+  // Re-render dashboard charts se initDashboard existe
+  if(typeof initDashboard==='function')initDashboard();
+};
+setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash();},900);var convEl=document.getElementById('conversas');if(convEl&&convEl.style.display!=='none')window._injetarAbasConv();console.log('[FP] OK. Contatos:'+window.CONTATOS.length);}},300);</script>
 </head>
 <body>
 
@@ -835,25 +882,25 @@ window.renderDash=function(){var leads=window.LEADS||[];function upd(id,v){var e
       <div style="position:absolute;top:-15px;right:-15px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.08);"></div>
       <div style="font-size:10px;font-family:var(--font);font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.8);margin-bottom:6px;text-transform:uppercase;">Leads Hoje</div>
       <div style="font-size:38px;font-family:var(--font);font-weight:900;color:#fff;line-height:1;" id="m1">0</div>
-      <div style="font-size:10px;color:rgba(255,255,255,.8);margin-top:8px;">▲ -- vs ontem</div>
+      <div style="font-size:10px;color:rgba(255,255,255,.8);margin-top:8px;" id="m1-sub">▲ -- vs ontem</div>
     </div>
     <div style="background:#12121e;border:1px solid rgba(0,229,160,.25);border-radius:14px;padding:18px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:-5px;right:-5px;width:60px;height:60px;background:radial-gradient(circle,rgba(0,229,160,.18),transparent);border-radius:50%;"></div>
       <div style="font-size:10px;font-family:var(--font);font-weight:700;letter-spacing:1px;color:rgba(0,229,160,.85);margin-bottom:6px;text-transform:uppercase;">Faturamento</div>
       <div style="font-size:28px;font-family:var(--font);font-weight:900;color:#00E5A0;line-height:1;" id="m2">R$0</div>
-      <div style="font-size:10px;color:rgba(0,229,160,.7);margin-top:8px;">▲ -- este mês</div>
+      <div style="font-size:10px;color:rgba(0,229,160,.7);margin-top:8px;" id="m2-sub">▲ -- este mês</div>
     </div>
     <div style="background:#12121e;border:1px solid rgba(251,176,64,.25);border-radius:14px;padding:18px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:-5px;right:-5px;width:60px;height:60px;background:radial-gradient(circle,rgba(251,176,64,.18),transparent);border-radius:50%;"></div>
       <div style="font-size:10px;font-family:var(--font);font-weight:700;letter-spacing:1px;color:rgba(251,176,64,.85);margin-bottom:6px;text-transform:uppercase;">Taxa Fechamento</div>
       <div style="font-size:38px;font-family:var(--font);font-weight:900;color:#FBB040;line-height:1;" id="m3">0%</div>
-      <div style="font-size:10px;color:rgba(251,176,64,.7);margin-top:8px;">▼ -- vs semana</div>
+      <div style="font-size:10px;color:rgba(251,176,64,.7);margin-top:8px;" id="m3-sub">▼ -- vs semana</div>
     </div>
     <div style="background:#12121e;border:1px solid rgba(167,139,250,.25);border-radius:14px;padding:18px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:-5px;right:-5px;width:60px;height:60px;background:radial-gradient(circle,rgba(167,139,250,.18),transparent);border-radius:50%;"></div>
       <div style="font-size:10px;font-family:var(--font);font-weight:700;letter-spacing:1px;color:rgba(167,139,250,.85);margin-bottom:6px;text-transform:uppercase;">Tempo Resposta</div>
       <div style="font-size:28px;font-family:var(--font);font-weight:900;color:#A78BFA;line-height:1;" id="m4">--</div>
-      <div style="font-size:10px;color:rgba(167,139,250,.7);margin-top:8px;">▲ --</div>
+      <div style="font-size:10px;color:rgba(167,139,250,.7);margin-top:8px;" id="m4-sub">▲ --</div>
     </div>
   </div>
 
@@ -916,15 +963,15 @@ window.renderDash=function(){var leads=window.LEADS||[];function upd(id,v){var e
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
         <div style="text-align:center;padding:12px 6px;background:rgba(0,229,160,.06);border-radius:10px;border:1px solid rgba(0,229,160,.18);">
-          <div style="font-size:26px;font-family:var(--font);font-weight:900;color:#00E5A0;">0</div>
+          <div style="font-size:26px;font-family:var(--font);font-weight:900;color:#00E5A0;" id="pv-30">0</div>
           <div style="font-size:9px;color:var(--muted);margin-top:3px;font-weight:700;">30 dias</div>
         </div>
         <div style="text-align:center;padding:12px 6px;background:rgba(251,176,64,.06);border-radius:10px;border:1px solid rgba(251,176,64,.18);">
-          <div style="font-size:26px;font-family:var(--font);font-weight:900;color:#FBB040;">3</div>
+          <div style="font-size:26px;font-family:var(--font);font-weight:900;color:#FBB040;" id="pv-90">0</div>
           <div style="font-size:9px;color:var(--muted);margin-top:3px;font-weight:700;">90 dias</div>
         </div>
         <div style="text-align:center;padding:12px 6px;background:rgba(255,92,0,.06);border-radius:10px;border:1px solid rgba(255,92,0,.18);">
-          <div style="font-size:26px;font-family:var(--font);font-weight:900;color:#FF7A33;">2</div>
+          <div style="font-size:26px;font-family:var(--font);font-weight:900;color:#FF7A33;" id="pv-180">0</div>
           <div style="font-size:9px;color:var(--muted);margin-top:3px;font-weight:700;">180 dias</div>
         </div>
       </div>
@@ -2272,14 +2319,34 @@ function openCfg(){document.getElementById('modal-cfg').classList.add('open');}
 
 // ═══════════════════ DASHBOARD ═══════════════════
 function initDashboard(){
-  const counts={};ETAPAS.forEach(e=>counts[e.key]=LEADS.filter(l=>l.etapa===e.key).length);
-  const max=Math.max(...Object.values(counts));
-  document.getElementById('funnel-bars').innerHTML=ETAPAS.map(e=>`<div class="funnel-row"><div class="funnel-label">${e.label}</div><div class="funnel-track"><div class="funnel-bar" style="width:${Math.round(counts[e.key]/max*100)}%;background:${e.cor};"></div></div><div class="funnel-n">${counts[e.key]}</div></div>`).join('');
-  const hrs=['8h','9h','10h','11h','12h','13h','14h','15h'],hs=[30,55,80,65,45,90,50,35],cs=['#00E5A0','#00E5A0','#FF5C00','#FF5C00','#FBB040','#FF5C00','#00E5A0','#00E5A0'];
-  document.getElementById('rc-chart').innerHTML=hrs.map((h,i)=>`<div class="rc-col"><div class="rc-bar" style="height:${hs[i]}%;background:${cs[i]};"></div><div class="rc-lbl">${h}</div></div>`).join('');
+  var leads=LEADS||[];
+
+  // ── FUNIL DE VENDAS (dados reais) ──
+  const counts={};ETAPAS.forEach(e=>counts[e.key]=leads.filter(l=>l.etapa===e.key).length);
+  const maxF=Math.max(...Object.values(counts),1);
+  document.getElementById('funnel-bars').innerHTML=ETAPAS.map(e=>`<div class="funnel-row"><div class="funnel-label">${e.label}</div><div class="funnel-track"><div class="funnel-bar" style="width:${Math.round(counts[e.key]/maxF*100)}%;background:${e.cor};"></div></div><div class="funnel-n">${counts[e.key]}</div></div>`).join('');
+
+  // ── TEMPO DE RESPOSTA POR HORA (baseado nos leads criados por hora) ──
+  var respostasPorHora=new Array(8).fill(0);
+  var hLabels=['8h','9h','10h','11h','12h','13h','14h','15h'];
+  leads.forEach(function(l){var dt=l.hora||l.created_at;if(!dt)return;var h=new Date(dt).getHours();if(h>=8&&h<=15)respostasPorHora[h-8]++;});
+  var maxRH=Math.max(...respostasPorHora,1);
+  var temIA=leads.some(function(l){return l.vendedor==='Agente IA';});
+  document.getElementById('rc-chart').innerHTML=hLabels.map(function(h,i){
+    var pct=Math.round(respostasPorHora[i]/maxRH*100);
+    var cor=temIA?'#00E5A0':(pct>60?'#FF5C00':pct>30?'#FBB040':'#00E5A0');
+    return '<div class="rc-col"><div class="rc-bar" style="height:'+Math.max(pct,4)+'%;background:'+cor+';"></div><div class="rc-lbl">'+h+'</div></div>';
+  }).join('');
+
   // ── SVG PIE CHART HELPER ──
-  function makePie(containerId, data, size=110){
+  function makePie(containerId, data, size){
+    size=size||110;
+    if(!data||!data.length||data.every(function(d){return d.v===0;})){
+      document.getElementById(containerId).innerHTML='<div style="font-size:11px;color:var(--dim);padding:16px 0;">Sem dados suficientes.</div>';
+      return;
+    }
     const total=data.reduce((s,d)=>s+d.v,0);
+    if(total===0){document.getElementById(containerId).innerHTML='<div style="font-size:11px;color:var(--dim);padding:16px 0;">Sem dados.</div>';return;}
     let angle=-Math.PI/2, cx=size/2, cy=size/2, r=size/2-4, ri=r*0.52;
     const slices=data.map(d=>{
       const sweep=2*Math.PI*(d.v/total);
@@ -2292,40 +2359,72 @@ function initDashboard(){
       angle+=sweep;
       return `<path d="${path}" fill="${d.c}" opacity="0.92"><title>${d.l}: ${Math.round(d.v/total*100)}%</title></path>`;
     }).join('');
-    const legend=data.map(d=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;"><span style="width:9px;height:9px;border-radius:3px;background:${d.c};flex-shrink:0;display:inline-block;"></span><span style="font-size:10px;color:var(--muted);flex:1;line-height:1.3;">${d.l}</span><span style="font-size:10px;font-family:var(--font);font-weight:800;color:var(--text);">${Math.round(d.v/total*100)}%</span></div>`).join('');
+    const legend=data.map(d=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;"><span style="width:9px;height:9px;border-radius:3px;background:${d.c};flex-shrink:0;display:inline-block;"></span><span style="font-size:10px;color:var(--muted);flex:1;line-height:1.3;">${d.l}</span><span style="font-size:10px;font-family:var(--font);font-weight:800;color:var(--text);">${d.v} (${Math.round(d.v/total*100)}%)</span></div>`).join('');
     document.getElementById(containerId).innerHTML=`<div style="display:flex;align-items:center;gap:14px;"><svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex-shrink:0;">${slices}<circle cx="${cx}" cy="${cy}" r="${ri-2}" fill="#12121e"/></svg><div style="flex:1;">${legend}</div></div>`;
   }
 
-  // ── ORIGEM DOS LEADS — pizza ──
-  makePie('origem-chart',[
-    {l:'Tráfego Pago',  v:62, c:'#E8000A'},
-    {l:'WhatsApp',      v:28, c:'#00E5A0'},
-    {l:'Orgânico',      v:10, c:'#A78BFA'}
-  ]);
+  // ── ORIGEM DOS LEADS — dados reais ──
+  var origemCounts={};
+  var coresOrigem={'WhatsApp':'#00E5A0','Meta Ads':'#3B82F6','Google Ads':'#FBB040','Instagram':'#E1306C','Manual':'#A78BFA','Indicação':'#FF5C00','Loja Física':'#E8000A'};
+  leads.forEach(function(l){var o=l.origem||'Outros';origemCounts[o]=(origemCounts[o]||0)+1;});
+  var origemData=Object.keys(origemCounts).map(function(k,i){
+    return{l:k,v:origemCounts[k],c:coresOrigem[k]||['#E8000A','#00E5A0','#A78BFA','#FBB040','#3B82F6','#FF5C00'][i%6]};
+  }).sort(function(a,b){return b.v-a.v;});
+  makePie('origem-chart',origemData);
 
-  // ── MOTIVOS DE PERDA — pizza ──
-  makePie('motivos-chart',[
-    {l:'Preço alto',     v:34, c:'#FF4500'},
-    {l:'Vai pensar',     v:28, c:'#FBB040'},
-    {l:'Indisponível',   v:18, c:'#7C5CFC'},
-    {l:'Não respondeu',  v:14, c:'#3B82F6'},
-    {l:'Outros',         v:6,  c:'#6B7280'}
-  ]);
+  // ── MOTIVOS DE PERDA — dados reais do localStorage ──
+  var motivoCounts={};
+  leads.forEach(function(l){
+    try{
+      var mk='fp_motivo_'+String(l.id);
+      var ms=localStorage.getItem(mk);
+      if(ms){var mo=JSON.parse(ms);if(mo.motivo)motivoCounts[mo.motivo]=(motivoCounts[mo.motivo]||0)+1;}
+      else if(l.motivo_nao_fechamento)motivoCounts[l.motivo_nao_fechamento]=(motivoCounts[l.motivo_nao_fechamento]||0)+1;
+    }catch(e){}
+  });
+  // Contar leads sem resposta (em observação) como "Não respondeu"
+  var semResposta=leads.filter(function(l){return l.etapa==='observacao';}).length;
+  if(semResposta>0)motivoCounts['Não respondeu']=(motivoCounts['Não respondeu']||0)+semResposta;
+  var coresMotivo={'Preço alto':'#FF4500','Vai pensar':'#FBB040','Sem estoque':'#7C5CFC','Não respondeu':'#3B82F6','Concorrência':'#E8000A','Prazo':'#A78BFA','Outros':'#6B7280'};
+  var motivoData=Object.keys(motivoCounts).map(function(k,i){
+    return{l:k,v:motivoCounts[k],c:coresMotivo[k]||['#FF4500','#FBB040','#7C5CFC','#3B82F6','#6B7280'][i%5]};
+  }).sort(function(a,b){return b.v-a.v;});
+  if(motivoData.length===0)motivoData=[{l:'Sem dados ainda',v:1,c:'#333'}];
+  makePie('motivos-chart',motivoData);
 
-  // ── PERFORMANCE EQUIPE — pizza por fechamentos ──
-  makePie('vendedores-chart',
-    COLABORADORES.map((v,i)=>({l:v.nome.split(' ')[0], v:v.leads||1, c:['#E8000A','#00E5A0','#FBB040','#A78BFA','#3B82F6'][i%5]}))
-  );
+  // ── PERFORMANCE EQUIPE — leads por vendedor (dados reais) ──
+  var vendedorCounts={};
+  leads.forEach(function(l){var v=l.vendedor||'Sem atribuição';vendedorCounts[v]=(vendedorCounts[v]||0)+1;});
+  var coresVend=['#E8000A','#00E5A0','#FBB040','#A78BFA','#3B82F6','#FF5C00'];
+  var vendData=Object.keys(vendedorCounts).map(function(k,i){
+    return{l:k.split(' ')[0],v:vendedorCounts[k],c:coresVend[i%coresVend.length]};
+  }).sort(function(a,b){return b.v-a.v;});
+  if(vendData.length===0){
+    vendData=COLABORADORES.map(function(v,i){return{l:v.nome.split(' ')[0],v:1,c:coresVend[i%coresVend.length]};});
+  }
+  makePie('vendedores-chart',vendData);
+
   renderRoleta();
-  // Leads por hora chart
-  const horasData=[3,5,8,12,7,4,6,9,11,8,5,3,2,4,7,10,8,6,4,5,7,9,6,3];
-  const fechadosHora=[1,2,3,5,3,2,3,4,5,4,2,1,1,2,3,4,3,2,2,2,3,4,3,1];
-  const chartEl=document.getElementById('leads-hora-chart');
-  const labelsEl=document.getElementById('leads-hora-labels');
+
+  // ── LEADS POR HORA — dados reais ──
+  var horasData=new Array(24).fill(0);
+  var fechadosHora=new Array(24).fill(0);
+  leads.forEach(function(l){
+    var dt=l.hora||l.created_at;if(!dt)return;
+    var h=new Date(dt).getHours();
+    horasData[h]++;
+    if(l.etapa==='fechado')fechadosHora[h]++;
+  });
+  var chartEl=document.getElementById('leads-hora-chart');
+  var labelsEl=document.getElementById('leads-hora-labels');
   if(chartEl){
-    const maxV=Math.max(...horasData);
-    chartEl.innerHTML=horasData.map((v,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;"><div style="width:100%;background:rgba(0,229,160,.7);border-radius:3px 3px 0 0;height:${Math.round(v/maxV*86)}px;position:relative;"><div style="position:absolute;bottom:0;left:0;right:0;background:#E8000A;border-radius:3px 3px 0 0;height:${Math.round(fechadosHora[i]/maxV*86)}px;opacity:.9;"></div></div></div>`).join('');
-    if(labelsEl)labelsEl.innerHTML=horasData.map((_,i)=>i%4===0?`<div style="flex:1;text-align:center;font-size:8px;color:var(--dim);">${i}h</div>`:`<div style="flex:1;"></div>`).join('');
+    var maxV=Math.max(...horasData,1);
+    chartEl.innerHTML=horasData.map(function(v,i){
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;"><div style="width:100%;background:rgba(0,229,160,.7);border-radius:3px 3px 0 0;height:'+Math.round(v/maxV*86)+'px;position:relative;"><div style="position:absolute;bottom:0;left:0;right:0;background:#E8000A;border-radius:3px 3px 0 0;height:'+Math.round(fechadosHora[i]/maxV*86)+'px;opacity:.9;"></div></div></div>';
+    }).join('');
+    if(labelsEl)labelsEl.innerHTML=horasData.map(function(_,i){
+      return i%3===0?'<div style="flex:1;text-align:center;font-size:8px;color:var(--dim);">'+i+'h</div>':'<div style="flex:1;"></div>';
+    }).join('');
   }
 }
 
