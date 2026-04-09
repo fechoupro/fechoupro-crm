@@ -756,9 +756,10 @@ window._salvarContato=function(){var g=function(i){var e=document.getElementById
 var _SB='https://udtoojqdjcbxnvevazum.supabase.co',_SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkdG9vanFkamNieG52ZXZhenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NjM3NzQsImV4cCI6MjA4OTUzOTc3NH0.-HENtNoiH3yiEMxWIZeVrcB20BOOzoTw6oJsuvanBtM';
 function _gs(){var h=location.hostname;if(h==='localhost'||h==='127.0.0.1')return(typeof window._SUBDOMINIO!=='undefined'?window._SUBDOMINIO:'master');return h.split('.')[0]||'master';}
 function _rq(t,m,b,q){var o={method:m||'GET',headers:{'apikey':_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':m==='POST'?'return=representation':''}};if(b)o.body=JSON.stringify(b);return fetch(_SB+'/rest/v1/'+t+(q||''),o).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
-window.dbSalvarLead=function(l){var row={cliente_subdominio:_gs(),nome:l.nome||'',telefone:l.tel||l.telefone||'',produto:l.produto||'',origem:l.origem||'Manual',etapa:l.etapa||'novo',valor:parseFloat(l.valor)||0,vendedor:l.vendedor||'',ig:l.ig||'',entrega:l.entrega||'',disc:l.disc||'',tasks:JSON.stringify(l.tasks||[]),notas:l.notas||''};if(l._dbId){_rq('leads','PATCH',row,'?id=eq.'+l._dbId);}else{_rq('leads','POST',row).then(function(res){if(res&&res[0]){l._dbId=res[0].id;l.id=res[0].id;}});}};
+window.dbSalvarLead=function(l){var row={cliente_subdominio:_gs(),nome:l.nome||'',telefone:l.tel||l.telefone||'',produto:l.produto||'',origem:l.origem||'Manual',etapa:l.etapa||'novo',valor:parseFloat(l.valor)||0,vendedor:l.vendedor||'',ig:l.ig||'',entrega:l.entrega||'',disc:l.disc||'',tasks:JSON.stringify(l.tasks||[]),notas:l.notas||'',motivo_nao_fechamento:l.motivo_nao_fechamento||'',motivo_obs:l.motivo_obs||''};if(l.finalizado_em)row.finalizado_em=l.finalizado_em;if(l._dbId){_rq('leads','PATCH',row,'?id=eq.'+l._dbId);}else{_rq('leads','POST',row).then(function(res){if(res&&res[0]){l._dbId=res[0].id;l.id=res[0].id;}});}};
 window.dbDeletarLead=function(l){if(l&&l._dbId)_rq('leads','DELETE',null,'?id=eq.'+l._dbId);};
-window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=created_at.desc').then(function(rows){if(!rows||!rows.length)return;var ref=window._LEADS_REF||[];ref.length=0;rows.forEach(function(r){ref.push({_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa||'novo',valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at,created_at:r.created_at,motivo_nao_fechamento:r.motivo_nao_fechamento||'',motivo_obs:r.motivo_obs||'',finalizado_em:r.finalizado_em||null,atendimento_finalizado:!!r.finalizado_em});});if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();});};
+window._dbLeadsLoaded=false;
+window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=created_at.desc').then(function(rows){if(!rows||!rows.length){window._dbLeadsLoaded=true;return;}var ref=window._LEADS_REF||[];ref.length=0;rows.forEach(function(r){ref.push({_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto,origem:r.origem,etapa:r.etapa||'novo',valor:r.valor,vendedor:r.vendedor,ig:r.ig,entrega:r.entrega,disc:r.disc,tasks:JSON.parse(r.tasks||'[]'),notas:r.notas,hora:r.created_at,created_at:r.created_at,motivo_nao_fechamento:r.motivo_nao_fechamento||'',motivo_obs:r.motivo_obs||'',finalizado_em:r.finalizado_em||null,atendimento_finalizado:!!r.finalizado_em});});window._dbLeadsLoaded=true;if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();});};
 window.dbSalvarColab=function(c){var row={cliente_subdominio:_gs(),nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(function(p){return p[0];}).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:!!c.online,perms:JSON.stringify(c.perms||{})};if(c._dbId){_rq('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}else{_rq('colaboradores','POST',row).then(function(res){if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}});}};
 window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&ativo=eq.true').then(function(rows){if(!rows||!rows.length)return;window.COLABORADORES=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')};});if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();});};
 var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();window.carregarAgente();setTimeout(window.carregarPlaybook,500);setTimeout(window.dbCarregarLeads,600);setTimeout(window._carregarContatos,700);
@@ -2748,8 +2749,25 @@ function _finalizarComVenda(){
 }
 function _finalizarSemVenda(){
   if(!currentLead)return;
-  var motivo=prompt('Motivo de não venda:\n(Preço alto, Vai pensar, Indisponível, Concorrência, Outro)','Vai pensar');
-  if(!motivo)return;
+  // Substituir conteúdo do modal com opções de motivo
+  var modal=document.getElementById('modal-finalizar');
+  if(!modal)return;
+  modal.querySelector('div').innerHTML=
+    '<div style="font-size:16px;font-family:var(--font);font-weight:800;margin-bottom:4px;">Motivo de não venda</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:16px;">Lead: <strong>'+currentLead.nome+'</strong></div>'
+    +'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">'
+    +'<button class="motivo-fin-btn" onclick="_confirmarMotivo(\'Preço alto\')" style="padding:12px;border-radius:8px;border:1px solid rgba(255,69,0,.3);background:rgba(255,69,0,.08);color:#FF4500;cursor:pointer;font-size:12px;font-family:var(--font);font-weight:700;text-align:left;">💰 Preço alto</button>'
+    +'<button class="motivo-fin-btn" onclick="_confirmarMotivo(\'Vai pensar\')" style="padding:12px;border-radius:8px;border:1px solid rgba(251,176,64,.3);background:rgba(251,176,64,.08);color:#FBB040;cursor:pointer;font-size:12px;font-family:var(--font);font-weight:700;text-align:left;">🤔 Vai pensar</button>'
+    +'<button class="motivo-fin-btn" onclick="_confirmarMotivo(\'Produto indisponível\')" style="padding:12px;border-radius:8px;border:1px solid rgba(124,92,252,.3);background:rgba(124,92,252,.08);color:#7C5CFC;cursor:pointer;font-size:12px;font-family:var(--font);font-weight:700;text-align:left;">📦 Produto indisponível</button>'
+    +'<button class="motivo-fin-btn" onclick="_confirmarMotivo(\'Não respondeu\')" style="padding:12px;border-radius:8px;border:1px solid rgba(59,130,246,.3);background:rgba(59,130,246,.08);color:#3B82F6;cursor:pointer;font-size:12px;font-family:var(--font);font-weight:700;text-align:left;">📵 Não respondeu</button>'
+    +'<button class="motivo-fin-btn" onclick="_confirmarMotivo(\'Concorrência\')" style="padding:12px;border-radius:8px;border:1px solid rgba(232,0,10,.3);background:rgba(232,0,10,.08);color:#E8000A;cursor:pointer;font-size:12px;font-family:var(--font);font-weight:700;text-align:left;">🏪 Concorrência</button>'
+    +'<button class="motivo-fin-btn" onclick="_confirmarMotivo(\'Prazo de entrega\')" style="padding:12px;border-radius:8px;border:1px solid rgba(167,139,250,.3);background:rgba(167,139,250,.08);color:#A78BFA;cursor:pointer;font-size:12px;font-family:var(--font);font-weight:700;text-align:left;">🕐 Prazo de entrega</button>'
+    +'<button class="motivo-fin-btn" onclick="_confirmarMotivo(\'Outros\')" style="padding:12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;font-size:12px;font-family:var(--font);font-weight:700;text-align:left;">📋 Outros</button>'
+    +'</div>'
+    +'<button onclick="document.getElementById(\'modal-finalizar\').remove()" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-size:11px;font-family:var(--font);">Cancelar</button>';
+}
+function _confirmarMotivo(motivo){
+  if(!currentLead)return;
   currentLead.etapa='observacao';
   currentLead.motivo_nao_fechamento=motivo;
   currentLead.atendimento_finalizado=true;
@@ -2781,6 +2799,7 @@ function _finalizarSemResposta(){
 
 // ═══════════════════ AUTO-CLASSIFICAÇÃO FUNIL (IA) ═══════════════════
 async function _autoClassificarFunil(){
+  if(!window._dbLeadsLoaded)return;
   try{
     var sub=_gs();
     var r=await fetch(_SB+'/rest/v1/conversas_wpp?cliente_subdominio=eq.'+sub+'&select=numero,role,content,created_at&order=created_at.desc&limit=300',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
@@ -5294,6 +5313,8 @@ window.salvarArquivoPlaybook=function(){
 
 // SYNC CONVERSAS -- busca banco e popula LEADS corretamente
 function _syncConvs(){
+  // Esperar leads do banco carregarem antes de criar novos leads
+  if(!window._dbLeadsLoaded)return;
   var sub=window._gs?window._gs():'mileniofitness-altamira';
   fetch(_SB+'/rest/v1/conversas_wpp?cliente_subdominio=eq.'+sub+'&select=numero,role,content,created_at&order=created_at.desc&limit=300',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}})
   .then(function(r){return r.json();}).then(function(msgs){
