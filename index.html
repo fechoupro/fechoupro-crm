@@ -5371,17 +5371,29 @@ function _syncConvs(){
         var msgsArr=conv.all.slice().reverse();
         var ini=nome.replace(/[^A-Za-z]/g,'').substring(0,2).toUpperCase()||'WP';
         if(!existe){
-          // Verificar se ja existe no banco antes de criar duplicata
-          var newLead={
-            id:leadId,nome:nome,tel:num,canal:'wpp',
-            etapa:'novo',origem:'WhatsApp',vendedor:'Agente IA',
-            produto:'',valor:0,msgs:msgsArr,disc:null,tasks:[],notas:'',
-            bg:'#00B0FF',ini:ini,
-            tempo:new Date(conv.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
-          };
-          LEADS.unshift(newLead);
+          // Marcar numero como "em processamento" para evitar duplicatas
+          if(!window._syncProcessando)window._syncProcessando={};
+          if(window._syncProcessando[num])return; // ja esta processando este numero
+          window._syncProcessando[num]=true;
+          // Verificar no banco ANTES de adicionar ao array
           fetch(_SB+'/rest/v1/leads?cliente_subdominio=eq.'+sub+'&telefone=eq.'+encodeURIComponent(num),{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}})
           .then(function(r){return r.json();}).then(function(existing){
+            // Verificar novamente se já foi adicionado enquanto o fetch rodava
+            var jaExiste=LEADS.find(function(l){var lt=(l.tel||'').replace(/\D/g,'');return lt===num.replace(/\D/g,'')||l.id==='wpp_'+num;});
+            if(jaExiste){
+              // Já foi adicionado por outro ciclo — só atualizar msgs
+              jaExiste.msgs=msgsArr;
+              if(existing&&existing.length>0){var db=existing[0];jaExiste._dbId=db.id;jaExiste.id=db.id;jaExiste.etapa=db.etapa||jaExiste.etapa;jaExiste.resultado_final=db.resultado_final||'';jaExiste.finalizado_em=db.finalizado_em||null;}
+              delete window._syncProcessando[num];
+              return;
+            }
+            var newLead={
+              id:leadId,nome:nome,tel:num,canal:'wpp',
+              etapa:'novo',origem:'WhatsApp',vendedor:'Agente IA',
+              produto:'',valor:0,msgs:msgsArr,disc:null,tasks:[],notas:'',
+              bg:'#00B0FF',ini:ini,
+              tempo:new Date(conv.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+            };
             if(existing&&existing.length>0){
               // Lead ja existe no banco — usar os dados do banco
               var db=existing[0];
@@ -5395,14 +5407,17 @@ function _syncConvs(){
               newLead.finalizado_em=db.finalizado_em||null;
               newLead.atendimento_finalizado=!!db.finalizado_em;
               newLead.hora=db.created_at;newLead.created_at=db.created_at;
-              if(typeof renderKanban==='function')renderKanban();
             } else {
               // Realmente novo — salvar no banco
               fetch(_SB+'/rest/v1/leads',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=representation'},
-                body:JSON.stringify({cliente_subdominio:sub,nome:nome,telefone:num,canal:'wpp',etapa:'novo',origem:'WhatsApp',vendedor:'Agente IA',produto:'',valor:0,tasks:'[]',notas:''})
-              }).then(function(r){return r.json();}).then(function(res){if(res&&res[0]){newLead._dbId=res[0].id;newLead.id=res[0].id;}}).catch(function(){});
+                body:JSON.stringify({cliente_subdominio:sub,nome:nome,telefone:num,canal:'wpp',etapa:'novo',origem:'WhatsApp',vendedor:'Agente IA',produto:'',valor:0,tasks:'[]',notas:'',resultado_final:''})
+              }).then(function(r){return r.json();}).then(function(res){if(res&&res[0]){newLead._dbId=res[0].id;newLead.id=res[0].id;console.log('[SYNC] Novo lead criado:',nome,res[0].id);}}).catch(function(){});
             }
-          }).catch(function(){});
+            LEADS.unshift(newLead);
+            delete window._syncProcessando[num];
+            if(typeof renderKanban==='function')renderKanban();
+            if(typeof renderConvs==='function')renderConvs();
+          }).catch(function(){delete window._syncProcessando[num];});
         } else {
           existe.msgs=msgsArr;
           if(nm[num])existe.nome=nm[num];
