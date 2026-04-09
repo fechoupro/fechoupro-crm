@@ -3674,61 +3674,37 @@ function renderCadenciaRec(){
     </div>`).join('');
 }
 
-function _parseDelay(str){var s=String(str||'').trim().toLowerCase();var num=parseFloat(s);if(isNaN(num)||num<=0)return 3600000;if(s.indexOf('m')>=0&&s.indexOf('min')>=0)return num*60*1000;if(s.indexOf('m')>=0)return num*60*1000;if(s.indexOf('h')>=0)return num*3600*1000;if(s.indexOf('d')>=0)return num*86400000;return num*3600*1000;}
+function _parseDelay(str){var s=String(str||'').trim().toLowerCase();var num=parseFloat(s);if(isNaN(num)||num<=0)return 3600000;if(s.indexOf('min')>=0)return num*60*1000;if(s.indexOf('m')>=0&&s.indexOf('h')<0)return num*60*1000;if(s.indexOf('h')>=0)return num*3600*1000;if(s.indexOf('d')>=0)return num*86400000;return num*3600*1000;}
 function _getEvoConfig(){var url=(document.getElementById('evolution-url')||{}).value||'';var token=(document.getElementById('evolution-token')||{}).value||'';var instance=(document.getElementById('evolution-instance')||{}).value||'';if(!url)try{var sc=localStorage.getItem('fp_evo_cfg_'+_gs());if(sc){var o=JSON.parse(sc);url=o.url||'';token=o.token||'';instance=o.instance||'';}}catch(e){}return{url:url.replace(/\/$/,''),token:token,instance:instance};}
-function _saveEvoConfig(){try{var o={url:(document.getElementById('evolution-url')||{}).value||'',token:(document.getElementById('evolution-token')||{}).value||'',instance:(document.getElementById('evolution-instance')||{}).value||''};localStorage.setItem('fp_evo_cfg_'+_gs(),JSON.stringify(o));}catch(e){}}
-async function _enviarMsgWpp(numero,texto){var evo=_getEvoConfig();if(!evo.url||!evo.token||!evo.instance){console.warn('[REC] Evolution API nao configurada');return false;}var jid=numero.replace(/\D/g,'');if(jid.indexOf('@')<0)jid=jid+'@s.whatsapp.net';try{var r=await fetch(evo.url+'/message/sendText/'+evo.instance,{method:'POST',headers:{'Content-Type':'application/json','apikey':evo.token},body:JSON.stringify({number:jid,text:texto})});var res=await r.json();console.log('[REC] Msg enviada:',res);fetch(_SB+'/rest/v1/conversas_wpp',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:_gs(),numero:jid,role:'assistant',content:texto})});return true;}catch(e){console.error('[REC] Erro ao enviar:',e);return false;}}
-function _getRecQueue(){try{var s=localStorage.getItem('fp_rec_queue_'+_gs());return s?JSON.parse(s):[];}catch(e){return [];}}
-function _saveRecQueue(q){try{localStorage.setItem('fp_rec_queue_'+_gs(),JSON.stringify(q));}catch(e){}}
+function _saveEvoConfig(){try{var o={url:(document.getElementById('evolution-url')||{}).value||'',token:(document.getElementById('evolution-token')||{}).value||'',instance:(document.getElementById('evolution-instance')||{}).value||''};localStorage.setItem('fp_evo_cfg_'+_gs(),JSON.stringify(o));fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.evolution_api',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(){fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:_gs(),chave:'evolution_api',valor:JSON.stringify(o)})});});}catch(e){}}
 function ativarRecuperacao(){
   if(!currentLead){toast('⚠️ Selecione um lead.');return;}
   var numero=currentLead.tel||currentLead.numero||'';
   if(!numero){toast('⚠️ Lead sem número de WhatsApp.');return;}
   var nome=currentLead.nome||'Cliente';
   var produto=currentLead.produto||'nossos produtos';
-  var agora=Date.now();
-  var queue=_getRecQueue();
-  queue=queue.filter(function(q){return q.leadId!==String(currentLead.id);});
-  CADENCIA_REC_DEFAULT.forEach(function(step,i){
-    var delayMs=_parseDelay(step.delay);
-    var enviarEm=agora+delayMs;
-    var msg=step.msg.replace(/\{nome\}/gi,nome).replace(/\{produto\}/gi,produto);
-    queue.push({leadId:String(currentLead.id),leadNome:nome,numero:numero,step:i,titulo:step.titulo,msg:msg,enviarEm:enviarEm,enviado:false});
+  var agora=new Date().toISOString();
+  fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+_gs()+'&lead_id=eq.'+encodeURIComponent(String(currentLead.id))+'&enviado=eq.false',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(){
+    var rows=[];
+    CADENCIA_REC_DEFAULT.forEach(function(step,i){
+      var delayMs=_parseDelay(step.delay);
+      var enviarEm=new Date(Date.now()+delayMs).toISOString();
+      var msg=step.msg.replace(/\{nome\}/gi,nome).replace(/\{produto\}/gi,produto);
+      rows.push({cliente_subdominio:_gs(),lead_id:String(currentLead.id),lead_nome:nome,numero:numero,step_num:i,titulo:step.titulo,mensagem:msg,enviar_em:enviarEm,enviado:false});
+    });
+    fetch(_SB+'/rest/v1/cadencia_queue',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(rows)});
   });
-  _saveRecQueue(queue);
   currentLead.recuperacao_ativa=true;
-  try{localStorage.setItem('fp_rec_ativo_'+String(currentLead.id),'true');}catch(e){}
-  toast('🔄 Cadência ativada para '+nome+'! '+CADENCIA_REC_DEFAULT.length+' mensagens programadas.');
+  toast('🔄 Cadência ativada para '+nome+'! '+CADENCIA_REC_DEFAULT.length+' mensagens programadas (envio automático no servidor).');
   renderCadenciaRec();
 }
 function desativarRecuperacao(){
   if(!currentLead)return;
   currentLead.recuperacao_ativa=false;
-  var queue=_getRecQueue();
-  queue=queue.filter(function(q){return q.leadId!==String(currentLead.id);});
-  _saveRecQueue(queue);
-  try{localStorage.removeItem('fp_rec_ativo_'+String(currentLead.id));}catch(e){}
-  toast('⏹ Cadência pausada para '+currentLead.nome+'.');
+  fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+_gs()+'&lead_id=eq.'+encodeURIComponent(String(currentLead.id))+'&enviado=eq.false',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  toast('⏹ Cadência pausada para '+currentLead.nome+'. Mensagens pendentes canceladas.');
   renderCadenciaRec();
 }
-async function _processarRecQueue(){
-  var queue=_getRecQueue();
-  var agora=Date.now();
-  var mudou=false;
-  for(var i=0;i<queue.length;i++){
-    var item=queue[i];
-    if(item.enviado)continue;
-    if(agora>=item.enviarEm){
-      console.log('[REC] Enviando step '+item.step+' para '+item.leadNome+': '+item.msg.substring(0,50));
-      var ok=await _enviarMsgWpp(item.numero,item.msg);
-      if(ok){item.enviado=true;item.enviadoEm=agora;mudou=true;toast('📤 Recuperação enviada para '+item.leadNome+': '+item.titulo);}
-    }
-  }
-  queue=queue.filter(function(q){var idade=agora-q.enviarEm;return !q.enviado||idade<86400000;});
-  if(mudou)_saveRecQueue(queue);
-}
-setInterval(_processarRecQueue,60000);
-setTimeout(_processarRecQueue,5000);
 function configurarCadencia(){
   toggleRecCfg();
 }
