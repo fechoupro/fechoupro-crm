@@ -1385,7 +1385,11 @@ Qualquer dúvida é só chamar 💪</textarea>
           <div style="font-size:11px;font-family:var(--font);font-weight:700;margin-bottom:8px;">Editar etapas da cadência:</div>
           <div id="rec-cfg-steps"></div>
           <button class="btn btn-ghost" style="font-size:10px;margin-top:6px;" onclick="addRecStep()">+ Adicionar etapa</button>
-          <button class="btn btn-primary" style="font-size:10px;margin-top:6px;margin-left:6px;" onclick="salvarRecCfg()">✓ Salvar</button>
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" style="font-size:10px;" onclick="salvarRecCfg('lead')">✓ Salvar para este lead</button>
+            <button class="btn btn-ghost" style="font-size:10px;" onclick="salvarRecCfg('padrao')">💾 Salvar como padrão</button>
+            <button class="btn btn-ghost" style="font-size:10px;color:#F87171;" onclick="resetRecCfgLead()">↩ Resetar para padrão</button>
+          </div>
         </div>
         <div style="display:flex;gap:6px;margin-top:10px;">
           <button class="btn btn-primary" style="font-size:11px;flex:1;" onclick="ativarRecuperacao()">▶ Ativar cadência</button>
@@ -3660,10 +3664,17 @@ var CADENCIA_REC_DEFAULT=[
 ];
 try{var _savedRec=localStorage.getItem('fp_rec_cfg_'+_gs());if(_savedRec){CADENCIA_REC_DEFAULT=JSON.parse(_savedRec);}}catch(e){}
 
+// Cadência individual por lead
+function _getLeadCadConfig(leadId){if(!leadId)return null;try{var s=localStorage.getItem('fp_rec_lead_'+String(leadId));if(s)return JSON.parse(s);}catch(e){}return null;}
+function _saveLeadCadConfig(leadId,steps){if(!leadId)return;try{localStorage.setItem('fp_rec_lead_'+String(leadId),JSON.stringify(steps));}catch(e){}}
+function _getLeadSteps(leadId){return _getLeadCadConfig(leadId)||CADENCIA_REC_DEFAULT;}
+
 function renderCadenciaRec(){
   const el=document.getElementById('rec-steps-list');
   if(!el)return;
-  el.innerHTML=CADENCIA_REC_DEFAULT.map((s,i)=>`
+  var steps=currentLead?_getLeadSteps(currentLead.id):CADENCIA_REC_DEFAULT;
+  var isCustom=currentLead&&_getLeadCadConfig(currentLead.id)!==null;
+  el.innerHTML=(isCustom?'<div style="font-size:9px;color:#A78BFA;margin-bottom:6px;">✨ Cadência personalizada para este lead</div>':'')+steps.map((s,i)=>`
     <div class="rec-step">
       <div class="rec-step-num">${i+1}</div>
       <div class="rec-step-info">
@@ -3684,9 +3695,10 @@ function ativarRecuperacao(){
   var nome=currentLead.nome||'Cliente';
   var produto=currentLead.produto||'nossos produtos';
   var agora=new Date().toISOString();
+  var steps=_getLeadSteps(currentLead.id);
   fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+_gs()+'&lead_id=eq.'+encodeURIComponent(String(currentLead.id))+'&enviado=eq.false',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(){
     var rows=[];
-    CADENCIA_REC_DEFAULT.forEach(function(step,i){
+    steps.forEach(function(step,i){
       var delayMs=_parseDelay(step.delay);
       var enviarEm=new Date(Date.now()+delayMs).toISOString();
       var msg=step.msg.replace(/\{nome\}/gi,nome).replace(/\{produto\}/gi,produto);
@@ -3695,7 +3707,7 @@ function ativarRecuperacao(){
     fetch(_SB+'/rest/v1/cadencia_queue',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(rows)});
   });
   currentLead.recuperacao_ativa=true;
-  toast('🔄 Cadência ativada para '+nome+'! '+CADENCIA_REC_DEFAULT.length+' mensagens programadas (envio automático no servidor).');
+  toast('🔄 Cadência ativada para '+nome+'! '+steps.length+' mensagens programadas.');
   renderCadenciaRec();
 }
 function desativarRecuperacao(){
@@ -3716,6 +3728,22 @@ async function _processarFilaCadencia(){
     if(!items||!items.length)return;
     for(var i=0;i<items.length;i++){
       var item=items[i];
+      // AUTO-PAUSE: Verificar se lead respondeu desde que a cadência foi criada
+      try{
+        var numClean=item.numero.replace(/\D/g,'').replace(/@s\.whatsapp\.net/,'');
+        var checkR=await fetch(_SB+'/rest/v1/conversas_wpp?numero=like.*'+encodeURIComponent(numClean)+'*&role=eq.user&cliente_subdominio=eq.'+item.cliente_subdominio+'&created_at=gte.'+item.created_at+'&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+        var checkMsgs=await checkR.json();
+        if(checkMsgs&&checkMsgs.length>0){
+          // Lead respondeu! Cancelar TODAS as msgs pendentes deste lead
+          await fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+item.cliente_subdominio+'&lead_id=eq.'+encodeURIComponent(item.lead_id)+'&enviado=eq.false',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+          var ld=LEADS.find(function(l){return String(l.id)===String(item.lead_id);});
+          if(ld)ld.recuperacao_ativa=false;
+          console.log('[CADENCIA] Auto-pausado para '+item.lead_nome+' (lead respondeu!)');
+          toast('⏸ Cadência pausada automaticamente — '+item.lead_nome+' respondeu!');
+          continue;
+        }
+      }catch(e){}
+      // Buscar config Evolution API
       var cfgR=await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+item.cliente_subdominio+'&chave=eq.evolution_api&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
       var cfgs=await cfgR.json();
       if(!cfgs||!cfgs.length)continue;
@@ -4764,7 +4792,11 @@ function toggleRecCfg(){
   recCfgVisible=!recCfgVisible;
   var panel=document.getElementById('rec-cfg-panel');
   if(panel)panel.style.display=recCfgVisible?'block':'none';
-  if(recCfgVisible){recCfgSteps=CADENCIA_REC_DEFAULT.map(function(s){return{delay:s.delay,titulo:s.titulo,msg:s.msg};});renderRecCfgSteps();}
+  if(recCfgVisible){
+    var leadSteps=currentLead?_getLeadSteps(currentLead.id):CADENCIA_REC_DEFAULT;
+    recCfgSteps=leadSteps.map(function(s){return{delay:s.delay,titulo:s.titulo,msg:s.msg};});
+    renderRecCfgSteps();
+  }
 }
 
 function renderRecCfgSteps(){
@@ -4787,13 +4819,25 @@ function removeRecStep(i){
   recCfgSteps.splice(i,1);renderRecCfgSteps();
 }
 
-function salvarRecCfg(){
-  CADENCIA_REC_DEFAULT.length=0;
-  recCfgSteps.forEach(s=>CADENCIA_REC_DEFAULT.push({delay:s.delay,titulo:s.titulo,msg:s.msg}));
-  try{localStorage.setItem('fp_rec_cfg_'+_gs(),JSON.stringify(CADENCIA_REC_DEFAULT));}catch(e){}
+function salvarRecCfg(tipo){
+  var stepsToSave=recCfgSteps.map(function(s){return{delay:s.delay,titulo:s.titulo,msg:s.msg};});
+  if(tipo==='lead'&&currentLead){
+    _saveLeadCadConfig(currentLead.id,stepsToSave);
+    toast('✅ Cadência personalizada salva para '+currentLead.nome+'!');
+  } else {
+    CADENCIA_REC_DEFAULT.length=0;
+    stepsToSave.forEach(function(s){CADENCIA_REC_DEFAULT.push(s);});
+    try{localStorage.setItem('fp_rec_cfg_'+_gs(),JSON.stringify(CADENCIA_REC_DEFAULT));}catch(e){}
+    toast('✅ Cadência padrão salva para todos os leads!');
+  }
   renderCadenciaRec();
   toggleRecCfg();
-  toast('✅ Cadência de recuperação salva com '+recCfgSteps.length+' etapas!');
+}
+function resetRecCfgLead(){
+  if(!currentLead)return;
+  try{localStorage.removeItem('fp_rec_lead_'+String(currentLead.id));}catch(e){}
+  renderCadenciaRec();
+  toast('🔄 Cadência de '+currentLead.nome+' resetada para o padrão.');
 }
 
 function _desativarRecuperacao_old(){
@@ -4972,6 +5016,83 @@ function _syncConvs(){
 }
 _syncConvs();
 setInterval(_syncConvs,10000);
+
+// ═══════════════════ AUTO-RECOVERY: IA tenta resgatar + ativa cadência ═══════════════════
+async function _checkAutoRecovery(){
+  try{
+    var sub=_gs();
+    var evo=_getEvoConfig();
+    if(!evo.url||!evo.token||!evo.instance)return;
+
+    var r=await fetch(_SB+'/rest/v1/conversas_wpp?cliente_subdominio=eq.'+sub+'&select=numero,role,created_at&order=created_at.desc&limit=300',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var msgs=await r.json();
+    if(!msgs||!msgs.length)return;
+
+    // Agrupar por numero
+    var byNum={};
+    msgs.forEach(function(m){
+      var num=m.numero.replace(/@s\.whatsapp\.net/,'').replace(/@g\.us/,'');
+      if(!byNum[num])byNum[num]=[];
+      byNum[num].push(m);
+    });
+
+    Object.keys(byNum).forEach(function(num){
+      var convMsgs=byNum[num]; // ordenado desc
+      if(convMsgs.length<2)return;
+
+      var lead=LEADS.find(function(l){return l.tel===num||l.id==='wpp_'+num;});
+      if(!lead)return;
+      if(lead.recuperacao_ativa)return;
+      if(lead.etapa==='fechado')return;
+
+      // Ultima msg do cliente
+      var lastClientMsg=convMsgs.find(function(m){return m.role==='user';});
+      if(!lastClientMsg)return;
+
+      // Verificar se a ultima msg geral é do assistente (cliente nao respondeu)
+      var lastMsgGeral=convMsgs[0];
+      if(lastMsgGeral.role==='user')return; // cliente respondeu, tudo ok
+
+      var horasSemResposta=(Date.now()-new Date(lastClientMsg.created_at).getTime())/3600000;
+
+      var rk='fp_autorec_'+num;
+      var state=null;
+      try{var ss=localStorage.getItem(rk);if(ss)state=JSON.parse(ss);}catch(e){}
+
+      // Se cliente enviou nova msg desde ultima acao, resetar estado
+      if(state&&state.clientTs!==lastClientMsg.created_at){
+        localStorage.removeItem(rk);
+        state=null;
+      }
+
+      // 1-4h sem resposta: IA envia follow-up natural
+      if(horasSemResposta>=1&&horasSemResposta<4&&(!state||state.step!=='followup')){
+        var jid=num.indexOf('@')>=0?num:num+'@s.whatsapp.net';
+        var followups=[
+          'Oi {nome}! Vi que ficamos com um assunto pendente. Posso te ajudar com mais alguma informacao? 😊',
+          'E ai {nome}, tudo certo? Se ficou alguma duvida, estou aqui pra te ajudar! 💪',
+          '{nome}, sei que voce deve estar ocupado(a), mas queria saber se posso te ajudar com mais alguma coisa! 😊'
+        ];
+        var msg=followups[Math.floor(Math.random()*followups.length)].replace(/\{nome\}/gi,lead.nome||'');
+        fetch(evo.url.replace(/\/$/,'')+'/message/sendText/'+evo.instance,{method:'POST',headers:{'Content-Type':'application/json','apikey':evo.token},body:JSON.stringify({number:jid,text:msg})});
+        fetch(_SB+'/rest/v1/conversas_wpp',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,numero:jid,role:'assistant',content:msg})});
+        try{localStorage.setItem(rk,JSON.stringify({step:'followup',clientTs:lastClientMsg.created_at,ts:Date.now()}));}catch(e){}
+        console.log('[AUTO-REC] Follow-up enviado para '+lead.nome);
+      }
+      // 4h+ sem resposta: ativar cadencia automaticamente
+      else if(horasSemResposta>=4&&(!state||state.step!=='cadencia')){
+        var prevLead=currentLead;
+        currentLead=lead;
+        ativarRecuperacao();
+        currentLead=prevLead;
+        try{localStorage.setItem(rk,JSON.stringify({step:'cadencia',clientTs:lastClientMsg.created_at,ts:Date.now()}));}catch(e){}
+        console.log('[AUTO-REC] Cadencia auto-ativada para '+lead.nome);
+      }
+    });
+  }catch(e){console.error('[AUTO-REC] Erro:',e);}
+}
+setInterval(_checkAutoRecovery,300000); // a cada 5 minutos
+setTimeout(_checkAutoRecovery,30000); // primeira verificacao apos 30s
 
 },1500);
 </script>
