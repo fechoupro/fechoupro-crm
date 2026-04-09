@@ -781,9 +781,10 @@ window.renderDash=function(){
   // m2: Faturamento (leads finalizados com venda)
   var fechados=leads.filter(function(l){return l.etapa==='finalizado'&&l.resultado_final==='venda';});
   var fatTotal=fechados.reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);
-  var fatMes=leads.filter(function(l){if(l.etapa!=='finalizado'||l.resultado_final!=='venda')return false;var dt=l.hora||l.created_at;if(!dt)return false;var d=new Date(dt);return(d.getMonth()+'-'+d.getFullYear())===mesAtual;}).reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);
+  var fatHoje=fechados.filter(function(l){var dt=l.finalizado_em||l.hora||l.created_at;return dt&&new Date(dt).toDateString()===hoje;}).reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);
+  var fatMes=fechados.filter(function(l){var dt=l.finalizado_em||l.hora||l.created_at;if(!dt)return true;var d=new Date(dt);return(d.getMonth()+'-'+d.getFullYear())===mesAtual;}).reduce(function(s,l){return s+(parseFloat(l.valor)||0);},0);
   upd('m2','R$'+fatTotal.toLocaleString('pt-BR',{minimumFractionDigits:0}));
-  upd('m2-sub','R$'+fatMes.toLocaleString('pt-BR',{minimumFractionDigits:0})+' este mês');
+  upd('m2-sub','R$'+fatHoje.toLocaleString('pt-BR',{minimumFractionDigits:0})+' hoje · R$'+fatMes.toLocaleString('pt-BR',{minimumFractionDigits:0})+' mês');
 
   // m3: Taxa de fechamento
   var finalizados=leads.filter(function(l){return l.etapa==='finalizado';});
@@ -2741,11 +2742,18 @@ function _finalizarComVenda(){
   currentLead.resultado_final='venda';
   currentLead.atendimento_finalizado=true;
   currentLead.finalizado_em=new Date().toISOString();
+  console.log('[FINALIZAR] Venda:',currentLead.nome,'_dbId:',currentLead._dbId,'valor:',valor);
   if(currentLead._dbId){
-    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'finalizado',valor:valor,resultado_final:'venda',finalizado_em:new Date().toISOString()})});
-  } else if(window.dbSalvarLead){window.dbSalvarLead(currentLead);}
+    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'finalizado',valor:valor,resultado_final:'venda',finalizado_em:currentLead.finalizado_em})})
+    .then(function(r){if(!r.ok){r.text().then(function(t){console.error('[FINALIZAR ERRO]',r.status,t);toast('⚠️ Erro ao salvar venda: '+r.status);});}else{console.log('[FINALIZAR] Venda salva OK');}})
+    .catch(function(e){console.error('[FINALIZAR ERRO]',e);});
+  } else {
+    console.warn('[FINALIZAR] Lead sem _dbId, usando dbSalvarLead');
+    if(window.dbSalvarLead)window.dbSalvarLead(currentLead);
+  }
   document.getElementById('modal-finalizar').remove();
   renderKanban();
+  if(typeof renderDash==='function')renderDash();
   openLead(currentLead);
   toast('🎉 Venda finalizada! R$'+valor.toFixed(2).replace('.',',')+' — '+currentLead.nome);
 }
@@ -2775,12 +2783,19 @@ function _confirmarMotivo(motivo){
   currentLead.motivo_nao_fechamento=motivo;
   currentLead.atendimento_finalizado=true;
   currentLead.finalizado_em=new Date().toISOString();
+  console.log('[FINALIZAR] Não venda:',currentLead.nome,'_dbId:',currentLead._dbId,'motivo:',motivo);
   if(currentLead._dbId){
-    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'finalizado',resultado_final:'nao_venda',motivo_nao_fechamento:motivo,finalizado_em:new Date().toISOString()})});
-  } else if(window.dbSalvarLead){window.dbSalvarLead(currentLead);}
+    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'finalizado',resultado_final:'nao_venda',motivo_nao_fechamento:motivo,finalizado_em:currentLead.finalizado_em})})
+    .then(function(r){if(!r.ok){r.text().then(function(t){console.error('[FINALIZAR ERRO]',r.status,t);toast('⚠️ Erro ao salvar: '+r.status);});}else{console.log('[FINALIZAR] Não-venda salva OK');}})
+    .catch(function(e){console.error('[FINALIZAR ERRO]',e);});
+  } else {
+    console.warn('[FINALIZAR] Lead sem _dbId, usando dbSalvarLead');
+    if(window.dbSalvarLead)window.dbSalvarLead(currentLead);
+  }
   try{localStorage.setItem('fp_motivo_'+String(currentLead.id),JSON.stringify({motivo:motivo,obs:''}));}catch(e){}
   document.getElementById('modal-finalizar').remove();
   renderKanban();
+  if(typeof renderDash==='function')renderDash();
   openLead(currentLead);
   toast('Atendimento finalizado — Motivo: '+motivo);
 }
@@ -2791,12 +2806,19 @@ function _finalizarSemResposta(){
   currentLead.motivo_nao_fechamento='Não respondeu';
   currentLead.atendimento_finalizado=true;
   currentLead.finalizado_em=new Date().toISOString();
+  console.log('[FINALIZAR] Sem resposta:',currentLead.nome,'_dbId:',currentLead._dbId);
   if(currentLead._dbId){
-    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'finalizado',resultado_final:'nao_venda',motivo_nao_fechamento:'Não respondeu',finalizado_em:new Date().toISOString()})});
-  } else if(window.dbSalvarLead){window.dbSalvarLead(currentLead);}
+    fetch(_SB+'/rest/v1/leads?id=eq.'+currentLead._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({etapa:'finalizado',resultado_final:'nao_venda',motivo_nao_fechamento:'Não respondeu',finalizado_em:currentLead.finalizado_em})})
+    .then(function(r){if(!r.ok){r.text().then(function(t){console.error('[FINALIZAR ERRO]',r.status,t);toast('⚠️ Erro ao salvar: '+r.status);});}else{console.log('[FINALIZAR] Sem-resposta salva OK');}})
+    .catch(function(e){console.error('[FINALIZAR ERRO]',e);});
+  } else {
+    console.warn('[FINALIZAR] Lead sem _dbId, usando dbSalvarLead');
+    if(window.dbSalvarLead)window.dbSalvarLead(currentLead);
+  }
   try{localStorage.setItem('fp_motivo_'+String(currentLead.id),JSON.stringify({motivo:'Não respondeu',obs:'Lead não respondeu mais'}));}catch(e){}
   document.getElementById('modal-finalizar').remove();
   renderKanban();
+  if(typeof renderDash==='function')renderDash();
   openLead(currentLead);
   toast('Atendimento finalizado — Lead não respondeu');
 }
