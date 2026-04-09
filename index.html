@@ -5017,14 +5017,47 @@ function _syncConvs(){
 _syncConvs();
 setInterval(_syncConvs,10000);
 
-// ═══════════════════ AUTO-RECOVERY: IA tenta resgatar + ativa cadência ═══════════════════
+// ═══════════════════ AUTO-RECOVERY: IA resgata conversa ativa + cadência ═══════════════════
+// Fluxo: 5min → msg contextual | 15min → msg chamando de volta | 30min → msg final | depois → cadência
+async function _enviarRecoveryIA(evo,sub,num,lead,historico,step){
+  var jid=num.indexOf('@')>=0?num:num+'@s.whatsapp.net';
+  var nome=lead.nome||'Cliente';
+  var prompts={
+    step1:{
+      sys:'Voce e um assistente de vendas de uma loja fitness no WhatsApp. O cliente parou de responder ha poucos minutos. Envie UMA mensagem curta e natural, CONTINUANDO exatamente de onde a conversa parou. Nao repita o que ja foi dito. Seja casual como uma pessoa real digitando no WhatsApp. Maximo 1-2 linhas.',
+      user:'CLIENTE: '+nome+'\n\nULTIMAS MENSAGENS DA CONVERSA:\n'+historico+'\n\nGere UMA mensagem natural continuando o assunto, como se voce estivesse retomando a conversa de onde parou. Nao use saudacao, nao diga "oi" de novo. Responda SOMENTE a mensagem, sem explicacao.'
+    },
+    step2:{
+      sys:'Voce e um assistente de vendas de uma loja fitness no WhatsApp. O cliente parou de responder ha 15 minutos. Envie UMA mensagem chamando o cliente de volta para o atendimento de forma amigavel e natural. Use o contexto da conversa para mostrar que voce lembra do que estavam falando. Maximo 2 linhas.',
+      user:'CLIENTE: '+nome+'\n\nCONVERSA COMPLETA:\n'+historico+'\n\nGere UMA mensagem chamando o cliente de volta, mencionando o assunto que estavam tratando. Tom casual de WhatsApp. Responda SOMENTE a mensagem, sem explicacao.'
+    },
+    step3:{
+      sys:'Voce e um assistente de vendas de uma loja fitness no WhatsApp. O cliente parou de responder ha 30 minutos. Esta e a ultima tentativa antes de encerrar o atendimento ativo. Envie UMA mensagem final perguntando se ficou alguma duvida ou se precisa de mais informacao. Seja gentil e deixe a porta aberta. Maximo 2-3 linhas.',
+      user:'CLIENTE: '+nome+'\n\nCONVERSA COMPLETA:\n'+historico+'\n\nGere UMA mensagem final verificando se o cliente precisa de algo mais. Mencione brevemente o que estavam discutindo. Tom amigavel, sem pressao. Responda SOMENTE a mensagem, sem explicacao.'
+    }
+  };
+  var p=prompts[step];
+  if(!p)return false;
+  try{
+    var msg=await callClaude(p.sys,p.user,200);
+    if(!msg||msg.indexOf('Erro')===0||msg.indexOf('Modo demonstracao')>=0)return false;
+    // Limpar possíveis aspas/prefixos da IA
+    msg=msg.replace(/^["']/,'').replace(/["']$/,'').trim();
+    if(msg.length<5)return false;
+    await fetch(evo.url.replace(/\/$/,'')+'/message/sendText/'+evo.instance,{method:'POST',headers:{'Content-Type':'application/json','apikey':evo.token},body:JSON.stringify({number:jid,text:msg})});
+    await fetch(_SB+'/rest/v1/conversas_wpp',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,numero:jid,role:'assistant',content:msg})});
+    console.log('[AUTO-REC] '+step+' enviado para '+nome+': '+msg);
+    return true;
+  }catch(e){console.error('[AUTO-REC] Erro gerar msg:',e);return false;}
+}
+
 async function _checkAutoRecovery(){
   try{
     var sub=_gs();
     var evo=_getEvoConfig();
     if(!evo.url||!evo.token||!evo.instance)return;
 
-    var r=await fetch(_SB+'/rest/v1/conversas_wpp?cliente_subdominio=eq.'+sub+'&select=numero,role,created_at&order=created_at.desc&limit=300',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var r=await fetch(_SB+'/rest/v1/conversas_wpp?cliente_subdominio=eq.'+sub+'&select=numero,role,content,created_at&order=created_at.desc&limit=300',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
     var msgs=await r.json();
     if(!msgs||!msgs.length)return;
 
@@ -5036,24 +5069,26 @@ async function _checkAutoRecovery(){
       byNum[num].push(m);
     });
 
-    Object.keys(byNum).forEach(function(num){
-      var convMsgs=byNum[num]; // ordenado desc
-      if(convMsgs.length<2)return;
+    var numeros=Object.keys(byNum);
+    for(var ni=0;ni<numeros.length;ni++){
+      var num=numeros[ni];
+      var convMsgs=byNum[num]; // ordenado desc (mais recente primeiro)
+      if(convMsgs.length<3)continue; // precisa de conversa minima
 
       var lead=LEADS.find(function(l){return l.tel===num||l.id==='wpp_'+num;});
-      if(!lead)return;
-      if(lead.recuperacao_ativa)return;
-      if(lead.etapa==='fechado')return;
+      if(!lead)continue;
+      if(lead.recuperacao_ativa)continue;
+      if(lead.etapa==='fechado')continue;
 
-      // Ultima msg do cliente
+      // Ultima msg do cliente (role=user)
       var lastClientMsg=convMsgs.find(function(m){return m.role==='user';});
-      if(!lastClientMsg)return;
+      if(!lastClientMsg)continue;
 
-      // Verificar se a ultima msg geral é do assistente (cliente nao respondeu)
-      var lastMsgGeral=convMsgs[0];
-      if(lastMsgGeral.role==='user')return; // cliente respondeu, tudo ok
+      // Se a ultima msg geral é do cliente, tudo ok - nao precisa recuperar
+      if(convMsgs[0].role==='user')continue;
 
-      var horasSemResposta=(Date.now()-new Date(lastClientMsg.created_at).getTime())/3600000;
+      // Minutos desde ultima msg do cliente
+      var minSemResposta=(Date.now()-new Date(lastClientMsg.created_at).getTime())/60000;
 
       var rk='fp_autorec_'+num;
       var state=null;
@@ -5065,34 +5100,41 @@ async function _checkAutoRecovery(){
         state=null;
       }
 
-      // 1-4h sem resposta: IA envia follow-up natural
-      if(horasSemResposta>=1&&horasSemResposta<4&&(!state||state.step!=='followup')){
-        var jid=num.indexOf('@')>=0?num:num+'@s.whatsapp.net';
-        var followups=[
-          'Oi {nome}! Vi que ficamos com um assunto pendente. Posso te ajudar com mais alguma informacao? 😊',
-          'E ai {nome}, tudo certo? Se ficou alguma duvida, estou aqui pra te ajudar! 💪',
-          '{nome}, sei que voce deve estar ocupado(a), mas queria saber se posso te ajudar com mais alguma coisa! 😊'
-        ];
-        var msg=followups[Math.floor(Math.random()*followups.length)].replace(/\{nome\}/gi,lead.nome||'');
-        fetch(evo.url.replace(/\/$/,'')+'/message/sendText/'+evo.instance,{method:'POST',headers:{'Content-Type':'application/json','apikey':evo.token},body:JSON.stringify({number:jid,text:msg})});
-        fetch(_SB+'/rest/v1/conversas_wpp',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,numero:jid,role:'assistant',content:msg})});
-        try{localStorage.setItem(rk,JSON.stringify({step:'followup',clientTs:lastClientMsg.created_at,ts:Date.now()}));}catch(e){}
-        console.log('[AUTO-REC] Follow-up enviado para '+lead.nome);
+      // Montar historico para contexto da IA (ultimas 10 msgs)
+      var historico=convMsgs.slice(0,10).reverse().map(function(m){
+        return(m.role==='user'?'Cliente':'Atendente')+': '+m.content;
+      }).join('\n');
+
+      // STEP 1: 5 minutos sem resposta → msg contextual
+      if(minSemResposta>=5&&minSemResposta<15&&(!state||!state.s1)){
+        var ok=await _enviarRecoveryIA(evo,sub,num,lead,historico,'step1');
+        if(ok){try{localStorage.setItem(rk,JSON.stringify({s1:true,clientTs:lastClientMsg.created_at,ts:Date.now()}));}catch(e){}}
       }
-      // 4h+ sem resposta: ativar cadencia automaticamente
-      else if(horasSemResposta>=4&&(!state||state.step!=='cadencia')){
+      // STEP 2: 15 minutos → chamando de volta
+      else if(minSemResposta>=15&&minSemResposta<30&&state&&state.s1&&!state.s2){
+        var ok=await _enviarRecoveryIA(evo,sub,num,lead,historico,'step2');
+        if(ok){state.s2=true;state.ts=Date.now();try{localStorage.setItem(rk,JSON.stringify(state));}catch(e){}}
+      }
+      // STEP 3: 30 minutos → msg final antes da cadência
+      else if(minSemResposta>=30&&minSemResposta<60&&state&&state.s2&&!state.s3){
+        var ok=await _enviarRecoveryIA(evo,sub,num,lead,historico,'step3');
+        if(ok){state.s3=true;state.ts=Date.now();try{localStorage.setItem(rk,JSON.stringify(state));}catch(e){}}
+      }
+      // STEP 4: 60+ minutos (30min após step3) → ativar cadência de recuperação
+      else if(minSemResposta>=60&&state&&state.s3&&!state.cadencia){
         var prevLead=currentLead;
         currentLead=lead;
         ativarRecuperacao();
         currentLead=prevLead;
-        try{localStorage.setItem(rk,JSON.stringify({step:'cadencia',clientTs:lastClientMsg.created_at,ts:Date.now()}));}catch(e){}
-        console.log('[AUTO-REC] Cadencia auto-ativada para '+lead.nome);
+        state.cadencia=true;state.ts=Date.now();
+        try{localStorage.setItem(rk,JSON.stringify(state));}catch(e){}
+        console.log('[AUTO-REC] Cadencia ativada para '+lead.nome+' apos 3 tentativas de resgate');
       }
-    });
+    }
   }catch(e){console.error('[AUTO-REC] Erro:',e);}
 }
-setInterval(_checkAutoRecovery,300000); // a cada 5 minutos
-setTimeout(_checkAutoRecovery,30000); // primeira verificacao apos 30s
+setInterval(_checkAutoRecovery,120000); // verifica a cada 2 minutos
+setTimeout(_checkAutoRecovery,20000); // primeira verificacao apos 20s
 
 },1500);
 </script>
