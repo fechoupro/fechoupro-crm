@@ -211,10 +211,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:1
 <style>
 /* ── CONVERSAS ── */
 .conv-layout{display:grid;grid-template-columns:300px 1fr;height:calc(100vh - 120px);gap:0;background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;}
-.conv-sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;}
-.conv-search{padding:10px 12px;border-bottom:1px solid var(--border);}
+.conv-sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+.conv-search{padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
 .conv-search-inp{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:20px;padding:7px 13px;font-size:12px;color:var(--text);font-family:var(--body);outline:none;}
-.conv-list{flex:1;overflow-y:auto;}
+.conv-list{flex:1;overflow-y:auto;min-height:0;}
 .conv-item{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;transition:background .15s;border-bottom:1px solid var(--border);}
 .conv-item:hover{background:rgba(255,255,255,.03);}
 .conv-item.active{background:rgba(0,229,160,.06);border-left:2px solid var(--accent2);}
@@ -749,8 +749,8 @@ window.adicionarContato=function(d){var c={id:Date.now(),nome:d.nome||'',tel:d.t
 window.moverParaFunil=function(id){var idx=window.CONTATOS.findIndex(function(c){return c.id===id||c._dbId===id;});if(idx<0)return;var c=window.CONTATOS[idx];var l={id:Date.now(),nome:c.nome,tel:c.tel,ig:c.ig,produto:c.produto,origem:c.origem,etapa:'novo',valor:0,hora:new Date().toISOString(),tasks:[],notas:c.obs||''};if(typeof LEADS!=='undefined'){LEADS.unshift(l);if(window.dbSalvarLead)window.dbSalvarLead(l);}if(c._dbId){fetch(_SB+'/rest/v1/contatos?id=eq.'+c._dbId+'&cliente_subdominio=eq.'+(window._gs?window._gs():'master'),{method:'DELETE',headers:{'apikey':_SK,'Authorization':'Bearer '+_SK}});}window.CONTATOS.splice(idx,1);if(typeof renderKanban==='function')renderKanban();if(typeof renderDash==='function')renderDash();if(typeof window._renderContatos==='function')window._renderContatos();if(typeof toast==='function')toast('Contato movido para o funil!');};
 window.moverLeadParaContatos=function(id){if(typeof LEADS==='undefined')return;var idx=LEADS.findIndex(function(l){return l.id===id||String(l.id)===String(id);});if(idx<0)return;var l=LEADS[idx];var contato={id:Date.now(),nome:l.nome,tel:l.tel,ig:l.ig,produto:l.produto,origem:l.origem,obs:l.notas||'',criado:l.hora};window.CONTATOS.unshift(contato);window.adicionarContato(contato);LEADS.splice(idx,1);if(window.dbDeletarLead)window.dbDeletarLead(l);if(typeof renderKanban==='function')renderKanban();if(typeof window._renderContatos==='function')window._renderContatos();};
 window._renderContatos=function(){var el=document.getElementById('fp-cl');if(!el)return;if(!window.CONTATOS.length){el.innerHTML='<div style="padding:32px 16px;text-align:center;color:var(--muted);font-size:13px">Nenhum contato salvo.<br><small style="opacity:.6;margin-top:8px;display:block">Use + Contato para adicionar.</small></div>';}else{var rows='';for(var i=0;i<window.CONTATOS.length;i++){var c=window.CONTATOS[i];var ini=(c.nome||'?').split(' ').map(function(p){return p[0]||'';}).slice(0,2).join('').toUpperCase();rows+='<div class="conv-item" style="cursor:default"><div class="conv-av" style="background:rgba(255,255,255,.07);color:var(--muted)">'+ini+'</div><div class="conv-body"><div class="conv-name">'+c.nome+'</div><div class="conv-preview">'+(c.tel||c.ig||'sem contato')+(c.produto?' · '+c.produto:'')+'</div><div style="display:flex;gap:6px;margin-top:6px"><button onclick="event.stopPropagation();window.moverParaFunil('+c.id+')" style="font-size:10px;padding:3px 10px;border-radius:6px;border:1px solid var(--accent);background:rgba(255,92,0,.08);color:var(--accent);cursor:pointer;font-family:var(--font)">Iniciar conversa</button><button onclick="event.stopPropagation();window.CONTATOS=window.CONTATOS.filter(function(x){return x.id!=='+c.id+'});window._saveContatos();window._renderContatos()" style="font-size:10px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer">X</button></div></div></div>';}el.innerHTML=rows;}};
-window._switchConvTab=function(tab,btn){document.querySelectorAll('.fp-ct').forEach(b=>{b.style.background='transparent';b.style.color='var(--muted)';b.style.borderBottom='none'});if(btn){btn.style.background='var(--card)';btn.style.color='var(--text)';btn.style.border='none'}var det=document.getElementById('conv-detail');if(det)det.style.display='none';var cEl=document.getElementById('fp-cl');if(cEl)cEl.style.display='none';if(tab==='contatos'){if(cEl)cEl.style.display='block';document.querySelectorAll('.conv-item').forEach(function(it){it.style.setProperty('display','none','important');});if(typeof window._renderContatos==='function')window._renderContatos();return;}window._injetarAbasConv();setTimeout(function(){var mapa={whatsapp:'wpp',instagra:'ig',instagram:'ig'};var canalFiltro=mapa[tab]||tab;document.querySelectorAll('.conv-item').forEach(function(item){var canal=item.dataset.canal||'';item.style.setProperty('display',(tab==='todos'||canal===canalFiltro)?'flex':'none','important');});},100);};
-window._injetarAbasConv=function(){if(document.getElementById('fp-ct-bar'))return;var sb=document.querySelector('.conv-sidebar');if(!sb)return;var bar=document.createElement('div');bar.id='fp-ct-bar';bar.style.cssText='display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none';var ts=[['contatos','Contatos'],['todos','Todos'],['whatsapp','WhatsApp'],['instagram','Instagram']];var bh='';for(var i=0;i<ts.length;i++){var a=i===1;bh+='<button class="fp-ct" onclick="window._switchConvTab(\''+ts[i][0]+'\',this)" style="white-space:nowrap;flex-shrink:0;padding:5px 11px;border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--font);'+(a?'background:var(--card);color:var(--text);border:none':'background:transparent;color:var(--muted);border:1px solid var(--border)')+'">'+ts[i][1]+'</button>';}bar.innerHTML=bh;sb.insertBefore(bar,sb.firstChild);if(!document.getElementById('fp-cl')){var cd=document.createElement('div');cd.id='fp-cl';cd.style.cssText='display:none;flex:1;overflow-y:auto';var cl=sb.querySelector('.conv-list');if(cl)sb.insertBefore(cd,cl);else sb.appendChild(cd);}window._renderContatos();};
+window._switchConvTab=function(tab,btn){document.querySelectorAll('.fp-ct').forEach(b=>{b.style.background='transparent';b.style.color='var(--muted)';b.style.borderBottom='none'});if(btn){btn.style.background='var(--card)';btn.style.color='var(--text)';btn.style.border='none'}var det=document.getElementById('conv-detail');if(det)det.style.display='none';var cEl=document.getElementById('fp-cl');var clEl=document.querySelector('.conv-list');if(cEl)cEl.style.display='none';if(clEl)clEl.style.display='block';if(tab==='contatos'){if(cEl)cEl.style.display='block';if(clEl)clEl.style.display='none';if(typeof window._renderContatos==='function')window._renderContatos();return;}window._injetarAbasConv();setTimeout(function(){var mapa={whatsapp:'wpp',instagra:'ig',instagram:'ig'};var canalFiltro=mapa[tab]||tab;document.querySelectorAll('.conv-item').forEach(function(item){var canal=item.dataset.canal||'';item.style.setProperty('display',(tab==='todos'||canal===canalFiltro)?'flex':'none','important');});},100);};
+window._injetarAbasConv=function(){if(document.getElementById('fp-ct-bar'))return;var sb=document.querySelector('.conv-sidebar');if(!sb)return;var bar=document.createElement('div');bar.id='fp-ct-bar';bar.style.cssText='display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none';var ts=[['contatos','Contatos'],['todos','Todos'],['whatsapp','WhatsApp'],['instagram','Instagram']];var bh='';for(var i=0;i<ts.length;i++){var a=i===1;bh+='<button class="fp-ct" onclick="window._switchConvTab(\''+ts[i][0]+'\',this)" style="white-space:nowrap;flex-shrink:0;padding:5px 11px;border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--font);'+(a?'background:var(--card);color:var(--text);border:none':'background:transparent;color:var(--muted);border:1px solid var(--border)')+'">'+ts[i][1]+'</button>';}bar.innerHTML=bh;sb.insertBefore(bar,sb.firstChild);if(!document.getElementById('fp-cl')){var cd=document.createElement('div');cd.id='fp-cl';cd.style.cssText='display:none;flex:1;overflow-y:auto;min-height:0';var cl=sb.querySelector('.conv-list');if(cl)sb.insertBefore(cd,cl);else sb.appendChild(cd);}window._renderContatos();};
 window.abrirModalContato=function(){var m=document.getElementById('fp-mc');if(m){m.style.display='flex';return;}var fs=[['nome','Nome completo','text'],['tel','Telefone / WhatsApp','tel'],['ig','Instagram','text'],['produto','Produto de interesse','text'],['origem','Origem','text'],['obs','Observações','text']];var fh='';for(var i=0;i<fs.length;i++){fh+='<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px">'+fs[i][1]+'</label><input id="fpc-'+fs[i][0]+'" type="'+fs[i][2]+'" style="width:100%;background:var(--card);border:1px solid var(--border2);border-radius:var(--r);padding:10px 14px;font-size:14px;color:var(--text);box-sizing:border-box;outline:none"></div>';}var ov=document.createElement('div');ov.id='fp-mc';ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:500;display:flex;align-items:center;justify-content:center';ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:28px 24px;width:400px;max-width:94vw;max-height:88vh;overflow-y:auto"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><h3 style="font-family:var(--font);font-size:16px;font-weight:700;margin:0">Adicionar Contato</h3><button onclick="document.getElementById(\'fp-mc\').style.display=\'none\'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;line-height:1">×</button></div><p style="font-size:12px;color:var(--muted);margin:0 0 18px;line-height:1.6">Salvo em <b>Conversas → Contatos</b>. Entra no funil apenas quando uma conversa ativa for iniciada.</p>'+fh+'<button onclick="window._salvarContato()" style="width:100%;margin-top:6px;padding:13px;border-radius:var(--r);background:var(--accent);color:#fff;border:none;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer">Salvar Contato</button></div>';document.body.appendChild(ov);};
 window._salvarContato=function(){var g=function(i){var e=document.getElementById('fpc-'+i);return e?e.value.trim():'';};var nome=g('nome');if(!nome){if(typeof toast==='function')toast('Digite o nome.');return;}window.adicionarContato({nome:nome,tel:g('tel'),ig:g('ig'),produto:g('produto'),origem:g('origem')||'Manual',obs:g('obs')});var m=document.getElementById('fp-mc');if(m)m.style.display='none';['nome','tel','ig','produto','origem','obs'].forEach(function(f){var e=document.getElementById('fpc-'+f);if(e)e.value='';});if(typeof toast==='function')toast('Contato salvo! Veja em Conversas → Contatos.');};
 var _SB='https://udtoojqdjcbxnvevazum.supabase.co',_SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkdG9vanFkamNieG52ZXZhenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NjM3NzQsImV4cCI6MjA4OTUzOTc3NH0.-HENtNoiH3yiEMxWIZeVrcB20BOOzoTw6oJsuvanBtM';
@@ -5463,6 +5463,97 @@ function _syncConvs(){
 }
 _syncConvs();
 setInterval(_syncConvs,10000);
+
+// ═══════════════════ EXTRATOR DE NOMES (heur\u00edstico) ═══════════════════
+// Detecta o nome do cliente nas mensagens e salva no lead + tabela contatos
+window._extrairNomesLeads=function(){
+  if(!window._dbLeadsLoaded)return;
+  if(!Array.isArray(LEADS))return;
+  var sub=window._gs?window._gs():'mileniofitness-altamira';
+  var palavrasIgnoradas=['oi','ola','olá','bom','dia','boa','tarde','noite','tudo','bem','sim','nao','não','obrigado','obrigada','blz','beleza','pode','quero','queria','gostaria','tenho','vou','sou','estou','to','tô','aqui','ja','já','agora','hoje','amanha','amanhã','ok','okay','certo','show','top','massa','vlw','valeu','funciona','funcional','legal','bacana','interessante','perfeito','combinado','fechou','entendi','entendido','claro','isso','isto','aquilo','que','qual','quando','onde','como','por','para','pra','com','sem','mas','porem','porém','entao','então','ai','aí','la','lá','ne','né','vc','voce','você','eu','meu','minha','seu','sua','nosso','nossa','tem','quanto','custa','preço','preco','valor','plano','academia','treino','treinar','musculacao','musculação'];
+  function ehNomeValido(s){
+    if(!s||s.length<2||s.length>40)return false;
+    if(/\d/.test(s))return false;
+    if(/[!?@#$%&*()\[\]{};:'"\/\\<>=+]/.test(s))return false;
+    var palavras=s.trim().split(/\s+/);
+    if(palavras.length>4)return false;
+    for(var i=0;i<palavras.length;i++){
+      var p=palavras[i].toLowerCase().replace(/[.,]/g,'');
+      if(palavrasIgnoradas.indexOf(p)>=0)return false;
+      if(p.length<2)return false;
+    }
+    return true;
+  }
+  function capitalizar(s){
+    return s.trim().split(/\s+/).map(function(p){
+      if(!p)return p;
+      return p.charAt(0).toUpperCase()+p.slice(1).toLowerCase();
+    }).join(' ');
+  }
+  function tentarExtrairNome(msgs){
+    // 1. Padrões explícitos: "meu nome é X", "me chamo X", "sou X", "aqui é X"
+    for(var i=0;i<msgs.length;i++){
+      var m=msgs[i];
+      if(m.tipo!=='recv')continue;
+      var t=(m.txt||'').trim();
+      var match;
+      // "meu nome é/eh X"
+      if((match=t.match(/(?:meu nome (?:é|eh|e)|me chamo|me chamam(?: de)?|aqui (?:é|eh|e|fala)|aqui quem fala (?:é|eh|e)?|sou (?:o|a|eu)?)\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]{1,35})/i))){
+        var n=match[1].replace(/[.,!?].*$/,'').trim();
+        if(ehNomeValido(n))return capitalizar(n);
+      }
+    }
+    // 2. Resposta direta após agente perguntar o nome
+    for(var j=0;j<msgs.length-1;j++){
+      var ag=msgs[j];
+      if(ag.tipo!=='agent')continue;
+      var txAg=(ag.txt||'').toLowerCase();
+      if(/(qual.*(seu nome|nome)|como.*(se chama|posso.*chamar)|com quem.*falo|seu nome\??)/i.test(txAg)){
+        // Próxima msg do cliente
+        for(var k=j+1;k<msgs.length;k++){
+          var resp=msgs[k];
+          if(resp.tipo==='recv'){
+            var rt=(resp.txt||'').replace(/[.,!?]/g,'').trim();
+            if(ehNomeValido(rt))return capitalizar(rt);
+            break;
+          }
+        }
+      }
+    }
+    return null;
+  }
+  LEADS.forEach(function(l){
+    if(!l||!l.msgs||!l.msgs.length)return;
+    // Só tentar para leads com nome placeholder
+    if(l.nome&&!/^WhatsApp\s*\+?\d*$/i.test(l.nome)&&!/^Instagram/i.test(l.nome))return;
+    var nomeNovo=tentarExtrairNome(l.msgs);
+    if(!nomeNovo)return;
+    if(nomeNovo===l.nome)return;
+    console.log('[NOME] Detectado:',l.nome,'→',nomeNovo);
+    l.nome=nomeNovo;
+    l.ini=nomeNovo.replace(/[^A-Za-z]/g,'').substring(0,2).toUpperCase()||'WP';
+    // Salvar no DB
+    if(l._dbId){
+      fetch(_SB+'/rest/v1/leads?id=eq.'+l._dbId,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({nome:nomeNovo})}).catch(function(){});
+    }
+    // Criar/atualizar em contatos (upsert por numero)
+    var num=(l.tel||'').replace(/\D/g,'');
+    if(num){
+      fetch(_SB+'/rest/v1/contatos?cliente_subdominio=eq.'+sub+'&numero=eq.'+encodeURIComponent(num),{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}})
+      .then(function(r){return r.json();}).then(function(ex){
+        if(ex&&ex.length>0){
+          fetch(_SB+'/rest/v1/contatos?id=eq.'+ex[0].id,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({nome:nomeNovo})}).catch(function(){});
+        } else {
+          fetch(_SB+'/rest/v1/contatos',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,nome:nomeNovo,numero:num,origem:'WhatsApp',obs:'Capturado automaticamente pelo agente'})}).catch(function(){});
+        }
+      }).catch(function(){});
+    }
+  });
+  if(typeof renderKanban==='function')renderKanban();
+  if(typeof renderConvs==='function')renderConvs();
+};
+setInterval(window._extrairNomesLeads,15000);
+setTimeout(window._extrairNomesLeads,7000);
 
 // ═══════════════════ AUTO-RECOVERY: IA resgata conversa ativa + cadência ═══════════════════
 // Fluxo: 5min → msg contextual | 15min → msg chamando de volta | 30min → msg final | depois → cadência
