@@ -1520,6 +1520,15 @@ Qualquer dúvida é só chamar 💪</textarea>
           <button class="btn btn-ghost" style="font-size:11px;flex:1;" onclick="testarWpp()">📤 Enviar mensagem teste</button>
           <button class="btn btn-ghost" style="font-size:11px;" onclick="desconectarWpp()">Desconectar</button>
         </div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);">
+          <div style="font-size:11px;font-family:var(--font);font-weight:700;margin-bottom:8px;">📥 Importar do celular</div>
+          <div style="font-size:10px;color:var(--dim);line-height:1.6;margin-bottom:10px;">Puxa contatos e histórico do WhatsApp conectado. Útil para alimentar o agente de IA com dados existentes. Rode apenas uma vez após conectar.</div>
+          <div style="display:flex;gap:8px;flex-direction:column;">
+            <button class="btn btn-ghost" style="font-size:11px;" onclick="_importarContatosEvo()" id="btn-imp-contatos">👥 Importar contatos do celular</button>
+            <button class="btn btn-ghost" style="font-size:11px;" onclick="_importarHistoricoEvo()" id="btn-imp-historico">💬 Importar histórico de conversas</button>
+            <div id="imp-evo-status" style="font-size:10px;color:var(--muted);text-align:center;display:none;"></div>
+          </div>
+        </div>
       </div>
       <!-- NÚMEROS ADICIONAIS -->
       <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
@@ -4041,6 +4050,141 @@ function renderCadenciaRec(){
 function _parseDelay(str){var s=String(str||'').trim().toLowerCase();var num=parseFloat(s);if(isNaN(num)||num<=0)return 3600000;if(s.indexOf('min')>=0)return num*60*1000;if(s.indexOf('m')>=0&&s.indexOf('h')<0)return num*60*1000;if(s.indexOf('h')>=0)return num*3600*1000;if(s.indexOf('d')>=0)return num*86400000;return num*3600*1000;}
 function _getEvoConfig(){var url=(document.getElementById('evolution-url')||{}).value||'';var token=(document.getElementById('evolution-token')||{}).value||'';var instance=(document.getElementById('evolution-instance')||{}).value||'';if(!url)try{var sc=localStorage.getItem('fp_evo_cfg_'+_gs());if(sc){var o=JSON.parse(sc);url=o.url||'';token=o.token||'';instance=o.instance||'';}}catch(e){}return{url:url.replace(/\/$/,''),token:token,instance:instance};}
 function _saveEvoConfig(){try{var o={url:(document.getElementById('evolution-url')||{}).value||'',token:(document.getElementById('evolution-token')||{}).value||'',instance:(document.getElementById('evolution-instance')||{}).value||''};localStorage.setItem('fp_evo_cfg_'+_gs(),JSON.stringify(o));fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.evolution_api',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(){fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:_gs(),chave:'evolution_api',valor:JSON.stringify(o)})});});}catch(e){}}
+// ═══════════════════ IMPORTAR DO CELULAR (Evolution API) ═══════════════════
+function _impStatus(msg,cor){var el=document.getElementById('imp-evo-status');if(!el)return;el.style.display='block';el.style.color=cor||'var(--muted)';el.textContent=msg;}
+function _impLimparJid(j){return String(j||'').replace(/@s\.whatsapp\.net/,'').replace(/@g\.us/,'').replace(/@lid/,'').replace(/\D/g,'');}
+async function _importarContatosEvo(){
+  var evo=_getEvoConfig();
+  if(!evo.url||!evo.token||!evo.instance){toast('⚠️ Configure Evolution API primeiro.');return;}
+  var btn=document.getElementById('btn-imp-contatos');if(btn){btn.disabled=true;btn.textContent='⏳ Importando contatos...';}
+  _impStatus('Buscando contatos do celular...','var(--accent2)');
+  try{
+    // Evolution v2: POST /chat/findContacts/{instance} com body vazio {}
+    var resp=await fetch(evo.url.replace(/\/$/,'')+'/chat/findContacts/'+evo.instance,{method:'POST',headers:{'Content-Type':'application/json','apikey':evo.token},body:JSON.stringify({where:{}})});
+    if(!resp.ok){
+      // Fallback: tentar GET (Evolution v1)
+      resp=await fetch(evo.url.replace(/\/$/,'')+'/chat/findContacts/'+evo.instance,{headers:{'apikey':evo.token}});
+    }
+    if(!resp.ok){throw new Error('HTTP '+resp.status);}
+    var contacts=await resp.json();
+    if(!Array.isArray(contacts)){throw new Error('Resposta inválida');}
+    _impStatus('Encontrados '+contacts.length+' contatos. Salvando...','var(--accent2)');
+    var sub=_gs();
+    // Buscar contatos já existentes pra não duplicar
+    var exR=await fetch(_SB+'/rest/v1/contatos?cliente_subdominio=eq.'+sub+'&select=numero',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var existentes=await exR.json();
+    var jaTem={};
+    (existentes||[]).forEach(function(c){if(c.numero)jaTem[String(c.numero).replace(/\D/g,'')]=true;});
+    var novos=[],pulados=0;
+    contacts.forEach(function(c){
+      var jid=c.id||c.remoteJid||c.jid||'';
+      if(!jid||jid.indexOf('@g.us')>=0)return; // pular grupos
+      var num=_impLimparJid(jid);
+      if(!num||num.length<8)return;
+      if(jaTem[num]){pulados++;return;}
+      var nome=c.pushName||c.name||c.notify||c.verifiedName||('WhatsApp +'+num.slice(-4));
+      jaTem[num]=true;
+      novos.push({cliente_subdominio:sub,nome:nome,numero:num,origem:'WhatsApp',obs:'Importado do celular'});
+    });
+    if(!novos.length){
+      _impStatus('Nada novo. '+pulados+' contatos já estavam salvos.','var(--muted)');
+      toast('✅ '+pulados+' contatos já existentes. Nada novo importado.');
+    } else {
+      // Inserir em lotes de 50
+      var tot=novos.length,salvos=0;
+      for(var i=0;i<novos.length;i+=50){
+        var lote=novos.slice(i,i+50);
+        var ir=await fetch(_SB+'/rest/v1/contatos',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(lote)});
+        if(ir.ok)salvos+=lote.length;
+        _impStatus('Salvando '+(i+lote.length)+'/'+tot+'...','var(--accent2)');
+      }
+      _impStatus('✅ '+salvos+' contatos importados ('+pulados+' já existiam).','var(--accent2)');
+      toast('🎉 '+salvos+' contatos importados do celular!');
+      if(typeof window._carregarContatos==='function')window._carregarContatos();
+    }
+  }catch(e){
+    console.error('[IMP-CONTATOS]',e);
+    _impStatus('❌ Erro: '+(e.message||e),'#F87171');
+    toast('❌ Erro ao importar contatos: '+(e.message||'ver console'));
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='👥 Importar contatos do celular';}
+  }
+}
+async function _importarHistoricoEvo(){
+  var evo=_getEvoConfig();
+  if(!evo.url||!evo.token||!evo.instance){toast('⚠️ Configure Evolution API primeiro.');return;}
+  if(!confirm('Vai importar histórico de conversas do celular para o CRM. Isso pode demorar alguns minutos. Continuar?'))return;
+  var btn=document.getElementById('btn-imp-historico');if(btn){btn.disabled=true;btn.textContent='⏳ Importando histórico...';}
+  _impStatus('Buscando chats...','var(--accent2)');
+  try{
+    // Buscar chats
+    var chatsResp=await fetch(evo.url.replace(/\/$/,'')+'/chat/findChats/'+evo.instance,{method:'POST',headers:{'Content-Type':'application/json','apikey':evo.token},body:JSON.stringify({})});
+    if(!chatsResp.ok){chatsResp=await fetch(evo.url.replace(/\/$/,'')+'/chat/findChats/'+evo.instance,{headers:{'apikey':evo.token}});}
+    if(!chatsResp.ok)throw new Error('findChats HTTP '+chatsResp.status);
+    var chats=await chatsResp.json();
+    if(!Array.isArray(chats))throw new Error('findChats resposta inválida');
+    // Filtrar só 1-a-1 (excluir grupos)
+    var privados=chats.filter(function(c){var j=c.id||c.remoteJid||'';return j&&j.indexOf('@g.us')<0;});
+    _impStatus('Encontrados '+privados.length+' chats privados. Buscando mensagens...','var(--accent2)');
+    var sub=_gs();
+    // Buscar mensagens já existentes no banco pra não duplicar (limite 1000 por número)
+    var totMsgs=0,totChats=0,erros=0;
+    // Processar até 50 chats para não sobrecarregar
+    var maxChats=Math.min(privados.length,50);
+    for(var i=0;i<maxChats;i++){
+      var chat=privados[i];
+      var jid=chat.id||chat.remoteJid||'';
+      if(!jid)continue;
+      try{
+        // Buscar mensagens: tentar POST (v2) depois GET (v1)
+        var msgsResp=await fetch(evo.url.replace(/\/$/,'')+'/chat/findMessages/'+evo.instance,{method:'POST',headers:{'Content-Type':'application/json','apikey':evo.token},body:JSON.stringify({where:{key:{remoteJid:jid}},limit:50})});
+        if(!msgsResp.ok){msgsResp=await fetch(evo.url.replace(/\/$/,'')+'/chat/findMessages/'+evo.instance+'?remoteJid='+encodeURIComponent(jid)+'&limit=50',{headers:{'apikey':evo.token}});}
+        if(!msgsResp.ok){erros++;continue;}
+        var msgData=await msgsResp.json();
+        var msgs=Array.isArray(msgData)?msgData:(msgData.messages&&msgData.messages.records?msgData.messages.records:(msgData.records||[]));
+        if(!Array.isArray(msgs)||!msgs.length){totChats++;continue;}
+        // Converter para formato conversas_wpp
+        var rows=[];
+        msgs.forEach(function(m){
+          var fromMe=m.key&&m.key.fromMe;
+          var role=fromMe?'assistant':'user';
+          var content='';
+          if(m.message){
+            if(m.message.conversation)content=m.message.conversation;
+            else if(m.message.extendedTextMessage&&m.message.extendedTextMessage.text)content=m.message.extendedTextMessage.text;
+            else if(m.message.imageMessage&&m.message.imageMessage.caption)content='[imagem] '+m.message.imageMessage.caption;
+            else if(m.message.imageMessage)content='[imagem]';
+            else if(m.message.audioMessage)content='[áudio]';
+            else if(m.message.videoMessage)content='[vídeo]';
+            else if(m.message.documentMessage)content='[documento]';
+          } else if(m.content){content=m.content;} else if(m.text){content=m.text;}
+          if(!content)return;
+          var ts=m.messageTimestamp?new Date(m.messageTimestamp*1000).toISOString():(m.created_at||new Date().toISOString());
+          rows.push({cliente_subdominio:sub,numero:jid,role:role,content:content,created_at:ts});
+        });
+        if(rows.length){
+          // Inserir em lotes
+          for(var j=0;j<rows.length;j+=50){
+            var lote=rows.slice(j,j+50);
+            await fetch(_SB+'/rest/v1/conversas_wpp',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal,resolution=ignore-duplicates'},body:JSON.stringify(lote)});
+          }
+          totMsgs+=rows.length;
+        }
+        totChats++;
+        _impStatus('Processando chat '+(i+1)+'/'+maxChats+' ('+totMsgs+' mensagens)...','var(--accent2)');
+      }catch(e){erros++;console.error('[IMP-HIST chat]',jid,e);}
+    }
+    _impStatus('✅ '+totChats+' chats e '+totMsgs+' mensagens importados.'+(erros?' ('+erros+' erros)':''),'var(--accent2)');
+    toast('🎉 Histórico importado: '+totMsgs+' mensagens de '+totChats+' conversas!');
+    if(typeof _syncConvs==='function')setTimeout(_syncConvs,1500);
+  }catch(e){
+    console.error('[IMP-HIST]',e);
+    _impStatus('❌ Erro: '+(e.message||e),'#F87171');
+    toast('❌ Erro ao importar histórico: '+(e.message||'ver console'));
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='💬 Importar histórico de conversas';}
+  }
+}
 function ativarRecuperacao(){
   if(!currentLead){toast('⚠️ Selecione um lead.');return;}
   var numero=currentLead.tel||currentLead.numero||'';
