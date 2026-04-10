@@ -2840,7 +2840,6 @@ async function _autoClassificarFunil(){
       if(!byNum[num])byNum[num]=[];
       byNum[num].push(m);
     });
-    console.log('[FUNIL] Conversas agrupadas:',Object.keys(byNum).length,'números | Leads:',LEADS.length);
 
     Object.keys(byNum).forEach(function(num){
       var convMsgs=byNum[num];
@@ -2853,8 +2852,7 @@ async function _autoClassificarFunil(){
         if(num.length>4&&ltel.indexOf(num)>=0)return true;
         return false;
       });
-      if(!lead){console.log('[FUNIL] sem lead p/ num:',num,'| msgs:',convMsgs.length);return;}
-      console.log('[FUNIL] match:',lead.nome,'(',lead.etapa,') num:',num,'msgs:',convMsgs.length,'agente:',convMsgs.filter(function(m){return m.role!=='user';}).length);
+      if(!lead)return;
       if(lead.atendimento_finalizado)return; // já finalizado manualmente
       if(lead.etapa==='finalizado')return;
 
