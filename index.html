@@ -2835,18 +2835,26 @@ async function _autoClassificarFunil(){
     // Agrupar por numero
     var byNum={};
     msgs.forEach(function(m){
-      var num=m.numero.replace(/@s\.whatsapp\.net/,'').replace(/@g\.us/,'');
+      var num=m.numero.replace(/@s\.whatsapp\.net/,'').replace(/@g\.us/,'').replace(/@lid/,'').replace(/\D/g,'');
+      if(!num)return;
       if(!byNum[num])byNum[num]=[];
       byNum[num].push(m);
     });
+    console.log('[FUNIL] Conversas agrupadas:',Object.keys(byNum).length,'números | Leads:',LEADS.length);
 
     Object.keys(byNum).forEach(function(num){
       var convMsgs=byNum[num];
       var lead=LEADS.find(function(l){
         var ltel=(l.tel||'').replace(/\D/g,'');
-        return ltel===num||l.id==='wpp_'+num;
+        if(!ltel)return l.id==='wpp_'+num;
+        if(ltel===num)return true;
+        if(l.id==='wpp_'+num)return true;
+        if(ltel.length>4&&num.indexOf(ltel)>=0)return true;
+        if(num.length>4&&ltel.indexOf(num)>=0)return true;
+        return false;
       });
-      if(!lead)return;
+      if(!lead){console.log('[FUNIL] sem lead p/ num:',num,'| msgs:',convMsgs.length);return;}
+      console.log('[FUNIL] match:',lead.nome,'(',lead.etapa,') num:',num,'msgs:',convMsgs.length,'agente:',convMsgs.filter(function(m){return m.role!=='user';}).length);
       if(lead.atendimento_finalizado)return; // já finalizado manualmente
       if(lead.etapa==='finalizado')return;
 
@@ -4070,7 +4078,7 @@ function configurarCadencia(){
 async function _processarFilaCadencia(){
   try{
     var agora=new Date().toISOString();
-    var r=await fetch(_SB+'/rest/v1/cadencia_queue?enviado=eq.false&enviar_em=lte.'+agora+'&order=enviar_em.asc&limit=5',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var r=await fetch(_SB+'/rest/v1/cadencia_queue?enviado=eq.false&enviar_em=lte.'+encodeURIComponent(agora)+'&order=enviar_em.asc&limit=5',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
     var items=await r.json();
     if(!items||!items.length)return;
     for(var i=0;i<items.length;i++){
@@ -4078,7 +4086,7 @@ async function _processarFilaCadencia(){
       // AUTO-PAUSE: Verificar se lead respondeu desde que a cadência foi criada
       try{
         var numClean=item.numero.replace(/\D/g,'').replace(/@s\.whatsapp\.net/,'');
-        var checkR=await fetch(_SB+'/rest/v1/conversas_wpp?numero=like.*'+encodeURIComponent(numClean)+'*&role=eq.user&cliente_subdominio=eq.'+item.cliente_subdominio+'&created_at=gte.'+item.created_at+'&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+        var checkR=await fetch(_SB+'/rest/v1/conversas_wpp?numero=like.*'+encodeURIComponent(numClean)+'*&role=eq.user&cliente_subdominio=eq.'+item.cliente_subdominio+'&created_at=gte.'+encodeURIComponent(item.created_at)+'&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
         var checkMsgs=await checkR.json();
         if(checkMsgs&&checkMsgs.length>0){
           // Lead respondeu! Cancelar TODAS as msgs pendentes deste lead
