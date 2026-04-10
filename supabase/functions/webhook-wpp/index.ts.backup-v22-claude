@@ -1,0 +1,202 @@
+// ============================================================
+// BACKUP v22 — webhook-wpp usando Claude Haiku 4.5 + Claude Opus 4.5 (Pix)
+// Baixado da Supabase Management API em 2026-04-10
+// ANTES da migração para GPT-5.4-mini
+// ============================================================
+const AKEY="REDACTED_ANTHROPIC_KEY";
+const EVO="https://evolution.fechoupro.com.br";
+const EVOKEY="REDACTED_EVOLUTION_KEY";
+const SB="https://udtoojqdjcbxnvevazum.supabase.co";
+const SK="REDACTED_SUPABASE_ANON_KEY";
+const SUB="mileniofitness-altamira";
+const WAIT_NOVO=7000;
+const WAIT_CONV=20000;
+const PIX_CHAVE="22.852.765/0001-92";
+const PIX_NOME="A. E. DE MELO JUNIOR COMERCIO LTDA";
+const PIX_BANCO="BRADESCO";
+const HORAS_NOVO_ATENDIMENTO=12;
+const MAX_NORMAL=15;
+const MAX_EXTENDIDO=22;
+const H={"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"};
+
+function quebrar(txt){
+  if(!txt)return["Como posso ajudar?"];
+  let s=txt.replace(/[\u{1F000}-\u{1FFFF}]/gu,"").replace(/[\u{2600}-\u{27FF}]/gu,"").replace(/[\u{1F100}-\u{1F9FF}]/gu,"").replace(/[\u{FE00}-\u{FEFF}]/gu,"").trim();
+  s=s.replace(/\*+([^*\n]+)\*+/g,"$1").replace(/_+([^_\n]+)_+/g,"$1").replace(/^#{1,6} */gm,"").trim();
+  if(!s)return["Como posso ajudar?"];
+  const sentencas=[];
+  let buf="";
+  for(let i=0;i<s.length;i++){
+    buf+=s[i];
+    const c=s[i];
+    const prox=s[i+1]||"";
+    if((c==="."||c==="!"||c==="?")&&(prox===" "||prox==="\n"||prox==="")){
+      const f=buf.trim();
+      if(f)sentencas.push(f);
+      buf="";
+    } else if(c==="\n"){
+      const f=buf.trim();
+      if(f)sentencas.push(f);
+      buf="";
+    }
+  }
+  if(buf.trim())sentencas.push(buf.trim());
+  const resultado=[];
+  for(const sent of sentencas){
+    const words=sent.split(/\s+/).filter(w=>w.length>0);
+    if(words.length===0)continue;
+    if(words.length<=MAX_EXTENDIDO){
+      resultado.push(words.join(" "));
+    } else {
+      let i=0;
+      while(i<words.length){
+        const chunk=words.slice(i,i+MAX_EXTENDIDO);
+        resultado.push(chunk.join(" "));
+        i+=MAX_EXTENDIDO;
+      }
+    }
+  }
+  return resultado.filter(r=>r.trim().length>0).length>0
+    ?resultado.filter(r=>r.trim().length>0)
+    :["Como posso ajudar?"];
+}
+
+async function enviar(inst,jid,blocos){
+  for(let i=0;i<blocos.length;i++){
+    if(!blocos[i]?.trim())continue;
+    await fetch(EVO+"/message/sendText/"+inst,{method:"POST",headers:{"Content-Type":"application/json","apikey":EVOKEY},body:JSON.stringify({number:jid,text:blocos[i]})});
+    if(i<blocos.length-1)await new Promise(r=>setTimeout(r,1200));
+  }
+}
+
+async function sbGet(t,f){const r=await fetch(SB+"/rest/v1/"+t+"?"+f,{headers:H});return r.json();}
+async function sbPost(t,b){await fetch(SB+"/rest/v1/"+t,{method:"POST",headers:{...H,"Prefer":"return=minimal"},body:JSON.stringify(b)});}
+async function sbUpsert(t,b){await fetch(SB+"/rest/v1/"+t,{method:"POST",headers:{...H,"Prefer":"resolution=merge-duplicates,return=minimal"},body:JSON.stringify(b)});}
+async function sbDelete(t,f){await fetch(SB+"/rest/v1/"+t+"?"+f,{method:"DELETE",headers:H});}
+
+async function baixarMidia(inst,data){
+  try{const r=await fetch(EVO+"/chat/getBase64FromMediaMessage/"+inst,{method:"POST",headers:{"Content-Type":"application/json","apikey":EVOKEY},body:JSON.stringify({message:data,convertToMp4:false})});const d=await r.json();return d?.base64||null;}catch(_){return null;}
+}
+
+async function verificarPix(b64,tipo,valEsp){
+  const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":AKEY,"anthropic-version":"2023-06-01"},body:JSON.stringify({model:"claude-opus-4-5",max_tokens:300,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:tipo,data:b64}},{type:"text",text:"Analise o comprovante Pix. Retorne APENAS JSON: {destinatario,chave,valor,banco,destinatario_ok,chave_ok,valor_ok,valido,motivo}. Dados corretos: nome="+PIX_NOME+", chave="+PIX_CHAVE+", banco="+PIX_BANCO+(valEsp?", valor="+valEsp:"")+"."}]}]})});
+  const d=await r.json();
+  try{return JSON.parse((d?.content?.[0]?.text||"{}").match(/\{[\s\S]*\}/)?.[0]||"{}");}catch(_){return null;}
+}
+
+Deno.serve(async(req)=>{
+  if(req.method!=="POST")return new Response("OK",{status:200});
+  let body;try{body=await req.json();}catch{return new Response("OK",{status:200});}
+  if(body?.event!=="messages.upsert")return new Response("OK",{status:200});
+  const data=body?.data;
+  if(!data||data?.key?.fromMe)return new Response("OK",{status:200});
+  const inst=body?.instance||SUB;
+  const jid=data?.key?.remoteJid||"";
+  const num=jid.replace(/@[^@]+$/,"");
+  if(!num)return new Response("OK",{status:200});
+  const msgData=data?.message||{};
+  const txt=msgData.conversation||msgData.extendedTextMessage?.text||"";
+  const isImg=!!(msgData.imageMessage);
+  const isDoc=!!(msgData.documentMessage);
+  if(!txt.trim()&&!isImg&&!isDoc)return new Response("OK",{status:200});
+
+  try{
+    const hist=await sbGet("conversas_wpp","cliente_subdominio=eq."+SUB+"&numero=eq."+num+"&role=neq.system&select=role,content,created_at&order=created_at.desc&limit=40");
+    const todasMsgs=(hist||[]).reverse();
+    const semHistorico=todasMsgs.length===0;
+
+    let eNovoAtendimento=semHistorico;
+    if(!semHistorico){
+      const ultima=todasMsgs[todasMsgs.length-1];
+      const diffHoras=(Date.now()-new Date(ultima.created_at).getTime())/(1000*60*60);
+      if(diffHoras>=HORAS_NOVO_ATENDIMENTO){eNovoAtendimento=true;}
+    }
+
+    if(!eNovoAtendimento&&!isImg&&!isDoc){
+      const semResp=[];
+      for(let i=todasMsgs.length-1;i>=0;i--){
+        if(todasMsgs[i].role==="assistant")break;
+        if(todasMsgs[i].role==="user")semResp.unshift(todasMsgs[i]);
+      }
+      if(semResp.length===0)return new Response(JSON.stringify({ok:true,ignorado:true}),{status:200});
+    }
+
+    let iaOn=true;
+    try{const s=await sbGet("ia_status","cliente_subdominio=eq."+SUB+"&numero=eq."+num+"&select=ia_ativa&limit=1");if(s?.[0])iaOn=s[0].ia_ativa;}catch(_){}
+
+    if((isImg||isDoc)&&iaOn){
+      const b64=await baixarMidia(inst,data);
+      if(!b64){await enviar(inst,jid,["Nao consegui abrir. Manda de novo?"]);return new Response("OK",{status:200});}
+      let valEsp=null;
+      try{const ct=await sbGet("contatos","cliente_subdominio=eq."+SUB+"&numero=eq."+num+"&select=contexto&limit=1");if(ct?.[0]?.contexto){const c=JSON.parse(ct[0].contexto);valEsp=c.valor_total||null;}}catch(_){}
+      const res=await verificarPix(b64,isImg?"image/jpeg":"application/pdf",valEsp);
+      let blocos=[];
+      if(!res)blocos=["Nao consegui ler.","Manda foto mais clara?"];
+      else if(res.valido)blocos=["Pagamento confirmado!","R$ "+res.valor+" recebido.","Qual seu endereco completo?"];
+      else{const p=[];if(!res.destinatario_ok)p.push("destinatario incorreto");if(!res.chave_ok)p.push("chave errada");if(!res.valor_ok&&valEsp)p.push("valor incorreto");blocos=["Pagamento nao confirmado: "+p.join(", ")+".","Chave Pix: "+PIX_CHAVE,"Destinatario: "+PIX_NOME];}
+      await enviar(inst,jid,blocos);
+      await sbPost("conversas_wpp",[{cliente_subdominio:SUB,numero:num,role:"user",content:"[COMPROVANTE PIX]"},{cliente_subdominio:SUB,numero:num,role:"assistant",content:blocos.join(" ")}]);
+      return new Response("OK",{status:200});
+    }
+
+    if(!txt.trim())return new Response("OK",{status:200});
+    if(!iaOn){await sbPost("conversas_wpp",{cliente_subdominio:SUB,numero:num,role:"user",content:txt});return new Response("OK",{status:200});}
+
+    const mid="msg_"+num+"_"+Date.now();
+    try{await sbUpsert("mensagens_fila",{id:mid,cliente_subdominio:SUB,numero:num,texto:txt,created_at:new Date().toISOString()});}catch(_){}
+    await new Promise(r=>setTimeout(r,eNovoAtendimento?WAIT_NOVO:WAIT_CONV));
+    let fila=[];
+    try{fila=await sbGet("mensagens_fila","cliente_subdominio=eq."+SUB+"&numero=eq."+num+"&select=id,texto&order=created_at.asc");}catch(_){}
+    if(!fila?.length)fila=[{id:mid,texto:txt}];
+    else if(fila[fila.length-1].id!==mid)return new Response("OK",{status:200});
+    const txFull=fila.map(m=>m.texto).join(" ");
+    try{await sbDelete("mensagens_fila","cliente_subdominio=eq."+SUB+"&numero=eq."+num);}catch(_){}
+
+    const ag=await sbGet("agente_config","cliente_subdominio=eq."+SUB+"&select=prompt&limit=1");
+    const sys=ag?.[0]?.prompt||"Voce e Mila da Milenio Fitness.";
+
+    const agora=Date.now();
+    const msgsRecentes=todasMsgs.filter(m=>(agora-new Date(m.created_at).getTime())<(HORAS_NOVO_ATENDIMENTO*60*60*1000));
+    const msgsParaAgente=eNovoAtendimento?[]:msgsRecentes.map(m=>({role:m.role,content:m.content}));
+
+    let ctx={nome:null,objetivo:null,cidade:null,produtos_interesse:[],valor_total:null};
+    try{const ct=await sbGet("contatos","cliente_subdominio=eq."+SUB+"&numero=eq."+num+"&select=nome,contexto&limit=1");if(ct?.[0]){ctx.nome=ct[0].nome||null;if(ct[0].contexto)try{ctx={...ctx,...JSON.parse(ct[0].contexto)};}catch(_){}}}catch(_){}
+
+    if(msgsParaAgente.length>0&&msgsParaAgente.length%5===0){
+      try{const cr=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":AKEY,"anthropic-version":"2023-06-01"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:150,system:"Extraia info. APENAS JSON: {nome,objetivo,cidade,produtos_interesse,valor_total}.",messages:[{role:"user",content:"Contexto:"+JSON.stringify(ctx)+"\nHistorico:\n"+msgsParaAgente.slice(-8).map(m=>m.role+":"+m.content).join("\n")}]})});const cd=await cr.json();const novo=JSON.parse(cd?.content?.[0]?.text||"{}");ctx={...ctx,...novo};await sbUpsert("contatos",{cliente_subdominio:SUB,numero:num,nome:ctx.nome||null,contexto:JSON.stringify(ctx),updated_at:new Date().toISOString()});}catch(_){}
+    }
+
+    let pb="";
+    try{const p=await sbGet("playbook_itens","cliente_subdominio=eq."+SUB+"&texto=neq.&select=nome,texto");if(p?.length)pb="\nBASE DE CONHECIMENTO:\n"+p.map(x=>"["+x.nome+"]\n"+x.texto).join("\n\n");}catch(_){}
+
+    let prod="";
+    const trm=["preco","quanto","custa","whey","creatina","suplemento","proteina","vitamina","legging","tenis","camiseta","bcaa","colageno","kit","conjunto","pasta","amendoim","pretreino","pre treino","termogenico","shorts","bermuda","calca","macacaozinho","omega"];
+    if(trm.some(t=>txFull.toLowerCase().includes(t))){
+      try{const ws=txFull.toLowerCase().split(/\s+/).filter(w=>w.length>3).sort((a,b)=>b.length-a.length);if(ws[0]){const ps=await sbGet("produtos","cliente_subdominio=eq."+SUB+"&quantidade=gt.0&nome=ilike.*"+encodeURIComponent(ws[0])+"*&select=nome,preco,preco_oferta&limit=10");if(ps?.length)prod="\nESTOQUE:\n"+ps.map(p=>"- "+p.nome+": "+(p.preco_oferta?"R$"+p.preco_oferta+" (oferta)":"R$"+p.preco)).join("\n");}}catch(_){}
+    }
+
+    const ctxStr=Object.entries(ctx).filter(([,v])=>v&&(Array.isArray(v)?v.length:true)).map(([k,v])=>k+": "+(Array.isArray(v)?v.join(","):v)).join(" | ");
+    let instr="";
+    if(eNovoAtendimento&&ctx.nome){
+      instr="\nCONTEXTO: Novo atendimento. "+(ctxStr?"Dados do cliente em memoria (use SOMENTE se ele mencionar o assunto): "+ctxStr+". ":"")+"Cumprimente pelo nome de forma breve e natural. NAO retome assuntos anteriores.";
+    } else if(eNovoAtendimento){
+      instr="\nCONTEXTO: Novo atendimento. Cliente novo. Apresente-se como Mila e pergunte o nome.";
+    } else {
+      instr="\nCLIENTE: "+(ctxStr||"sem dados")+". Atendimento em andamento. Nao se reapresente. Responda APENAS as msgs novas.";
+    }
+
+    const cr2=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":AKEY,"anthropic-version":"2023-06-01"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:250,system:sys+instr+pb+prod,messages:[...msgsParaAgente,{role:"user",content:txFull}]})});
+    const cd2=await cr2.json();
+    const bruto=cd2?.content?.[0]?.text||"Como posso ajudar?";
+
+    const blocos=quebrar(bruto);
+    console.log("v22 eNovo:"+eNovoAtendimento+" blocos:"+blocos.length+" max:"+Math.max(...blocos.map(b=>b.split(" ").length)));
+
+    await enviar(inst,jid,blocos);
+    await sbPost("conversas_wpp",[{cliente_subdominio:SUB,numero:num,role:"user",content:txFull},{cliente_subdominio:SUB,numero:num,role:"assistant",content:blocos.join(" ")}]);
+
+    if(!ctx.nome){const m=txFull.match(/(?:me chamo|meu nome|sou o|sou a)\s+([A-Za-zÀ-ú]{3,}(?:\s+[A-Za-zÀ-ú]{3,})?)/i);if(m)try{await sbUpsert("contatos",{cliente_subdominio:SUB,numero:num,nome:m[1],updated_at:new Date().toISOString()});}catch(_){}}
+
+    return new Response(JSON.stringify({ok:true}),{status:200});
+  }catch(err){console.error("ERRO:"+String(err));return new Response("OK",{status:200});}
+});
