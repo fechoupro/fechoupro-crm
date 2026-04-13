@@ -878,6 +878,15 @@ setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash
 <body>
 
 <!-- SETUP -->
+<!-- Instant auth check: se ja tem token, esconde login e mostra app SEM flash -->
+<script>
+(function(){
+  var tk=null;try{tk=localStorage.getItem('fp_token');}catch(e){}
+  if(tk){
+    document.write('<style>#login-screen{display:none !important}#app{display:block !important}</style>');
+  }
+})();
+</script>
 <!-- LOGIN SCREEN -->
 <div id="login-screen" class="login-wrap">
   <div class="login-box">
@@ -2393,27 +2402,36 @@ async function fazerLogin(){
 
 async function verificarSessao(){
   var token=localStorage.getItem('fp_token');
-  if(!token){document.getElementById('login-screen').style.display='flex';return false;}
+  if(!token){_mostrarLogin();return false;}
   try{
     var r=await fetch(_SB+'/functions/v1/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verificar',token:token})});
     var d=await r.json();
-    if(!d.ok){localStorage.removeItem('fp_token');document.getElementById('login-screen').style.display='flex';return false;}
+    if(!d.ok){localStorage.removeItem('fp_token');_mostrarLogin();return false;}
     window.USUARIO_ATUAL=d.usuario;
     iniciarSessao(d.usuario);
     return true;
-  }catch(e){document.getElementById('login-screen').style.display='flex';return false;}
+  }catch(e){_mostrarLogin();return false;}
+}
+function _mostrarLogin(){
+  // Remove o override inline que escondeu o login no carregamento
+  var ls=document.getElementById('login-screen');
+  if(ls){ls.style.display='flex';ls.style.cssText='display:flex !important;';}
+  var ap=document.getElementById('app');
+  if(ap)ap.style.display='none';
 }
 
 function iniciarSessao(u){
-  document.getElementById('login-screen').style.display='none';
+  var ls=document.getElementById('login-screen');
+  if(ls)ls.style.cssText='display:none !important;';
   // Load saved API key if exists
   var hasKey=localStorage.getItem('fp_api_key')||localStorage.getItem('mf_api_key');
   if(hasKey&&hasKey!=='demo'){API_KEY=hasKey;AI_MODE=true;}
   if(u.role==='admin'&&!hasKey){
     document.getElementById('setup-screen').style.display='flex';
+    document.getElementById('app').style.display='none';
   }else{
     document.getElementById('setup-screen').style.display='none';
-    document.getElementById('app').style.display='';
+    document.getElementById('app').style.display='block';
     if(!window._appLaunched){window._appLaunched=true;launchApp();}
   }
   aplicarPermissoes(u);
