@@ -1,7 +1,9 @@
 // ============================================================
-// webhook-wpp v23 — GPT-5.4-mini (migrado de Claude Haiku/Opus)
-// Migrado em 2026-04-10
+// webhook-wpp v26 — GPT-5.4-mini + formato ||| + quebrar() + pushName
+// Atualizado em 2026-04-11
 // OPENAI_API_KEY deve estar configurada como secret no Supabase
+// Novidade v26: salva data.pushName do Evolution em contatos.nome e
+//               corrige leads.nome com placeholder "WhatsApp +xxxx"
 // ============================================================
 // NOTA: OPENAI_API_KEY vem do secret do Supabase (Deno.env.get)
 // EVOKEY e SK estao hardcoded na versao deployada (Edge Function), mas
@@ -23,6 +25,25 @@ const MAX_NORMAL=15;
 const MAX_EXTENDIDO=22;
 const H={"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"};
 
+// Formato de saida imposto pelo sistema (independe do prompt do usuario)
+const FORMATO=`
+
+REGRAS ABSOLUTAS DE FORMATO (NAO QUEBRE NUNCA):
+1. Responda usando de 1 a 4 mensagens CURTAS, separadas pelo delimitador ||| (tres barras verticais).
+2. Cada mensagem: MAXIMO 15 palavras. Limite absoluto 22 palavras.
+3. Cada mensagem eh um PENSAMENTO COMPLETO. Nunca termine no meio da ideia.
+4. Va direto ao ponto. Proibido usar: "amigo", "meu irmao", "entao", "olha so", "mas relaxa", "verdade", "tipo assim", "cara", "nossa".
+5. Maximo 1 pergunta por resposta inteira. Nao ofereca 2 opcoes se 1 resolver.
+6. Nao repita o que o cliente disse. Nao use saudacoes desnecessarias no meio de uma conversa ja iniciada.
+7. Use numeros (19h, R$150) em vez de extenso.
+8. Respostas simples (oi, obrigado, ok) = 1 unica mensagem de ate 6 palavras.
+
+EXEMPLO CORRETO:
+Fica aberto ate 19h.|||Endereco: Av. Djalma Dutra, 1554, Centro.|||Quer ver o que tem disponivel?
+
+EXEMPLO ERRADO (NAO FACA):
+Oi amigo! Entao, olha so, a loja fica aberta ate 19h e o endereco eh Av. Djalma Dutra numero 1554, no centro de Altamira, viu? Quer que eu ja separe alguma coisa pra voce ou prefere ir ai na loja direto? Eh so me falar!`;
+
 // ---------- OpenAI helper ----------
 async function oai(messages,maxTok){
   const r=await fetch("https://api.openai.com/v1/chat/completions",{
@@ -34,28 +55,52 @@ async function oai(messages,maxTok){
   return d?.choices?.[0]?.message?.content||"";
 }
 
-// Regra: cada msg termina um pensamento
-// - ate 15 palavras: envia como esta
-// - entre 16 e 22 palavras: termina o pensamento ate 22 palavras (nao corta)
-// - acima de 22 palavras: divide em sentencas, cada sentenca max 22 palavras
+// Abreviacoes que NAO devem ser tratadas como fim de frase
+const ABREV=new Set(["av","r","dr","dra","sr","sra","srta","no","nº","vs","pra","pro","vc","ex","etc","cia","ltda","prof","profa","exmo","sto","sta","pg","pag","ref","obs","ps"]);
+
+// Regra: cada msg termina um pensamento completo.
+// Prioridade 1: delimitador ||| (o modelo eh instruido a usar).
+// Prioridade 2: quebras de linha duplas.
+// Prioridade 3: sentencas completas, respeitando abreviacoes e numeros com ponto.
+// Se sentenca >22 palavras, divide em virgulas/conjuncoes (nunca corta palavra).
 function quebrar(txt){
   if(!txt)return["Como posso ajudar?"];
   let s=txt.replace(/[\u{1F000}-\u{1FFFF}]/gu,"").replace(/[\u{2600}-\u{27FF}]/gu,"").replace(/[\u{1F100}-\u{1F9FF}]/gu,"").replace(/[\u{FE00}-\u{FEFF}]/gu,"").trim();
   s=s.replace(/\*+([^*\n]+)\*+/g,"$1").replace(/_+([^_\n]+)_+/g,"$1").replace(/^#{1,6} */gm,"").trim();
   if(!s)return["Como posso ajudar?"];
 
-  // Separar em sentencas por . ! ? ou quebra de linha
+  // PRIORIDADE 1: delimitador ||| (forma oficial)
+  if(s.includes("|||")){
+    const partes=s.split("|||").map(p=>p.replace(/\s+/g," ").trim()).filter(p=>p.length>0);
+    if(partes.length>0)return partes.slice(0,5);
+  }
+
+  // PRIORIDADE 2: paragrafos (linhas duplas)
+  const paragrafos=s.split(/\n{2,}/).map(p=>p.replace(/\s+/g," ").trim()).filter(p=>p.length>0);
+  if(paragrafos.length>1)return paragrafos.slice(0,5);
+
+  // PRIORIDADE 3: separar em sentencas respeitando abreviacoes e numeros
+  s=s.replace(/\n+/g," ").replace(/\s+/g," ").trim();
   const sentencas=[];
   let buf="";
   for(let i=0;i<s.length;i++){
     buf+=s[i];
     const c=s[i];
     const prox=s[i+1]||"";
-    if((c==="."||c==="!"||c==="?")&&(prox===" "||prox==="\n"||prox==="")){
-      const f=buf.trim();
-      if(f)sentencas.push(f);
-      buf="";
-    } else if(c==="\n"){
+    const prox2=s[i+2]||"";
+    if(c==="."||c==="!"||c==="?"){
+      // Nao quebra se proximo char eh digito (numero tipo 1.554 ou 13.00)
+      if(c==="."&&/\d/.test(prox)){continue;}
+      // Nao quebra se o proximo eh letra minuscula (abreviacao colada "av.Djalma")
+      if(/[a-z]/.test(prox)&&prox!==" "){continue;}
+      // Ponto soh eh fim de frase se proximo for espaco, \n, fim, ou maiuscula/pontuacao
+      if(prox!==" "&&prox!=="\n"&&prox!==""){continue;}
+      // Verifica se a ultima "palavra" antes do ponto eh abreviacao
+      if(c==="."){
+        const words=buf.trim().replace(/[.!?]$/,"").split(/\s+/);
+        const last=(words[words.length-1]||"").toLowerCase().replace(/[^a-zà-úº]/g,"");
+        if(ABREV.has(last)){continue;}
+      }
       const f=buf.trim();
       if(f)sentencas.push(f);
       buf="";
@@ -63,24 +108,36 @@ function quebrar(txt){
   }
   if(buf.trim())sentencas.push(buf.trim());
 
+  // Se sentenca >MAX_EXTENDIDO, divide em virgulas/conjuncoes (sem cortar palavra)
   const resultado=[];
   for(const sent of sentencas){
     const words=sent.split(/\s+/).filter(w=>w.length>0);
     if(words.length===0)continue;
     if(words.length<=MAX_EXTENDIDO){
       resultado.push(words.join(" "));
-    } else {
-      let i=0;
-      while(i<words.length){
-        const chunk=words.slice(i,i+MAX_EXTENDIDO);
-        resultado.push(chunk.join(" "));
-        i+=MAX_EXTENDIDO;
+      continue;
+    }
+    // Tentar dividir em virgulas ou conjuncoes naturais
+    const partes=sent.split(/,\s+|\s+(?:e|mas|ou|porem|entretanto|entao|pois|porque)\s+/i)
+      .map(p=>p.trim()).filter(p=>p.length>0);
+    let atual="";
+    for(const parte of partes){
+      const comb=(atual?atual+", ":"")+parte;
+      const lenComb=comb.split(/\s+/).length;
+      if(lenComb<=MAX_EXTENDIDO){
+        atual=comb;
+      } else {
+        if(atual)resultado.push(atual);
+        // Se a propria parte eh maior que MAX_EXTENDIDO, aceita do jeito que veio
+        // (melhor msg longa do que cortada no meio)
+        atual=parte;
       }
     }
+    if(atual)resultado.push(atual);
   }
-  return resultado.filter(r=>r.trim().length>0).length>0
-    ?resultado.filter(r=>r.trim().length>0)
-    :["Como posso ajudar?"];
+
+  const final=resultado.filter(r=>r.trim().length>0);
+  return final.length>0?final.slice(0,5):["Como posso ajudar?"];
 }
 
 async function enviar(inst,jid,blocos){
@@ -122,6 +179,38 @@ Deno.serve(async(req)=>{
   const isImg=!!(msgData.imageMessage);
   const isDoc=!!(msgData.documentMessage);
   if(!txt.trim()&&!isImg&&!isDoc)return new Response("OK",{status:200});
+
+  // ---- v26: persistir pushName (nome do perfil WhatsApp) ----
+  // Roda em paralelo ao resto, nao bloqueia resposta da Mila
+  const pushNameRaw=(data?.pushName||"").trim();
+  const nomeValido=pushNameRaw
+    && pushNameRaw.length>=2
+    && !/^\+?\d+$/.test(pushNameRaw)
+    && !/meu.?numero/i.test(pushNameRaw);
+  if(nomeValido){
+    (async()=>{
+      try{
+        // 1. Verificar se contato ja tem nome salvo
+        const ct=await sbGet("contatos","cliente_subdominio=eq."+SUB+"&numero=eq."+num+"&select=nome&limit=1");
+        const temNome=ct?.[0]?.nome && !/^WhatsApp\s*\+?\d*$/i.test(ct[0].nome);
+        if(!temNome){
+          // Upsert em contatos (cria novo ou atualiza se nome estava vazio/placeholder)
+          await fetch(SB+"/rest/v1/contatos?on_conflict=cliente_subdominio,numero",{
+            method:"POST",
+            headers:{...H,"Prefer":"resolution=merge-duplicates,return=minimal"},
+            body:JSON.stringify({cliente_subdominio:SUB,numero:num,nome:pushNameRaw,updated_at:new Date().toISOString()})
+          });
+        }
+        // 2. Corrigir leads.nome se tiver placeholder "WhatsApp +xxxx"
+        await fetch(SB+"/rest/v1/leads?cliente_subdominio=eq."+SUB+"&telefone=eq."+num+"&nome=like.WhatsApp*",{
+          method:"PATCH",
+          headers:{...H,"Prefer":"return=minimal"},
+          body:JSON.stringify({nome:pushNameRaw})
+        });
+      }catch(e){console.error("pushName persist falhou:"+String(e));}
+    })();
+  }
+  // ---- fim v26 pushName ----
 
   try{
     const hist=await sbGet("conversas_wpp","cliente_subdominio=eq."+SUB+"&numero=eq."+num+"&role=neq.system&select=role,content,created_at&order=created_at.desc&limit=40");
@@ -221,14 +310,15 @@ Deno.serve(async(req)=>{
     }
 
     // Chamada principal ao GPT-5.4-mini
+    // FORMATO eh injetado POR ULTIMO pra ter prioridade absoluta sobre o prompt do usuario
     const bruto=await oai([
-      {role:"system",content:sys+instr+pb+prod},
+      {role:"system",content:sys+instr+pb+prod+FORMATO},
       ...msgsParaAgente,
       {role:"user",content:txFull}
     ],400)||"Como posso ajudar?";
 
     const blocos=quebrar(bruto);
-    console.log("v23(gpt-5.4-mini) eNovo:"+eNovoAtendimento+" blocos:"+blocos.length+" max:"+Math.max(...blocos.map(b=>b.split(" ").length)));
+    console.log("v26 eNovo:"+eNovoAtendimento+" push:"+(pushNameRaw||"-")+" bruto:"+bruto.length+"ch blocos:"+blocos.length+" maxW:"+Math.max(...blocos.map(b=>b.split(" ").length)));
 
     await enviar(inst,jid,blocos);
     await sbPost("conversas_wpp",[{cliente_subdominio:SUB,numero:num,role:"user",content:txFull},{cliente_subdominio:SUB,numero:num,role:"assistant",content:blocos.join(" ")}]);
