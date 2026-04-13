@@ -2083,7 +2083,7 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
           <div class="cfg-nav-item" onclick="goConfig('empresa',this)">🏪 Empresa</div>
           <div class="cfg-nav-item" onclick="goConfig('colaboradores',this)">👥 Colaboradores</div>
           <div class="cfg-nav-item" onclick="goConfig('playbook',this)">📖 Playbook</div>
-          <div class="cfg-nav-item" onclick="goConfig('roleta-cfg',this)">🎯 Fila / Roleta</div>
+          <!-- Fila/Roleta removida — gerenciado em Colaboradores -->
           <div class="cfg-nav-item" onclick="goConfig('posv-imediata-cfg',this)">⚡ Pós-Venda Imediata</div>
         </div>
       </div>
@@ -2515,7 +2515,7 @@ const DISC_DATA={
   C:{label:'Conformidade',sub:'Analítico · Detalhista · Cauteloso',cor:'#A78BFA',bg:'rgba(124,92,252,0.2)',bars:{D:22,I:18,S:20,C:40},tip:'Forneça dados, comparativos e especificações técnicas. Dê tempo para analisar e decidir.'},
 };
 
-const COLABORADORES=[{id:'ia',nome:'Agente IA',cargo:'Bot',iniciais:'IA',cor:'#FF5C00',online:true,naFila:true,tipo:'ia'}];
+const COLABORADORES=[{id:'ia',nome:'Agente IA',cargo:'Bot',ini:'IA',cor:'#FF5C00',bg:'rgba(255,92,0,.2)',online:(function(){try{var v=localStorage.getItem('fp_ia_online');return v===null?true:v==='1';}catch(e){return true;}})(),ativo:(function(){try{var v=localStorage.getItem('fp_ia_ativo');return v===null?true:v==='1';}catch(e){return true;}})(),tipo:'ia'}];
 
 const PLAYBOOK_DATA=[
   {nome:'Whey Protein Gold Standard',tags:['Suplemento','Proteína'],texto:'100% whey, 24g proteína por dose. Sabores: baunilha, chocolate, morango, frutas vermelhas. Apresentações: 907g e 2kg. Ideal para pós-treino. Concorrentes: Optimum Nutrition, Max Titanium. Argumento principal: qualidade importada a preço acessível.'},
@@ -5000,8 +5000,8 @@ function renderConfigs(){
   // Pós-venda cfg
 
 }
-function toggleOnline(idx){var c=COLABORADORES[idx];if(!c)return;c.online=!c.online;if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(c);renderColabTable();if(typeof renderRoleta==='function')renderRoleta();}
-function toggleAtivo(idx){var c=COLABORADORES[idx];if(!c)return;c.ativo=!c.ativo;if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(c);renderColabTable();if(typeof renderRoleta==='function')renderRoleta();}
+function toggleOnline(idx){var c=COLABORADORES[idx];if(!c)return;c.online=!c.online;if(c.id==='ia'){try{localStorage.setItem('fp_ia_online',c.online?'1':'0');}catch(e){}}else if(typeof window.dbSalvarColab==='function'){window.dbSalvarColab(c);}renderColabTable();if(typeof renderRoleta==='function')renderRoleta();}
+function toggleAtivo(idx){var c=COLABORADORES[idx];if(!c)return;c.ativo=!c.ativo;if(c.id==='ia'){try{localStorage.setItem('fp_ia_ativo',c.ativo?'1':'0');}catch(e){}}else if(typeof window.dbSalvarColab==='function'){window.dbSalvarColab(c);}renderColabTable();if(typeof renderRoleta==='function')renderRoleta();}
 function addColab(){var nome=prompt('Nome do colaborador:');if(!nome)return;var ini=nome.split(' ').map(function(p){return p[0];}).join('').substring(0,2).toUpperCase();var cores=['#3B82F6','#00E5A0','#FF5C00','#A78BFA','#FBB040','#FF3B8B','#00B4D8'];var cor=cores[COLABORADORES.length%cores.length];var bg=cor+'33';var novoColab={id:Date.now(),nome:nome,cargo:'Vendedor',ativo:true,online:false,cor:cor,bg:bg,ini:ini,leads:0,perms:{}};COLABORADORES.push(novoColab);if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(novoColab);renderConfigs();renderRoleta();toast('✅ Colaborador adicionado!');}
 function addPlaybook(){const nome=prompt('Nome do produto/serviço:');if(!nome)return;const texto=prompt('Informações para a IA e equipe:');if(!texto)return;PLAYBOOK_DATA.push({nome,tags:['Novo'],texto});renderConfigs();toast('✅ Item adicionado ao playbook!');}
 
@@ -5734,17 +5734,19 @@ function renderColabTable(){
     var permList=Object.entries(col.perms||{}).filter(function(e){return e[1];}).map(function(e){return e[0];});
     var permStr=permList.length?permList.join(', '):'Padrão (todos)';
     var colLeads=LEADS?LEADS.filter(function(l){return l.vendedor===col.nome;}).length:0;
+    var cargoLower=(col.cargo||'').toLowerCase();
+    var mostraFila=(cargoLower==='vendedor'||cargoLower==='atendente');
     humanos.push('<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px;margin-bottom:10px;">'
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
         +'<div style="width:38px;height:38px;border-radius:50%;background:'+bg+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:'+cor+';flex-shrink:0;">'+ini+'</div>'
         +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-family:var(--font);font-weight:700;">'+col.nome+'</div><div style="font-size:10px;color:var(--muted);">'+(col.cargo||'Vendedor')+' · CPF: '+cpfMask+'</div></div>'
         +'<button class="btn btn-ghost" style="font-size:10px;padding:4px 10px;" onclick="editColab('+idx+')">Editar</button>'
       +'</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">'
+      +(mostraFila?'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">'
         +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;"><div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Online</div><button class="toggle '+(col.online?'on':'off')+'" onclick="toggleOnline('+idx+')"></button></div>'
         +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;"><div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Na Fila</div><button class="toggle '+(col.ativo?'on':'off')+'" onclick="toggleAtivo('+idx+')"></button></div>'
         +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;"><div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Leads</div><div style="font-size:14px;font-family:var(--font);font-weight:800;">'+colLeads+'</div></div>'
-      +'</div>'
+      +'</div>':'')
       +'<div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,.02);border-radius:6px;border:1px solid var(--border);"><div style="font-size:9px;color:var(--muted);font-family:var(--font);text-transform:uppercase;margin-bottom:3px;">Permissões</div><div style="font-size:10px;color:var(--text);line-height:1.5;">'+permStr+'</div></div>'
     +'</div>');
   });
