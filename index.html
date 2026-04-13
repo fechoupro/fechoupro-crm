@@ -822,7 +822,7 @@ window.dbDeletarLead=function(l){if(l&&l._dbId)_rq('leads','DELETE',null,'?id=eq
 window._dbLeadsLoaded=false;
 window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=id.desc').then(function(rows){if(!rows||!rows.length){window._dbLeadsLoaded=true;return;}var ref=window._LEADS_REF||[];ref.length=0;rows.forEach(function(r){ref.push({_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto||'',origem:r.origem||'WhatsApp',etapa:r.etapa||'novo',valor:r.valor||0,vendedor:r.vendedor||'',ig:r.ig||'',entrega:r.entrega||'',disc:r.disc||'',tasks:JSON.parse(r.tasks||'[]'),notas:r.notas||'',hora:r.criado_em||r.created_at||null,created_at:r.criado_em||r.created_at||null,motivo_nao_fechamento:r.motivo_nao_fechamento||'',motivo_obs:r.motivo_obs||'',finalizado_em:r.finalizado_em||null,resultado_final:r.resultado_final||'',atendimento_finalizado:!!r.finalizado_em});});console.log('[DB] Leads carregados:',ref.length);window._dbLeadsLoaded=true;if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();if(typeof window._renderContatos==='function')window._renderContatos();setTimeout(function(){if(typeof _autoClassificarFunil==='function')_autoClassificarFunil();},2000);});};
 window.dbSalvarColab=function(c){var row={cliente_subdominio:_gs(),nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(function(p){return p[0];}).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:!!c.online,perms:JSON.stringify(c.perms||{})};if(c._dbId){_rq('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}else{_rq('colaboradores','POST',row).then(function(res){if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}});}};
-window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=id.asc').then(function(rows){if(!rows||!rows.length)return;var ia=COLABORADORES.find(function(c){return c.id==='ia';});var loaded=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo||'Vendedor',login:r.login||'',cor:r.cor||'#3B82F6',bg:r.bg||'rgba(59,130,246,.2)',ini:r.ini||(r.nome||'').substring(0,2).toUpperCase(),ativo:r.ativo!==false,online:!!r.online,perms:JSON.parse(r.perms||'{}')};});COLABORADORES.length=0;if(ia)COLABORADORES.push(ia);loaded.forEach(function(c){COLABORADORES.push(c);});console.log('[DB] Colaboradores carregados:',loaded.length);if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();if(typeof renderConfigs==='function')try{renderConfigs();}catch(e){}});};
+window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=id.asc').then(function(rows){if(!rows||!rows.length)return;var ia=COLABORADORES.find(function(c){return c.id==='ia';});var loaded=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo||'Vendedor',login:r.login||'',cor:r.cor||'#3B82F6',bg:r.bg||'rgba(59,130,246,.2)',ini:r.ini||(r.nome||'').substring(0,2).toUpperCase(),ativo:r.ativo!==false,online:!!r.online,perms:JSON.parse(r.perms||'{}')};}).filter(function(c){return c.nome!=='Agente IA'&&c.id!=='ia';});COLABORADORES.length=0;if(ia)COLABORADORES.push(ia);loaded.forEach(function(c){COLABORADORES.push(c);});console.log('[DB] Colaboradores carregados:',loaded.length);if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();if(typeof renderConfigs==='function')try{renderConfigs();}catch(e){}});};
 var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();window.carregarAgente();setTimeout(window.carregarPlaybook,500);setTimeout(window.dbCarregarLeads,600);setTimeout(window._carregarContatos,700);
 window.renderDash=function(){
   var leads=window._LEADS_REF||[];
@@ -5707,43 +5707,48 @@ function salvarColab(){
 function renderColabTable(){
   var ct=document.getElementById('colab-table');
   if(!ct)return;
-  ct.innerHTML=COLABORADORES.map(function(col,idx){
+  // Agente IA — card especial fixo no topo
+  var ia=COLABORADORES.find(function(c){return c.id==='ia';});
+  var iaIdx=COLABORADORES.indexOf(ia);
+  var iaLeads=LEADS?LEADS.filter(function(l){return l.vendedor==='Agente IA';}).length:0;
+  var iaHtml=ia?'<div style="background:linear-gradient(135deg,rgba(255,92,0,.08),rgba(255,92,0,.02));border:1px solid rgba(255,92,0,.25);border-radius:var(--r2);padding:14px;margin-bottom:14px;">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+      +'<div style="width:38px;height:38px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;">🤖</div>'
+      +'<div style="flex:1;"><div style="font-size:13px;font-family:var(--font);font-weight:700;">Agente IA</div><div style="font-size:10px;color:var(--muted);">Atendimento automático via WhatsApp</div></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">'
+      +'<div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;"><div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Online</div><button class="toggle '+(ia.online?'on':'off')+'" onclick="toggleOnline('+iaIdx+')"></button></div>'
+      +'<div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;"><div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Na Fila</div><button class="toggle '+(ia.ativo?'on':'off')+'" onclick="toggleAtivo('+iaIdx+')"></button></div>'
+      +'<div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;"><div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Leads</div><div style="font-size:14px;font-family:var(--font);font-weight:800;">'+iaLeads+'</div></div>'
+    +'</div>'
+  +'</div>':'';
+
+  // Colaboradores humanos
+  var humanos=[];
+  COLABORADORES.forEach(function(col,idx){
+    if(col.id==='ia')return;
     var ini=col.ini||(col.nome||'').substring(0,2).toUpperCase()||'--';
     var cor=col.cor||'#FF5C00';
     var bg=col.bg||cor+'33';
     var cpfMask=col.login?(col.login.substring(0,3)+'.***.***-'+col.login.slice(-2)):'—';
     var permList=Object.entries(col.perms||{}).filter(function(e){return e[1];}).map(function(e){return e[0];});
     var permStr=permList.length?permList.join(', '):'Padrão (todos)';
-    var isIA=col.id==='ia';
-    return '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px;margin-bottom:10px;">'
+    var colLeads=LEADS?LEADS.filter(function(l){return l.vendedor===col.nome;}).length:0;
+    humanos.push('<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px;margin-bottom:10px;">'
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
         +'<div style="width:38px;height:38px;border-radius:50%;background:'+bg+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:'+cor+';flex-shrink:0;">'+ini+'</div>'
-        +'<div style="flex:1;min-width:0;">'
-          +'<div style="font-size:13px;font-family:var(--font);font-weight:700;">'+col.nome+'</div>'
-          +'<div style="font-size:10px;color:var(--muted);">'+( col.cargo||'Vendedor')+' · CPF: '+cpfMask+'</div>'
-        +'</div>'
-        +(isIA?'':'<button class="btn btn-ghost" style="font-size:10px;padding:4px 10px;" onclick="editColab('+idx+')">Editar</button>')
+        +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-family:var(--font);font-weight:700;">'+col.nome+'</div><div style="font-size:10px;color:var(--muted);">'+(col.cargo||'Vendedor')+' · CPF: '+cpfMask+'</div></div>'
+        +'<button class="btn btn-ghost" style="font-size:10px;padding:4px 10px;" onclick="editColab('+idx+')">Editar</button>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">'
-        +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;">'
-          +'<div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Online</div>'
-          +'<button class="toggle '+(col.online?'on':'off')+'" onclick="toggleOnline('+idx+')"></button>'
-        +'</div>'
-        +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;">'
-          +'<div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Na Fila</div>'
-          +'<button class="toggle '+(col.ativo?'on':'off')+'" onclick="toggleAtivo('+idx+')"></button>'
-        +'</div>'
-        +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;">'
-          +'<div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Leads</div>'
-          +'<div style="font-size:14px;font-family:var(--font);font-weight:800;">'+(LEADS?LEADS.filter(function(l){return l.vendedor===col.nome;}).length:0)+'</div>'
-        +'</div>'
+        +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;"><div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Online</div><button class="toggle '+(col.online?'on':'off')+'" onclick="toggleOnline('+idx+')"></button></div>'
+        +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;"><div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Na Fila</div><button class="toggle '+(col.ativo?'on':'off')+'" onclick="toggleAtivo('+idx+')"></button></div>'
+        +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;"><div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Leads</div><div style="font-size:14px;font-family:var(--font);font-weight:800;">'+colLeads+'</div></div>'
       +'</div>'
-      +'<div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,.02);border-radius:6px;border:1px solid var(--border);">'
-        +'<div style="font-size:9px;color:var(--muted);font-family:var(--font);text-transform:uppercase;margin-bottom:3px;">Permissões</div>'
-        +'<div style="font-size:10px;color:var(--text);line-height:1.5;">'+permStr+'</div>'
-      +'</div>'
-    +'</div>';
-  }).join('');
+      +'<div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,.02);border-radius:6px;border:1px solid var(--border);"><div style="font-size:9px;color:var(--muted);font-family:var(--font);text-transform:uppercase;margin-bottom:3px;">Permissões</div><div style="font-size:10px;color:var(--text);line-height:1.5;">'+permStr+'</div></div>'
+    +'</div>');
+  });
+  ct.innerHTML=iaHtml+humanos.join('');
 }
 
 function editColab(idx){
