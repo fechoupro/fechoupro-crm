@@ -1,9 +1,10 @@
 // ============================================================
-// webhook-wpp v26 — GPT-5.4-mini + formato ||| + quebrar() + pushName
-// Atualizado em 2026-04-11
+// webhook-wpp v27 — Roleta + Handoff IA/Humano + tudo de v26
+// Atualizado em 2026-04-13
 // OPENAI_API_KEY deve estar configurada como secret no Supabase
-// Novidade v26: salva data.pushName do Evolution em contatos.nome e
-//               corrige leads.nome com placeholder "WhatsApp +xxxx"
+// v27: Roleta de vendedores (round-robin entre online), handoff
+//      automatico quando cliente pede humano, pausa IA quando
+//      vendedor responde manualmente.
 // ============================================================
 // NOTA: OPENAI_API_KEY vem do secret do Supabase (Deno.env.get)
 // EVOKEY e SK estao hardcoded na versao deployada (Edge Function), mas
@@ -152,6 +153,52 @@ async function sbGet(t,f){const r=await fetch(SB+"/rest/v1/"+t+"?"+f,{headers:H}
 async function sbPost(t,b){await fetch(SB+"/rest/v1/"+t,{method:"POST",headers:{...H,"Prefer":"return=minimal"},body:JSON.stringify(b)});}
 async function sbUpsert(t,b){await fetch(SB+"/rest/v1/"+t,{method:"POST",headers:{...H,"Prefer":"resolution=merge-duplicates,return=minimal"},body:JSON.stringify(b)});}
 async function sbDelete(t,f){await fetch(SB+"/rest/v1/"+t+"?"+f,{method:"DELETE",headers:H});}
+async function sbPatch(t,f,b){await fetch(SB+"/rest/v1/"+t+"?"+f,{method:"PATCH",headers:{...H,"Prefer":"return=minimal"},body:JSON.stringify(b)});}
+
+// ---------- ROLETA: atribuir vendedor round-robin ----------
+async function roletaAtribuir(numero:string):Promise<{vendedor_id:number|null,vendedor_nome:string}>{
+  try{
+    // Buscar vendedores online e ativos
+    const vendedores=await sbGet("usuarios","cliente_subdominio=eq."+SUB+"&role=eq.vendedor&ativo=eq.true&online=eq.true&select=id,nome&order=id.asc");
+    if(!vendedores?.length)return{vendedor_id:null,vendedor_nome:"Agente IA"};
+
+    // Buscar ultimo vendedor da roleta
+    const state=await sbGet("roleta_state","cliente_subdominio=eq."+SUB+"&select=ultimo_vendedor_id&limit=1");
+    const ultimoId=state?.[0]?.ultimo_vendedor_id||0;
+
+    // Encontrar proximo na lista (round-robin)
+    let idx=vendedores.findIndex((v:{id:number})=>v.id>ultimoId);
+    if(idx<0)idx=0; // volta ao inicio
+    const escolhido=vendedores[idx];
+
+    // Atualizar estado da roleta
+    await sbUpsert("roleta_state",{cliente_subdominio:SUB,ultimo_vendedor_id:escolhido.id,updated_at:new Date().toISOString()});
+
+    return{vendedor_id:escolhido.id,vendedor_nome:escolhido.nome};
+  }catch(e){console.error("roleta err:"+String(e));return{vendedor_id:null,vendedor_nome:"Agente IA"};}
+}
+
+// ---------- HANDOFF: detectar pedido de humano ----------
+const HANDOFF_PATTERNS=[
+  /\b(quero|preciso|pode|gostaria).{0,20}(falar|conversar|atendente|humano|pessoa|vendedor|alguem)\b/i,
+  /\b(atendente|humano|pessoa real|vendedor)\b/i,
+  /\bfalar com (alguem|uma pessoa|um vendedor|o dono|a dona)\b/i,
+  /\bnao (quero|gosto).{0,10}(robo|bot|ia|inteligencia artificial|maquina)\b/i
+];
+
+function detectarHandoff(texto:string):boolean{
+  return HANDOFF_PATTERNS.some(p=>p.test(texto));
+}
+
+// Pausar IA para este numero e atribuir vendedor
+async function handoffParaHumano(numero:string,vendedorId:number|null,vendedorNome:string){
+  // Desativar IA para este contato
+  await sbUpsert("ia_status",{cliente_subdominio:SUB,numero,ia_ativa:false,motivo:"handoff_cliente",vendedor_id:vendedorId,updated_at:new Date().toISOString()});
+  // Atualizar lead com vendedor
+  if(vendedorId){
+    await sbPatch("leads","cliente_subdominio=eq."+SUB+"&telefone=eq."+numero,{vendedor:vendedorNome,vendedor_id:vendedorId});
+  }
+}
 
 async function baixarMidia(inst,data){
   try{const r=await fetch(EVO+"/chat/getBase64FromMediaMessage/"+inst,{method:"POST",headers:{"Content-Type":"application/json","apikey":EVOKEY},body:JSON.stringify({message:data,convertToMp4:false})});const d=await r.json();return d?.base64||null;}catch(_){return null;}
@@ -234,7 +281,21 @@ Deno.serve(async(req)=>{
     }
 
     let iaOn=true;
-    try{const s=await sbGet("ia_status","cliente_subdominio=eq."+SUB+"&numero=eq."+num+"&select=ia_ativa&limit=1");if(s?.[0])iaOn=s[0].ia_ativa;}catch(_){}
+    let iaVendedorId:number|null=null;
+    try{const s=await sbGet("ia_status","cliente_subdominio=eq."+SUB+"&numero=eq."+num+"&select=ia_ativa,vendedor_id&limit=1");if(s?.[0]){iaOn=s[0].ia_ativa;iaVendedorId=s[0].vendedor_id||null;}}catch(_){}
+
+    // v27: Detectar pedido de handoff para humano
+    if(iaOn&&txt.trim()&&detectarHandoff(txt)){
+      const roleta=await roletaAtribuir(num);
+      await handoffParaHumano(num,roleta.vendedor_id,roleta.vendedor_nome);
+      await sbPost("conversas_wpp",{cliente_subdominio:SUB,numero:num,role:"user",content:txt});
+      const handoffMsg=roleta.vendedor_id
+        ?["Vou transferir voce para "+roleta.vendedor_nome+"!","Ele(a) ja vai te atender."]
+        :["Vou chamar alguem pra te atender!","Aguarde um momento."];
+      await enviar(inst,jid,handoffMsg);
+      await sbPost("conversas_wpp",{cliente_subdominio:SUB,numero:num,role:"assistant",content:handoffMsg.join(" ")});
+      return new Response(JSON.stringify({ok:true,handoff:true}),{status:200});
+    }
 
     if((isImg||isDoc)&&iaOn){
       const b64=await baixarMidia(inst,data);
@@ -318,7 +379,7 @@ Deno.serve(async(req)=>{
     ],400)||"Como posso ajudar?";
 
     const blocos=quebrar(bruto);
-    console.log("v26 eNovo:"+eNovoAtendimento+" push:"+(pushNameRaw||"-")+" bruto:"+bruto.length+"ch blocos:"+blocos.length+" maxW:"+Math.max(...blocos.map(b=>b.split(" ").length)));
+    console.log("v27 eNovo:"+eNovoAtendimento+" push:"+(pushNameRaw||"-")+" bruto:"+bruto.length+"ch blocos:"+blocos.length+" maxW:"+Math.max(...blocos.map(b=>b.split(" ").length)));
 
     await enviar(inst,jid,blocos);
     await sbPost("conversas_wpp",[{cliente_subdominio:SUB,numero:num,role:"user",content:txFull},{cliente_subdominio:SUB,numero:num,role:"assistant",content:blocos.join(" ")}]);
@@ -326,6 +387,34 @@ Deno.serve(async(req)=>{
     // Fallback regex para capturar nome se ainda nao temos
     if(!ctx.nome){const m=txFull.match(/(?:me chamo|meu nome|sou o|sou a)\s+([A-Za-zÀ-ú]{3,}(?:\s+[A-Za-zÀ-ú]{3,})?)/i);if(m)try{await sbUpsert("contatos",{cliente_subdominio:SUB,numero:num,nome:m[1],updated_at:new Date().toISOString()});}catch(_){}}
 
+    // v27: Auto-criar lead + roleta para contatos novos
+    if(eNovoAtendimento){
+      try{
+        const leadExiste=await sbGet("leads","cliente_subdominio=eq."+SUB+"&telefone=eq."+num+"&select=id,vendedor_id&limit=1");
+        if(!leadExiste?.length){
+          // Novo lead — atribuir via roleta
+          const roleta=await roletaAtribuir(num);
+          const nomeContato=ctx.nome||pushNameRaw||("WhatsApp +"+num);
+          await sbPost("leads",{
+            cliente_subdominio:SUB,
+            nome:nomeContato,
+            telefone:num,
+            origem:"WhatsApp",
+            etapa:"novo",
+            vendedor:roleta.vendedor_nome,
+            vendedor_id:roleta.vendedor_id,
+            valor:0
+          });
+          console.log("v27 lead criado: "+nomeContato+" -> "+roleta.vendedor_nome);
+        } else if(!leadExiste[0].vendedor_id){
+          // Lead existe mas sem vendedor — atribuir via roleta
+          const roleta=await roletaAtribuir(num);
+          await sbPatch("leads","id=eq."+leadExiste[0].id,{vendedor:roleta.vendedor_nome,vendedor_id:roleta.vendedor_id});
+          console.log("v27 lead reatribuido: "+num+" -> "+roleta.vendedor_nome);
+        }
+      }catch(e){console.error("v27 lead/roleta err:"+String(e));}
+    }
+
     return new Response(JSON.stringify({ok:true}),{status:200});
-  }catch(err){console.error("ERRO v23:"+String(err));return new Response("OK",{status:200});}
+  }catch(err){console.error("ERRO v27:"+String(err));return new Response("OK",{status:200});}
 });

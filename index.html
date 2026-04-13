@@ -719,6 +719,44 @@ body.font-serif{--font:'Georgia',serif;}
 .vend-bar{height:100%;border-radius:3px;transition:width .6s;}
 .vend-pct{font-size:10px;font-family:var(--font);font-weight:800;width:28px;text-align:right;flex-shrink:0;}
 
+/* ── LOGIN SCREEN ── */
+.login-wrap{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.login-box{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:36px 28px;width:380px;max-width:92vw;text-align:center;}
+.login-logo{display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:24px;}
+.login-box h2{font-family:var(--font);font-size:18px;font-weight:700;margin:0 0 6px;color:var(--text);}
+.login-box p{font-size:12px;color:var(--muted);margin:0 0 20px;line-height:1.5;}
+.login-field{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:var(--r);padding:12px 14px;font-size:14px;color:var(--text);box-sizing:border-box;outline:none;font-family:var(--font);margin-bottom:12px;}
+.login-field:focus{border-color:var(--accent);}
+.login-btn{width:100%;padding:14px;border-radius:var(--r);background:var(--accent);color:#fff;border:none;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;transition:opacity .2s;}
+.login-btn:hover{opacity:.9;}
+.login-err{color:#ff4444;font-size:12px;margin-top:10px;display:none;}
+
+/* ── MOBILE NAV ── */
+.mobile-bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:200;padding:6px 0 env(safe-area-inset-bottom,8px);justify-content:space-around;}
+.mobile-bottom-nav button{background:none;border:none;color:var(--muted);font-size:9px;font-family:var(--font);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 8px;min-width:56px;transition:color .2s;}
+.mobile-bottom-nav button .mb-ico{font-size:20px;}
+.mobile-bottom-nav button.active{color:var(--accent);}
+.mobile-header{display:none;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 14px;align-items:center;justify-content:space-between;z-index:100;position:sticky;top:0;}
+.mobile-header .mh-user{display:flex;align-items:center;gap:8px;}
+.mobile-header .mh-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;}
+.mobile-header .mh-name{font-size:13px;font-weight:600;color:var(--text);}
+.mobile-header .mh-role{font-size:10px;color:var(--muted);}
+.online-toggle{padding:5px 12px;border-radius:20px;border:1px solid var(--border);font-size:11px;font-family:var(--font);cursor:pointer;font-weight:600;transition:all .2s;}
+.online-toggle.on{background:rgba(0,229,160,.12);border-color:var(--accent2);color:var(--accent2);}
+.online-toggle.off{background:rgba(255,255,255,.04);color:var(--muted);}
+
+/* ── MOBILE RESPONSIVE ── */
+@media(max-width:768px){
+  body.mobile-mode .topbar{display:none !important;}
+  body.mobile-mode .mobile-bottom-nav{display:flex !important;}
+  body.mobile-mode .mobile-header{display:flex !important;}
+  body.mobile-mode .main{padding-bottom:70px;}
+  body.mobile-mode .conv-layout{flex-direction:column;}
+  body.mobile-mode .conv-sidebar{width:100%;max-height:40vh;border-right:none;border-bottom:1px solid var(--border);}
+  body.mobile-mode .conv-main{flex:1;min-height:50vh;}
+  body.mobile-mode .modal-cfg{width:100vw;max-width:100vw;height:100vh;border-radius:0;}
+}
+
 </style>
 <!-- SUPABASE -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -819,7 +857,28 @@ setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash
 <body>
 
 <!-- SETUP -->
-<div id="setup-screen">
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg width="40" height="34" viewBox="0 0 28 24" fill="none">
+        <polygon points="0,24 10,0 20,24" fill="#E8000A" opacity="0.9"/>
+        <polygon points="8,24 18,0 28,24" fill="#FF4500" opacity="0.85"/>
+        <polyline points="5,14 12,20 23,7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <div style="line-height:1;"><span style="font-family:'Syne',sans-serif;font-weight:900;font-size:20px;color:#E8000A;">Fechou</span><span style="font-family:'Syne',sans-serif;font-weight:900;font-size:20px;color:#fff;">Pro</span></div>
+    </div>
+    <h2>Acesse sua conta</h2>
+    <p>Entre com seu CPF ou CNPJ e sua senha para acessar o CRM.</p>
+    <input class="login-field" type="text" id="login-cpf" placeholder="CPF ou CNPJ" maxlength="18" oninput="mascaraCpfCnpj(this)" autocomplete="username" />
+    <input class="login-field" type="password" id="login-senha" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()" />
+    <button class="login-btn" onclick="fazerLogin()" id="login-btn">Entrar</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- SETUP SCREEN (API key - hidden by default, shown after login for admin if needed) -->
+<div id="setup-screen" style="display:none;">
   <div class="setup-box">
     <div class="setup-logo"><svg width="48" height="40" viewBox="0 0 28 24" fill="none">
     <polygon points="0,24 10,0 20,24" fill="#E8000A" opacity="0.9"/>
@@ -828,14 +887,14 @@ setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash
   </svg>
   <div class="setup-logo-text"><span style="color:#E8000A;">Fechou</span>Pro</div></div>
     <div class="s-title">Configure sua chave de API</div>
-    <div class="s-sub">Para ativar análises de IA, simulador de treinamento e scripts de fechamento, insira sua chave Anthropic abaixo.</div>
+    <div class="s-sub">Para ativar analises de IA, simulador de treinamento e scripts de fechamento, insira sua chave Anthropic abaixo.</div>
     <label class="s-lbl">Chave da API Anthropic</label>
     <input class="s-inp" type="password" id="api-key-input" placeholder="sk-ant-api03-..." />
-    <div class="s-hint">Não tem uma chave? Acesse <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>. Custo por análise: ~R$0,02.</div>
-    <div class="s-err" id="setup-error">Chave inválida. Verifique e tente novamente.</div>
+    <div class="s-hint">Nao tem uma chave? Acesse <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>. Custo por analise: ~R$0,02.</div>
+    <div class="s-err" id="setup-error">Chave invalida. Verifique e tente novamente.</div>
     <button class="s-btn" onclick="saveKey()">Entrar no CRM →</button>
     <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.07);padding-top:14px;text-align:center;">
-      <button onclick="skipSetup()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#F2F0E8;font-size:12px;cursor:pointer;font-family:var(--font);font-weight:600;padding:10px 24px;border-radius:9px;width:100%;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='rgba(255,255,255,.06)'">Entrar sem IA — modo demonstração</button>
+      <button onclick="skipSetup()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#F2F0E8;font-size:12px;cursor:pointer;font-family:var(--font);font-weight:600;padding:10px 24px;border-radius:9px;width:100%;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='rgba(255,255,255,.06)'">Entrar sem IA — modo demonstracao</button>
     </div>
   </div>
 </div>
@@ -871,7 +930,32 @@ setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash
     <button class="btn btn-cfg" onclick="openCfg()">⚙ Configurações</button>
     <button class="btn btn-ghost" style="font-size:10px;" onclick="logout()">Trocar chave</button>
     <button class="btn btn-primary" onclick="document.getElementById('modal').classList.add('open')">+ Novo Lead</button>
+    <button class="btn btn-ghost" style="font-size:10px;" id="btn-logout-top" onclick="fazerLogout()">Sair</button>
   </div>
+</div>
+
+<!-- MOBILE HEADER (vendedores) -->
+<div class="mobile-header" id="mobile-header">
+  <div class="mh-user">
+    <div class="mh-av" id="mh-av" style="background:var(--accent);">--</div>
+    <div>
+      <div class="mh-name" id="mh-name">Vendedor</div>
+      <div class="mh-role" id="mh-role">vendedor</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <button class="online-toggle off" id="online-toggle" onclick="toggleOnlineStatus()">Offline</button>
+    <button class="btn btn-ghost" style="font-size:10px;padding:5px 10px;" onclick="fazerLogout()">Sair</button>
+  </div>
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<div class="mobile-bottom-nav" id="mobile-nav">
+  <button onclick="goView('dashboard',this)" class="mb-btn active"><span class="mb-ico">📊</span>Painel</button>
+  <button onclick="goView('conversas',this)" class="mb-btn"><span class="mb-ico">💬</span>Conversas</button>
+  <button onclick="goView('kanban',this)" class="mb-btn"><span class="mb-ico">🎯</span>Funil</button>
+  <button onclick="goView('dossie',this)" class="mb-btn"><span class="mb-ico">📋</span>Dossie</button>
+  <button onclick="goView('treinamento',this)" class="mb-btn"><span class="mb-ico">🎓</span>Treino</button>
 </div>
 
 <div class="main">
@@ -1972,6 +2056,7 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
           <div class="cfg-nav-item" onclick="goConfig('playbook',this)">📖 Playbook</div>
           <div class="cfg-nav-item" onclick="goConfig('roleta-cfg',this)">🎯 Fila / Roleta</div>
           <div class="cfg-nav-item" onclick="goConfig('posv-imediata-cfg',this)">⚡ Pós-Venda Imediata</div>
+          <div class="cfg-nav-item" id="cfg-nav-equipe" onclick="goConfig('equipe',this)">👥 Equipe</div>
         </div>
       </div>
       <div style="flex:1;">
@@ -2142,6 +2227,36 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
           </div>
         </div>
 
+        <!-- EQUIPE (admin only) -->
+        <div class="cfg-panel" id="cfg-equipe">
+          <div class="cfg-section">
+            <div class="cfg-section-title">👥 Gestão de Equipe</div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:14px;">Gerencie os usuários do sistema — adicione, bloqueie ou desbloqueie membros da equipe.</div>
+            <div id="equipe-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+            <button class="btn btn-primary" style="margin-top:14px;font-size:11px;" onclick="abrirModalNovoUsuario()">+ Adicionar usuário</button>
+          </div>
+        </div>
+
+        <!-- MODAL NOVO USUARIO -->
+        <div id="modal-novo-usuario" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;">
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;max-width:400px;width:90%;">
+            <div style="font-weight:700;font-size:14px;margin-bottom:14px;">Novo Usuário</div>
+            <div class="fg"><label class="fl">Nome completo</label><input class="fi" id="novo-usr-nome" placeholder="Ex: João Silva" /></div>
+            <div class="fg"><label class="fl">CPF ou CNPJ</label><input class="fi" id="novo-usr-cpf" placeholder="000.000.000-00" /></div>
+            <div class="fg"><label class="fl">Senha</label><input class="fi" type="password" id="novo-usr-senha" placeholder="Mínimo 4 caracteres" /></div>
+            <div class="fg"><label class="fl">Perfil</label>
+              <select class="fi" id="novo-usr-role">
+                <option value="vendedor">Vendedor</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:14px;">
+              <button class="btn btn-primary" style="flex:1;font-size:11px;" onclick="adicionarUsuario()">✓ Criar usuário</button>
+              <button class="btn" style="flex:1;font-size:11px;background:var(--border);color:var(--text);" onclick="fecharModalNovoUsuario()">Cancelar</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -2225,6 +2340,155 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
 </div>
 <div class="toast" id="toast"></div>
 <script>
+// ═══════════════════ AUTH ═══════════════════
+window.USUARIO_ATUAL=null;
+window._AUTH_URL=_SB+'/functions/v1/auth-login';
+
+function mascaraCpfCnpj(el){
+  var v=el.value.replace(/\D/g,'');
+  if(v.length<=11){v=v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');}
+  else{v=v.replace(/^(\d{2})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1/$2').replace(/(\d{4})(\d{1,2})$/,'$1-$2');}
+  el.value=v;
+}
+
+async function fazerLogin(){
+  var cpf=document.getElementById('login-cpf').value;
+  var senha=document.getElementById('login-senha').value;
+  var errEl=document.getElementById('login-err');
+  var btnEl=document.getElementById('login-btn');
+  errEl.style.display='none';
+  if(!cpf||!senha){errEl.textContent='Preencha CPF/CNPJ e senha.';errEl.style.display='block';return;}
+  btnEl.textContent='Entrando...';btnEl.disabled=true;
+  try{
+    var sub=window._gs?window._gs():'master';
+    var r=await fetch(_SB+'/functions/v1/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',cpf_cnpj:cpf.replace(/\D/g,''),senha:senha,cliente_subdominio:sub})});
+    var d=await r.json();
+    if(!d.ok){errEl.textContent=d.error||'Erro ao fazer login.';errEl.style.display='block';btnEl.textContent='Entrar';btnEl.disabled=false;return;}
+    localStorage.setItem('fp_token',d.token);
+    window.USUARIO_ATUAL=d.usuario;
+    iniciarSessao(d.usuario);
+  }catch(e){errEl.textContent='Erro de conexao. Tente novamente.';errEl.style.display='block';}
+  btnEl.textContent='Entrar';btnEl.disabled=false;
+}
+
+async function verificarSessao(){
+  var token=localStorage.getItem('fp_token');
+  if(!token){document.getElementById('login-screen').style.display='flex';return false;}
+  try{
+    var r=await fetch(_SB+'/functions/v1/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verificar',token:token})});
+    var d=await r.json();
+    if(!d.ok){localStorage.removeItem('fp_token');document.getElementById('login-screen').style.display='flex';return false;}
+    window.USUARIO_ATUAL=d.usuario;
+    iniciarSessao(d.usuario);
+    return true;
+  }catch(e){document.getElementById('login-screen').style.display='flex';return false;}
+}
+
+function iniciarSessao(u){
+  document.getElementById('login-screen').style.display='none';
+  // Load saved API key if exists
+  var hasKey=localStorage.getItem('fp_api_key')||localStorage.getItem('mf_api_key');
+  if(hasKey&&hasKey!=='demo'){API_KEY=hasKey;AI_MODE=true;}
+  if(u.role==='admin'&&!hasKey){
+    document.getElementById('setup-screen').style.display='flex';
+  }else{
+    document.getElementById('setup-screen').style.display='none';
+    document.getElementById('app').style.display='';
+    if(!window._appLaunched){window._appLaunched=true;launchApp();}
+  }
+  aplicarPermissoes(u);
+}
+
+function aplicarPermissoes(u){
+  var isMobile=window.innerWidth<=768;
+  var isVendedor=u.role==='vendedor';
+
+  // Mobile header
+  var mhAv=document.getElementById('mh-av');
+  var mhName=document.getElementById('mh-name');
+  var mhRole=document.getElementById('mh-role');
+  if(mhAv)mhAv.textContent=u.avatar_iniciais||'--';
+  if(mhAv)mhAv.style.background=u.cor||'var(--accent)';
+  if(mhName)mhName.textContent=u.nome;
+  if(mhRole)mhRole.textContent=u.role==='admin'?'Administrador':'Vendedor';
+
+  // Online toggle
+  var onBtn=document.getElementById('online-toggle');
+  if(onBtn){
+    onBtn.className='online-toggle '+(u.online?'on':'off');
+    onBtn.textContent=u.online?'Online':'Offline';
+  }
+
+  if(isVendedor&&isMobile){
+    document.body.classList.add('mobile-mode');
+    // Hide admin tabs
+    var adminTabs=['posv','posv30','canais','relatorios','conselho','integracoes','master'];
+    adminTabs.forEach(function(t){var v=document.getElementById('view-'+t);if(v)v.style.display='none';});
+    // Hide config button
+    var cfgBtn=document.querySelector('.btn-cfg');if(cfgBtn)cfgBtn.style.display='none';
+    var newLeadBtn=document.querySelector('.btn-primary');if(newLeadBtn)newLeadBtn.style.display='none';
+    // Set default view to conversas
+    setTimeout(function(){goView('conversas');},300);
+  } else if(isVendedor){
+    // Desktop vendedor - still hide admin tabs
+    var adminTabs=['posv','posv30','canais','relatorios','conselho','integracoes','master'];
+    document.querySelectorAll('.nav-tab').forEach(function(tab){
+      var view=tab.getAttribute('onclick')||'';
+      adminTabs.forEach(function(t){if(view.includes("'"+t+"'"))tab.style.display='none';});
+    });
+    var cfgBtn=document.querySelector('.btn-cfg');if(cfgBtn)cfgBtn.style.display='none';
+  }
+  // Hide equipe config tab for vendedores
+  var equipeNav=document.getElementById('cfg-nav-equipe');
+  if(equipeNav)equipeNav.style.display=isVendedor?'none':'';
+
+  // Update "Trocar chave" -> "Sair"
+  var trocaBtn=document.querySelector('[onclick="logout()"]');
+  if(trocaBtn)trocaBtn.style.display='none';
+}
+
+async function fazerLogout(){
+  var token=localStorage.getItem('fp_token');
+  if(token){
+    try{await fetch(_SB+'/functions/v1/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout',token:token})});}catch(e){}
+  }
+  localStorage.removeItem('fp_token');
+  window.USUARIO_ATUAL=null;
+  document.body.classList.remove('mobile-mode');
+  document.getElementById('app').style.display='none';
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-cpf').value='';
+  document.getElementById('login-senha').value='';
+}
+
+async function toggleOnlineStatus(){
+  var token=localStorage.getItem('fp_token');
+  if(!token)return;
+  try{
+    var r=await fetch(_SB+'/functions/v1/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'toggle_online',token:token})});
+    var d=await r.json();
+    if(d.ok){
+      var btn=document.getElementById('online-toggle');
+      btn.className='online-toggle '+(d.online?'on':'off');
+      btn.textContent=d.online?'Online':'Offline';
+      if(window.USUARIO_ATUAL)window.USUARIO_ATUAL.online=d.online;
+      toast(d.online?'Voce esta online! Recebendo leads.':'Voce esta offline. Nao recebera leads.');
+    }
+  }catch(e){}
+}
+
+// Mobile bottom nav active state
+var _origGoView=null;
+document.addEventListener('DOMContentLoaded',function(){
+  // Override goView to also update mobile nav
+  if(typeof window.goView==='function'){
+    _origGoView=window.goView;
+  }
+  // Auto-check session
+  verificarSessao();
+});
+
 // ═══════════════════ DADOS ═══════════════════
 let API_KEY='',AI_MODE=false,currentLead=null,trainSession=null,currentConv=null,roletaIdx=0;
 
@@ -2271,14 +2535,18 @@ const PERFIS_TREINO=[
 function saveKey(){
   const k=document.getElementById('api-key-input').value.trim();
   if(!k.startsWith('sk-ant-')){document.getElementById('setup-error').style.display='block';return;}
-  API_KEY=k;AI_MODE=true;localStorage.setItem('mf_api_key',k);
-  launchApp();
+  API_KEY=k;AI_MODE=true;localStorage.setItem('mf_api_key',k);localStorage.setItem('fp_api_key',k);
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('app').style.display='';
+  if(!window._appLaunched){window._appLaunched=true;launchApp();}
 }
 function skipSetup(){
-  AI_MODE=false;
-  launchApp();
+  AI_MODE=false;localStorage.setItem('fp_api_key','demo');
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('app').style.display='';
+  if(!window._appLaunched){window._appLaunched=true;launchApp();}
 }
-function logout(){localStorage.removeItem('mf_api_key');location.reload();}
+function logout(){fazerLogout();}
 async function callClaude(sys,user,max=900){
   if(!AI_MODE)return '[Modo demonstração — adicione sua chave API para respostas reais da IA]';
   try{const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:max,system:sys,messages:[{role:'user',content:user}]})});const d=await r.json();if(d.error)throw new Error(d.error.message);return d.content[0].text;}
@@ -2290,7 +2558,6 @@ function safeRun(name, fn){
 }
 
 function launchApp(){
-  document.getElementById('setup-screen').style.display='none';
   document.getElementById('app').style.display='block';
   var savedView=null;try{savedView=sessionStorage.getItem('fp_view');}catch(e){}
   safeRun('initDashboard', initDashboard);
@@ -2324,6 +2591,8 @@ function goView(id,btn){
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('view-'+id).classList.add('active','fade');
   if(btn){btn.classList.add('active');}else{document.querySelectorAll('.nav-tab').forEach(function(t){var oc=t.getAttribute('onclick')||'';if(oc.indexOf("'"+id+"'")>=0)t.classList.add('active');});}
+  // Mobile nav active state
+  document.querySelectorAll('.mb-btn').forEach(function(b){b.classList.remove('active');var oc=b.getAttribute('onclick')||'';if(oc.indexOf("'"+id+"'")>=0)b.classList.add('active');});
 }
 function goRelTab(id,btn){
   document.querySelectorAll('.rel-view').forEach(v=>v.classList.remove('active'));
@@ -2336,8 +2605,118 @@ function goConfig(id,el){
   document.querySelectorAll('.cfg-nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('cfg-'+id).classList.add('active');
   el.classList.add('active');
+  if(id==='equipe')renderEquipe();
 }
 function openCfg(){document.getElementById('modal-cfg').classList.add('open');}
+
+// ═══════════════════ EQUIPE (Admin User Management) ═══════════════════
+function renderEquipe(){
+  var container=document.getElementById('equipe-list');
+  if(!container)return;
+  container.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">Carregando equipe...</div>';
+  var token=localStorage.getItem('fp_token');
+  fetch(_SB+'/functions/v1/auth-login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'listar_usuarios',token:token})
+  }).then(function(r){return r.json();}).then(function(data){
+    if(data.error){container.innerHTML='<div style="color:#f66;font-size:12px;">Erro: '+data.error+'</div>';return;}
+    var usuarios=data.usuarios||data||[];
+    if(!Array.isArray(usuarios)){container.innerHTML='<div style="color:var(--muted);font-size:12px;">Nenhum usuário encontrado.</div>';return;}
+    container.innerHTML=usuarios.map(function(u){
+      var iniciais=u.avatar_iniciais||(u.nome||'??').split(' ').map(function(p){return p[0];}).join('').substring(0,2).toUpperCase();
+      var cor=u.cor||'#FF5C00';
+      var cpfRaw=u.cpf_cnpj||u.cpf||'';
+      var cpfMasked=cpfRaw?(cpfRaw.substring(0,3)+'.***.***-'+cpfRaw.slice(-2)):'---';
+      var roleLabel=u.role==='admin'?'Admin':'Vendedor';
+      var onlineLabel=u.online?'<span style="color:#00E5A0;font-size:10px;">● Online</span>':'<span style="color:var(--muted);font-size:10px;">○ Offline</span>';
+      var ativo=u.ativo!==false;
+      var ativoLabel=ativo?'<span style="color:#00E5A0;font-size:10px;">Ativo</span>':'<span style="color:#f66;font-size:10px;">Bloqueado</span>';
+      var toggleBtnLabel=ativo?'Bloquear':'Desbloquear';
+      var toggleBtnColor=ativo?'#f66':'#00E5A0';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--r);background:rgba(255,255,255,.02);">'
+        +'<div style="width:36px;height:36px;border-radius:50%;background:'+cor+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0;">'+iniciais+'</div>'
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="font-weight:600;font-size:12px;">'+u.nome+'</div>'
+          +'<div style="font-size:10px;color:var(--muted);">CPF: '+cpfMasked+' · '+roleLabel+' · '+onlineLabel+' · '+ativoLabel+'</div>'
+        +'</div>'
+        +'<button onclick="toggleUsuarioAtivo(\''+u.id+'\')" style="font-size:10px;padding:4px 10px;border-radius:var(--r);border:1px solid '+toggleBtnColor+';background:transparent;color:'+toggleBtnColor+';cursor:pointer;font-family:var(--font);font-weight:600;">'+toggleBtnLabel+'</button>'
+      +'</div>';
+    }).join('');
+  }).catch(function(err){
+    container.innerHTML='<div style="color:#f66;font-size:12px;">Erro ao carregar equipe: '+err.message+'</div>';
+  });
+}
+
+function abrirModalNovoUsuario(){
+  var m=document.getElementById('modal-novo-usuario');
+  if(m){m.style.display='flex';}
+}
+function fecharModalNovoUsuario(){
+  var m=document.getElementById('modal-novo-usuario');
+  if(m){m.style.display='none';}
+  var f1=document.getElementById('novo-usr-nome');if(f1)f1.value='';
+  var f2=document.getElementById('novo-usr-cpf');if(f2)f2.value='';
+  var f3=document.getElementById('novo-usr-senha');if(f3)f3.value='';
+  var f4=document.getElementById('novo-usr-role');if(f4)f4.value='vendedor';
+}
+
+function adicionarUsuario(){
+  var nome=document.getElementById('novo-usr-nome').value.trim();
+  var cpf=document.getElementById('novo-usr-cpf').value.trim();
+  var senha=document.getElementById('novo-usr-senha').value;
+  var role=document.getElementById('novo-usr-role').value;
+  if(!nome||!cpf||!senha){toast('Preencha todos os campos obrigatórios');return;}
+  if(senha.length<4){toast('A senha deve ter no mínimo 4 caracteres');return;}
+  var token=localStorage.getItem('fp_token');
+  fetch(_SB+'/functions/v1/auth-login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'registrar',token:token,novo_usuario:{nome:nome,cpf_cnpj:cpf.replace(/\D/g,''),senha:senha,role:role}})
+  }).then(function(r){return r.json();}).then(function(data){
+    if(data.error){toast('Erro: '+data.error);return;}
+    toast('✅ Usuário criado com sucesso!');
+    fecharModalNovoUsuario();
+    renderEquipe();
+  }).catch(function(err){
+    toast('Erro ao criar usuário: '+err.message);
+  });
+}
+
+function reatribuirVendedor(nomeVendedor){
+  if(!currentLead)return;
+  var sel=document.getElementById('lead-assign-vendedor');
+  var uid=null;
+  if(sel){var opt=sel.options[sel.selectedIndex];uid=opt?opt.getAttribute('data-uid'):null;}
+  currentLead.vendedor=nomeVendedor;
+  if(uid)currentLead.vendedor_id=parseInt(uid);
+  // Salvar no banco
+  if(currentLead._dbId||currentLead.id){
+    var leadId=currentLead._dbId||currentLead.id;
+    var payload={vendedor:nomeVendedor};
+    if(uid)payload.vendedor_id=parseInt(uid);
+    fetch(_SB+'/rest/v1/leads?id=eq.'+leadId,{
+      method:'PATCH',
+      headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify(payload)
+    }).then(function(){toast('✅ Lead atribuído para '+nomeVendedor);}).catch(function(){toast('Erro ao atribuir vendedor');});
+  }
+}
+
+function toggleUsuarioAtivo(userId){
+  var token=localStorage.getItem('fp_token');
+  fetch(_SB+'/functions/v1/auth-login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'toggle_ativo',token:token,usuario_id:userId})
+  }).then(function(r){return r.json();}).then(function(data){
+    if(data.error){toast('Erro: '+data.error);return;}
+    toast(data.message||'Status atualizado!');
+    renderEquipe();
+  }).catch(function(err){
+    toast('Erro ao alterar status: '+err.message);
+  });
+}
 
 // ═══════════════════ DASHBOARD ═══════════════════
 function initDashboard(){
@@ -2480,10 +2859,17 @@ function srcClass(o){if(o.includes('Meta')||o.includes('Google')||o.includes('In
 function discClass(d){return{D:'dd',I:'di',S:'ds',C:'dc'}[d]||'dc';}
 function ini(nome){return nome.split(' ').map(w=>w[0]).slice(0,2).join('');}
 
+function _filtrarLeadsVendedor(arr){
+  if(!window.USUARIO_ATUAL||window.USUARIO_ATUAL.role==='admin')return arr;
+  var nome=window.USUARIO_ATUAL.nome;
+  var uid=window.USUARIO_ATUAL.id;
+  return arr.filter(function(l){return l.vendedor===nome||l.vendedor_id===uid||l.vendedor==='Agente IA';});
+}
 function renderConvs(filter=''){
   const list=document.getElementById('conv-list');
   if(!list)return;
-  const filtered=LEADS.filter(l=>!filter||l.nome.toLowerCase().includes(filter.toLowerCase())||l.canal&&l.canal.toLowerCase().includes(filter.toLowerCase()));
+  const base=_filtrarLeadsVendedor(LEADS);
+  const filtered=base.filter(l=>!filter||l.nome.toLowerCase().includes(filter.toLowerCase())||l.canal&&l.canal.toLowerCase().includes(filter.toLowerCase()));
   list.innerHTML=``+filtered.map(l=>{
     const msgs=l.msgs||[];
     const last=msgs[msgs.length-1];
@@ -2575,11 +2961,19 @@ function toggleIA(){
   var numero=window.currentConv&&window.currentConv.tel?window.currentConv.tel.replace(/[^0-9]/g,''):'';
   if(!numero)return;
   var sub=window._gs?window._gs():'mileniofitness-altamira';
+  var payload={cliente_subdominio:sub,numero:numero,ia_ativa:ativo,updated_at:new Date().toISOString()};
+  // v27: Quando reativa IA, limpar handoff
+  if(ativo){payload.motivo=null;payload.vendedor_id=null;}
+  else{
+    payload.motivo='manual';
+    if(window.USUARIO_ATUAL)payload.vendedor_id=window.USUARIO_ATUAL.id;
+  }
   fetch(_SB+'/rest/v1/ia_status',{
     method:'POST',
     headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
-    body:JSON.stringify({cliente_subdominio:sub,numero:numero,ia_ativa:ativo,updated_at:new Date().toISOString()})
+    body:JSON.stringify(payload)
   }).then(function(r){console.log('ia_status salvo:',r.status,'ativo:',ativo);});
+  toast(ativo?'🤖 IA reativada para este contato':'👤 IA pausada — voce esta atendendo');
 }
 
 async function iaResumeContext(leadId){
@@ -2670,7 +3064,8 @@ function _leadVisivelNoFunil(l){
 }
 function renderKanban(){
   const filtro=document.getElementById('filtro-vendedor').value;
-  const filtered=(filtro?LEADS.filter(l=>l.vendedor===filtro):LEADS).filter(_leadVisivelNoFunil);
+  const base=_filtrarLeadsVendedor(LEADS);
+  const filtered=(filtro?base.filter(l=>l.vendedor===filtro):base).filter(_leadVisivelNoFunil);
   document.getElementById('kanban-board').innerHTML=ETAPAS.map(e=>{
     const cards=filtered.filter(l=>l.etapa===e.key);
     return`<div><div class="col-hdr"><div class="col-title" style="color:${e.cor};">${e.label}</div><div class="col-badge">${cards.length}</div></div>
@@ -4303,6 +4698,23 @@ function openLead(lead){
   const entrega=lead.entrega||'-';
   if(!lead.msgs)lead.msgs=[];
   document.getElementById('dossie-profile').innerHTML=`<div class="p-avatar">${i}</div><div class="p-name">${lead.nome}</div><div class="p-sub">Lead via ${origem} · ${vendedor}</div><div class="p-tags">${produto?produto.split('+').map(p=>`<span class="p-tag">${p.trim()}</span>`).join(''):'<span class="p-tag">Sem produto</span>'}<span class="p-tag" style="color:${etapa.cor};">${etapa.label}</span></div><div class="p-rows"><div class="p-row"><span class="p-key">WhatsApp</span><span class="p-val">${lead.tel||'-'}</span></div><div class="p-row"><span class="p-key">Status</span><span class="p-val" style="color:${etapa.cor};">${etapa.label}</span></div><div class="p-row"><span class="p-key">Valor est.</span><span class="p-val" style="color:var(--accent2);">R$${valor.toFixed(2).replace('.',',')}</span></div><div class="p-row"><span class="p-key">Entrega</span><span class="p-val">${entrega}</span></div></div>${lead.ig?`<div style="display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:var(--r);background:rgba(225,48,108,.08);border:1px solid rgba(225,48,108,.18);margin-top:11px;cursor:pointer;" onclick="window.open('https://instagram.com/${lead.ig.replace('@','')}','_blank')"><span style="font-size:16px;">📷</span><div><div style="font-size:12px;font-family:var(--font);font-weight:700;color:#E1306C;">${lead.ig}</div><div style="font-size:10px;color:var(--dim);">Ver perfil →</div></div></div>`:''}`;
+  // v27: Dropdown para reatribuir vendedor (admin only)
+  if(window.USUARIO_ATUAL&&window.USUARIO_ATUAL.role==='admin'){
+    var _assignEl=document.getElementById('dossie-profile');
+    if(_assignEl){
+      var _assignHtml='<div style="margin-top:10px;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r);"><div style="font-size:10px;color:var(--muted);margin-bottom:5px;font-family:var(--font);">Atribuir vendedor:</div><select id="lead-assign-vendedor" onchange="reatribuirVendedor(this.value)" style="width:100%;background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:6px 8px;font-size:11px;color:var(--text);outline:none;"><option value="">Carregando...</option></select></div>';
+      _assignEl.innerHTML+=_assignHtml;
+      // Carregar vendedores
+      fetch(_SB+'/functions/v1/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'listar_usuarios',token:localStorage.getItem('fp_token')})}).then(function(r){return r.json();}).then(function(d){
+        var sel=document.getElementById('lead-assign-vendedor');
+        if(!sel||!d.usuarios)return;
+        var opts='<option value="Agente IA">Agente IA</option>';
+        (d.usuarios||[]).forEach(function(u){if(u.role==='vendedor'&&u.ativo)opts+='<option value="'+u.nome+'" data-uid="'+u.id+'"'+(lead.vendedor===u.nome?' selected':'')+'>'+u.nome+'</option>';});
+        sel.innerHTML=opts;
+        if(lead.vendedor&&lead.vendedor!=='Agente IA')sel.value=lead.vendedor;
+      }).catch(function(){});
+    }
+  }
   document.getElementById('disc-content').innerHTML='<div style="color:var(--muted);font-size:11px;"><div class="dot-anim" style="display:inline-flex;gap:3px;"><span></span><span></span><span></span></div> Analisando perfil DISC automaticamente...</div>';
   var abEl=document.getElementById('disc-abordagem');if(abEl)abEl.innerHTML='<div style="font-size:11px;color:var(--muted);">Clique no botão abaixo para gerar abordagem personalizada.</div>';
   autoDISC(lead);
@@ -5468,13 +5880,90 @@ window.addEventListener('DOMContentLoaded',function(){
       if(fp)fp.style.display='none';
     }
   });
-  try{
-    var saved=localStorage.getItem('mf_api_key');
-    if(saved){API_KEY=saved;AI_MODE=true;launchApp();}
-  }catch(e){console.warn('Init error:',e);}
+  // API key loading is now handled by iniciarSessao() — no independent launchApp() call
 });
 
 window.addPlaybookTexto=function(){window.salvarPlaybookItem();};
+
+// ═══════════════════ NOTIFICACOES SONORAS ═══════════════════
+window._notifSons={novoLead:true,venda:true,handoff:true};
+window._notifLastCount=0;
+window._notifAudioCtx=null;
+
+function _playTone(freq,dur,type){
+  try{
+    if(!window._notifAudioCtx)window._notifAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    var ctx=window._notifAudioCtx;
+    var osc=ctx.createOscillator();
+    var gain=ctx.createGain();
+    osc.type=type||'sine';
+    osc.frequency.value=freq;
+    gain.gain.value=0.3;
+    gain.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+(dur||0.3));
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.start();osc.stop(ctx.currentTime+(dur||0.3));
+  }catch(e){}
+}
+
+function notifNovoLead(){
+  if(!window._notifSons.novoLead)return;
+  _playTone(880,0.15,'sine');
+  setTimeout(function(){_playTone(1100,0.2,'sine');},180);
+  // Browser notification
+  if('Notification' in window&&Notification.permission==='granted'){
+    new Notification('FechouPro — Novo Lead!',{body:'Um novo contato chegou pelo WhatsApp.',icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><text y="20" font-size="20">🔔</text></svg>'});
+  }
+}
+
+function notifVenda(){
+  if(!window._notifSons.venda)return;
+  _playTone(523,0.12,'sine');
+  setTimeout(function(){_playTone(659,0.12,'sine');},130);
+  setTimeout(function(){_playTone(784,0.12,'sine');},260);
+  setTimeout(function(){_playTone(1047,0.25,'sine');},390);
+}
+
+function notifHandoff(){
+  if(!window._notifSons.handoff)return;
+  _playTone(600,0.2,'triangle');
+  setTimeout(function(){_playTone(800,0.3,'triangle');},250);
+}
+
+function notifNovaMensagem(){
+  _playTone(660,0.08,'sine');
+  setTimeout(function(){_playTone(880,0.12,'sine');},100);
+}
+
+// Pedir permissao de notificacao
+function pedirPermissaoNotif(){
+  if('Notification' in window&&Notification.permission==='default'){
+    Notification.requestPermission();
+  }
+}
+
+// Polling para detectar novos leads (a cada 30s)
+window._notifPollingId=null;
+function iniciarPollingNotif(){
+  if(window._notifPollingId)return;
+  window._notifLastCount=(window._LEADS_REF||[]).length;
+  window._notifPollingId=setInterval(function(){
+    var leads=window._LEADS_REF||[];
+    if(leads.length>window._notifLastCount){
+      var novos=leads.length-window._notifLastCount;
+      for(var i=0;i<novos;i++)notifNovoLead();
+      toast('🔔 '+novos+' novo(s) lead(s)!');
+    }
+    window._notifLastCount=leads.length;
+  },30000);
+}
+
+// Iniciar polling apos app carregar
+setTimeout(function(){
+  if(window.USUARIO_ATUAL){
+    pedirPermissaoNotif();
+    setTimeout(iniciarPollingNotif,5000);
+  }
+},3000);
 
 if(typeof window._gs==="function"&&window._gs()!=="master"){var _bm=document.getElementById("btn-nav-master");if(_bm)_bm.style.display="none";}
 </script>
