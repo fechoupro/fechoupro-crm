@@ -2082,11 +2082,9 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
           <div class="cfg-nav-item active" onclick="goConfig('aparencia',this)">🎨 Aparência</div>
           <div class="cfg-nav-item" onclick="goConfig('empresa',this)">🏪 Empresa</div>
           <div class="cfg-nav-item" onclick="goConfig('colaboradores',this)">👥 Colaboradores</div>
-          <div class="cfg-nav-item" onclick="goConfig('acessos',this)">🔐 Acessos</div>
           <div class="cfg-nav-item" onclick="goConfig('playbook',this)">📖 Playbook</div>
           <div class="cfg-nav-item" onclick="goConfig('roleta-cfg',this)">🎯 Fila / Roleta</div>
           <div class="cfg-nav-item" onclick="goConfig('posv-imediata-cfg',this)">⚡ Pós-Venda Imediata</div>
-          <div class="cfg-nav-item" id="cfg-nav-equipe" onclick="goConfig('equipe',this)">👥 Equipe</div>
         </div>
       </div>
       <div style="flex:1;">
@@ -2185,14 +2183,7 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
             <button class="btn btn-primary" style="margin-top:12px;font-size:11px;" onclick="openAddColab()">+ Adicionar colaborador</button>
           </div>
         </div>
-        <!-- ACESSOS -->
-        <div class="cfg-panel" id="cfg-acessos">
-          <div class="cfg-section">
-            <div class="cfg-section-title">Matriz de acessos por perfil</div>
-            <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Configure o que cada colaborador pode ver e editar</div>
-            <div style="overflow-x:auto;"><table class="access-table" id="acesso-table"></table></div>
-          </div>
-        </div>
+        <!-- ACESSOS removido — unificado em Colaboradores -->
         <!-- PLAYBOOK -->
         <div class="cfg-panel" id="cfg-playbook">
           <div class="cfg-section">
@@ -2257,35 +2248,9 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
           </div>
         </div>
 
-        <!-- EQUIPE (admin only) -->
-        <div class="cfg-panel" id="cfg-equipe">
-          <div class="cfg-section">
-            <div class="cfg-section-title">👥 Gestão de Equipe</div>
-            <div style="font-size:11px;color:var(--muted);margin-bottom:14px;">Gerencie os usuários do sistema — adicione, bloqueie ou desbloqueie membros da equipe.</div>
-            <div id="equipe-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-            <button class="btn btn-primary" style="margin-top:14px;font-size:11px;" onclick="abrirModalNovoUsuario()">+ Adicionar usuário</button>
-          </div>
-        </div>
+        <!-- EQUIPE removido — unificado em Colaboradores -->
 
-        <!-- MODAL NOVO USUARIO -->
-        <div id="modal-novo-usuario" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;">
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;max-width:400px;width:90%;">
-            <div style="font-weight:700;font-size:14px;margin-bottom:14px;">Novo Usuário</div>
-            <div class="fg"><label class="fl">Nome completo</label><input class="fi" id="novo-usr-nome" placeholder="Ex: João Silva" /></div>
-            <div class="fg"><label class="fl">CPF ou CNPJ</label><input class="fi" id="novo-usr-cpf" placeholder="000.000.000-00" /></div>
-            <div class="fg"><label class="fl">Senha</label><input class="fi" type="password" id="novo-usr-senha" placeholder="Mínimo 4 caracteres" /></div>
-            <div class="fg"><label class="fl">Perfil</label>
-              <select class="fi" id="novo-usr-role">
-                <option value="vendedor">Vendedor</option>
-                <option value="admin">Administrador</option>
-              </select>
-            </div>
-            <div style="display:flex;gap:8px;margin-top:14px;">
-              <button class="btn btn-primary" style="flex:1;font-size:11px;" onclick="adicionarUsuario()">✓ Criar usuário</button>
-              <button class="btn" style="flex:1;font-size:11px;background:var(--border);color:var(--text);" onclick="fecharModalNovoUsuario()">Cancelar</button>
-            </div>
-          </div>
-        </div>
+        <!-- modal-novo-usuario removido — unificado em modal-colab -->
 
       </div>
     </div>
@@ -2337,8 +2302,8 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
       <div class="fg"><label class="fl">Cargo</label><select class="fi" id="colab-cargo"><option>Vendedor</option><option>Gerente</option><option>Supervisor</option><option>Atendente</option></select></div>
     </div>
     <div class="fr">
-      <div class="fg"><label class="fl">Login (e-mail ou usuário)</label><input class="fi" id="colab-login" placeholder="carlos@millenniumfitness.com" /></div>
-      <div class="fg"><label class="fl">Senha</label><input class="fi" type="password" id="colab-senha" placeholder="Mínimo 8 caracteres" /></div>
+      <div class="fg"><label class="fl">CPF ou CNPJ (login)</label><input class="fi" id="colab-login" placeholder="000.000.000-00" maxlength="18" oninput="mascaraCpfCnpj(this)" /></div>
+      <div class="fg"><label class="fl">Senha de acesso</label><input class="fi" type="password" id="colab-senha" placeholder="Mínimo 4 caracteres" /></div>
     </div>
     <div class="fg"><label class="fl">Cor de identificação</label>
       <div style="display:flex;gap:7px;margin-top:4px;">
@@ -2477,10 +2442,6 @@ function aplicarPermissoes(u){
     });
     var cfgBtn=document.querySelector('.btn-cfg');if(cfgBtn)cfgBtn.style.display='none';
   }
-  // Hide equipe config tab for vendedores
-  var equipeNav=document.getElementById('cfg-nav-equipe');
-  if(equipeNav)equipeNav.style.display=isVendedor?'none':'';
-
   // Update "Trocar chave" -> "Sair"
   var trocaBtn=document.querySelector('[onclick="logout()"]');
   if(trocaBtn)trocaBtn.style.display='none';
@@ -2644,7 +2605,6 @@ function goConfig(id,el){
   document.querySelectorAll('.cfg-nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('cfg-'+id).classList.add('active');
   el.classList.add('active');
-  if(id==='equipe')renderEquipe();
 }
 function openCfg(){document.getElementById('modal-cfg').classList.add('open');}
 
@@ -5701,26 +5661,47 @@ function openAddColab(){
 }
 
 function salvarColab(){
-  const nome=document.getElementById('colab-nome')?.value.trim();
-  const login=document.getElementById('colab-login')?.value.trim();
-  const senha=document.getElementById('colab-senha')?.value;
+  var nome=document.getElementById('colab-nome')?.value.trim();
+  var login=document.getElementById('colab-login')?.value.trim();
+  var senha=document.getElementById('colab-senha')?.value;
   if(!nome){toast('⚠️ Digite o nome do colaborador.');return;}
-  if(!login){toast('⚠️ Digite o login.');return;}
-  if(senha&&senha.length<8){toast('⚠️ Senha deve ter mínimo 8 caracteres.');return;}
-  const perms={dashboard:document.getElementById('perm-dashboard')?.checked,conversas:document.getElementById('perm-conversas')?.checked,funil:document.getElementById('perm-funil')?.checked,posv:document.getElementById('perm-posv')?.checked,dossie:document.getElementById('perm-dossie')?.checked,relatorios:document.getElementById('perm-relat')?.checked,treinamento:document.getElementById('perm-treino')?.checked,configuracoes:document.getElementById('perm-cfg')?.checked};
-  const cargo=document.getElementById('colab-cargo')?.value||'Vendedor';
-  const ini2=nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  if(!login){toast('⚠️ Digite o CPF ou CNPJ.');return;}
+  var cpfLimpo=login.replace(/\D/g,'');
+  if(cpfLimpo.length<11){toast('⚠️ CPF/CNPJ inválido.');return;}
+  if(!editColabId&&(!senha||senha.length<4)){toast('⚠️ Senha deve ter mínimo 4 caracteres.');return;}
+  var perms={dashboard:document.getElementById('perm-dashboard')?.checked,conversas:document.getElementById('perm-conversas')?.checked,funil:document.getElementById('perm-funil')?.checked,posv:document.getElementById('perm-posv')?.checked,dossie:document.getElementById('perm-dossie')?.checked,relatorios:document.getElementById('perm-relat')?.checked,treinamento:document.getElementById('perm-treino')?.checked,configuracoes:document.getElementById('perm-cfg')?.checked};
+  var cargo=document.getElementById('colab-cargo')?.value||'Vendedor';
+  var ini2=nome.split(' ').map(function(w){return w[0];}).slice(0,2).join('').toUpperCase();
+  var role=cargo==='Gerente'||cargo==='Supervisor'?'admin':'vendedor';
+
+  // 1. Salvar na tabela colaboradores
   if(editColabId){
-    const existing=COLABORADORES.find(c=>c.id===editColabId||c._dbId===editColabId);
-    if(existing){Object.assign(existing,{nome,cargo,login,cor:colabColorSel,bg:colabBgSel,ini:ini2,perms});if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(existing);}
+    var existing=COLABORADORES.find(function(c){return c.id===editColabId||c._dbId===editColabId;});
+    if(existing){Object.assign(existing,{nome:nome,cargo:cargo,login:cpfLimpo,cor:colabColorSel,bg:colabBgSel,ini:ini2,perms:perms});if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(existing);}
   } else {
-    var novoC={id:Date.now(),nome,cargo,login,senha_hash:'****',ativo:true,online:false,cor:colabColorSel,bg:colabBgSel,ini:ini2,leads:0,perms};
+    var novoC={id:Date.now(),nome:nome,cargo:cargo,login:cpfLimpo,ativo:true,online:false,cor:colabColorSel,bg:colabBgSel,ini:ini2,leads:0,perms:perms};
     COLABORADORES.push(novoC);
     if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(novoC);
   }
+
+  // 2. Criar/atualizar login na tabela usuarios (auth-login)
+  var token=localStorage.getItem('fp_token');
+  if(token&&!editColabId&&senha){
+    // Novo colaborador — registrar no sistema de login
+    fetch(_SB+'/functions/v1/auth-login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'registrar',token:token,novo_usuario:{nome:nome,cpf_cnpj:cpfLimpo,senha:senha,role:role}})
+    }).then(function(r){return r.json();}).then(function(d){
+      if(d.error){toast('⚠️ Colaborador salvo, mas login falhou: '+d.error);}
+      else{toast('✅ "'+nome+'" salvo com login e permissões!');}
+    }).catch(function(){toast('✅ Colaborador salvo (login pendente)');});
+  } else {
+    toast('✅ Colaborador "'+nome+'" atualizado!');
+  }
+
   document.getElementById('modal-colab').classList.remove('open');
   renderConfigs();renderRoleta();
-  toast('✅ Colaborador "'+(nome)+'" salvo com acesso configurado!');
 }
 
 function renderColabTable(){
@@ -5730,7 +5711,7 @@ function renderColabTable(){
   <tbody>${COLABORADORES.map(col=>{var cid=col._dbId||col.id;var cidStr=typeof cid==='string'?"'"+cid+"'":cid;return `<tr>
     <td style="font-family:var(--font);font-weight:700;"><div style="display:flex;align-items:center;gap:7px;"><div style="width:24px;height:24px;border-radius:50%;background:${col.bg||'rgba(59,130,246,.2)'};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:${col.cor};">${col.ini||'--'}</div>${col.nome}</div></td>
     <td style="color:var(--muted);">${col.cargo||'Vendedor'}</td>
-    <td style="font-size:10px;color:var(--dim);">${col.login||'—'}</td>
+    <td style="font-size:10px;color:var(--dim);">${col.login?(col.login.substring(0,3)+'.***.***-'+col.login.slice(-2)):'—'}</td>
     <td><button class="toggle ${col.online?'on':'off'}" onclick="toggleOnline(${cidStr})"></button></td>
     <td><button class="toggle ${col.ativo?'on':'off'}" onclick="toggleAtivo(${cidStr})"></button></td>
     <td><span style="font-size:10px;color:var(--muted);">${Object.entries(col.perms||{}).filter(([k,v])=>v).map(([k])=>k).join(', ')||'Padrão'}</span></td>
@@ -5743,7 +5724,9 @@ function editColab(id){
   editColabId=col._dbId||col.id;
   document.getElementById('colab-modal-title').textContent='Editar colaborador';
   document.getElementById('colab-nome').value=col.nome;
-  document.getElementById('colab-login').value=col.login||'';
+  var loginEl=document.getElementById('colab-login');
+  loginEl.value=col.login||'';
+  if(col.login)mascaraCpfCnpj(loginEl);
   document.getElementById('colab-senha').value='';
   colabColorSel=col.cor;colabBgSel=col.bg;
   if(col.perms){Object.entries(col.perms).forEach(([k,v])=>{const el=document.getElementById('perm-'+k.replace('relatórios','relat').replace('treinamento','treino').replace('configuracoes','cfg'));if(el)el.checked=v;});}
