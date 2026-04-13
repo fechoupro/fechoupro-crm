@@ -4996,12 +4996,12 @@ function renderConfigs(){
   safeRun('renderPbFiles',renderPbFiles);
   // ROLETA CFG
   const rl=document.getElementById('roleta-cfg-list');
-  if(rl)rl.innerHTML=COLABORADORES.filter(c=>c.id!==3).map(c=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);border:1px solid var(--border);"><div style="width:28px;height:28px;border-radius:50%;background:${c.bg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${c.cor};">${c.ini}</div><div style="flex:1;"><div style="font-size:12px;font-family:var(--font);font-weight:700;">${c.nome}</div><div style="font-size:10px;color:var(--dim);">Posição ${COLABORADORES.filter(x=>x.id!==3).indexOf(c)+1} na fila</div></div><button class="toggle ${c.ativo?'on':'off'}" onclick="toggleAtivo(${c.id})"></button></div>`).join('');
+  if(rl)rl.innerHTML=COLABORADORES.map(function(c,idx){return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);border:1px solid var(--border);"><div style="width:28px;height:28px;border-radius:50%;background:'+(c.bg||c.cor+'33')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:'+c.cor+';">'+(c.ini||'--')+'</div><div style="flex:1;"><div style="font-size:12px;font-family:var(--font);font-weight:700;">'+c.nome+'</div><div style="font-size:10px;color:var(--dim);">Posição '+(idx+1)+' na fila</div></div><button class="toggle '+(c.ativo?'on':'off')+'" onclick="toggleAtivo('+idx+')"></button></div>';}).join('');
   // Pós-venda cfg
 
 }
-function toggleOnline(id){var c=COLABORADORES.find(function(x){return x.id===id||x._dbId===id;});if(c){c.online=!c.online;if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(c);renderConfigs();renderRoleta();}}
-function toggleAtivo(id){var c=COLABORADORES.find(function(x){return x.id===id||x._dbId===id;});if(c){c.ativo=!c.ativo;if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(c);renderConfigs();renderRoleta();}}
+function toggleOnline(idx){var c=COLABORADORES[idx];if(!c)return;c.online=!c.online;if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(c);renderColabTable();if(typeof renderRoleta==='function')renderRoleta();}
+function toggleAtivo(idx){var c=COLABORADORES[idx];if(!c)return;c.ativo=!c.ativo;if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(c);renderColabTable();if(typeof renderRoleta==='function')renderRoleta();}
 function addColab(){var nome=prompt('Nome do colaborador:');if(!nome)return;var ini=nome.split(' ').map(function(p){return p[0];}).join('').substring(0,2).toUpperCase();var cores=['#3B82F6','#00E5A0','#FF5C00','#A78BFA','#FBB040','#FF3B8B','#00B4D8'];var cor=cores[COLABORADORES.length%cores.length];var bg=cor+'33';var novoColab={id:Date.now(),nome:nome,cargo:'Vendedor',ativo:true,online:false,cor:cor,bg:bg,ini:ini,leads:0,perms:{}};COLABORADORES.push(novoColab);if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(novoColab);renderConfigs();renderRoleta();toast('✅ Colaborador adicionado!');}
 function addPlaybook(){const nome=prompt('Nome do produto/serviço:');if(!nome)return;const texto=prompt('Informações para a IA e equipe:');if(!texto)return;PLAYBOOK_DATA.push({nome,tags:['Novo'],texto});renderConfigs();toast('✅ Item adicionado ao playbook!');}
 
@@ -5705,22 +5705,49 @@ function salvarColab(){
 }
 
 function renderColabTable(){
-  const ct=document.getElementById('colab-table');
+  var ct=document.getElementById('colab-table');
   if(!ct)return;
-  ct.innerHTML=`<thead><tr><th>Colaborador</th><th>Cargo</th><th>Login</th><th>Online</th><th>Na fila</th><th>Permissões</th><th>Ações</th></tr></thead>
-  <tbody>${COLABORADORES.map(col=>{var cid=col._dbId||col.id;var cidStr=typeof cid==='string'?"'"+cid+"'":cid;return `<tr>
-    <td style="font-family:var(--font);font-weight:700;"><div style="display:flex;align-items:center;gap:7px;"><div style="width:24px;height:24px;border-radius:50%;background:${col.bg||'rgba(59,130,246,.2)'};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:${col.cor};">${col.ini||'--'}</div>${col.nome}</div></td>
-    <td style="color:var(--muted);">${col.cargo||'Vendedor'}</td>
-    <td style="font-size:10px;color:var(--dim);">${col.login?(col.login.substring(0,3)+'.***.***-'+col.login.slice(-2)):'—'}</td>
-    <td><button class="toggle ${col.online?'on':'off'}" onclick="toggleOnline(${cidStr})"></button></td>
-    <td><button class="toggle ${col.ativo?'on':'off'}" onclick="toggleAtivo(${cidStr})"></button></td>
-    <td><span style="font-size:10px;color:var(--muted);">${Object.entries(col.perms||{}).filter(([k,v])=>v).map(([k])=>k).join(', ')||'Padrão'}</span></td>
-    <td><button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;" onclick="editColab(${cidStr})">Editar</button></td>
-  </tr>`;}).join('')}</tbody>`;
+  ct.innerHTML=COLABORADORES.map(function(col,idx){
+    var ini=col.ini||(col.nome||'').substring(0,2).toUpperCase()||'--';
+    var cor=col.cor||'#FF5C00';
+    var bg=col.bg||cor+'33';
+    var cpfMask=col.login?(col.login.substring(0,3)+'.***.***-'+col.login.slice(-2)):'—';
+    var permList=Object.entries(col.perms||{}).filter(function(e){return e[1];}).map(function(e){return e[0];});
+    var permStr=permList.length?permList.join(', '):'Padrão (todos)';
+    var isIA=col.id==='ia';
+    return '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px;margin-bottom:10px;">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+        +'<div style="width:38px;height:38px;border-radius:50%;background:'+bg+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:'+cor+';flex-shrink:0;">'+ini+'</div>'
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="font-size:13px;font-family:var(--font);font-weight:700;">'+col.nome+'</div>'
+          +'<div style="font-size:10px;color:var(--muted);">'+( col.cargo||'Vendedor')+' · CPF: '+cpfMask+'</div>'
+        +'</div>'
+        +(isIA?'':'<button class="btn btn-ghost" style="font-size:10px;padding:4px 10px;" onclick="editColab('+idx+')">Editar</button>')
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">'
+        +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;">'
+          +'<div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Online</div>'
+          +'<button class="toggle '+(col.online?'on':'off')+'" onclick="toggleOnline('+idx+')"></button>'
+        +'</div>'
+        +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;">'
+          +'<div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Na Fila</div>'
+          +'<button class="toggle '+(col.ativo?'on':'off')+'" onclick="toggleAtivo('+idx+')"></button>'
+        +'</div>'
+        +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;">'
+          +'<div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--font);text-transform:uppercase;">Leads</div>'
+          +'<div style="font-size:14px;font-family:var(--font);font-weight:800;">'+(LEADS?LEADS.filter(function(l){return l.vendedor===col.nome;}).length:0)+'</div>'
+        +'</div>'
+      +'</div>'
+      +'<div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,.02);border-radius:6px;border:1px solid var(--border);">'
+        +'<div style="font-size:9px;color:var(--muted);font-family:var(--font);text-transform:uppercase;margin-bottom:3px;">Permissões</div>'
+        +'<div style="font-size:10px;color:var(--text);line-height:1.5;">'+permStr+'</div>'
+      +'</div>'
+    +'</div>';
+  }).join('');
 }
 
-function editColab(id){
-  const col=COLABORADORES.find(c=>c.id===id||c._dbId===id);if(!col)return;
+function editColab(idx){
+  var col=COLABORADORES[idx];if(!col)return;
   editColabId=col._dbId||col.id;
   document.getElementById('colab-modal-title').textContent='Editar colaborador';
   document.getElementById('colab-nome').value=col.nome;
