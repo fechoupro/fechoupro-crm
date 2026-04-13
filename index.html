@@ -822,7 +822,7 @@ window.dbDeletarLead=function(l){if(l&&l._dbId)_rq('leads','DELETE',null,'?id=eq
 window._dbLeadsLoaded=false;
 window.dbCarregarLeads=function(){_rq('leads','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=id.desc').then(function(rows){if(!rows||!rows.length){window._dbLeadsLoaded=true;return;}var ref=window._LEADS_REF||[];ref.length=0;rows.forEach(function(r){ref.push({_dbId:r.id,id:r.id,nome:r.nome,tel:r.telefone,produto:r.produto||'',origem:r.origem||'WhatsApp',etapa:r.etapa||'novo',valor:r.valor||0,vendedor:r.vendedor||'',ig:r.ig||'',entrega:r.entrega||'',disc:r.disc||'',tasks:JSON.parse(r.tasks||'[]'),notas:r.notas||'',hora:r.criado_em||r.created_at||null,created_at:r.criado_em||r.created_at||null,motivo_nao_fechamento:r.motivo_nao_fechamento||'',motivo_obs:r.motivo_obs||'',finalizado_em:r.finalizado_em||null,resultado_final:r.resultado_final||'',atendimento_finalizado:!!r.finalizado_em});});console.log('[DB] Leads carregados:',ref.length);window._dbLeadsLoaded=true;if(typeof renderKanban==='function')renderKanban();if(typeof renderConvs==='function')renderConvs();if(typeof renderDash==='function')renderDash();if(typeof window._renderContatos==='function')window._renderContatos();setTimeout(function(){if(typeof _autoClassificarFunil==='function')_autoClassificarFunil();},2000);});};
 window.dbSalvarColab=function(c){var row={cliente_subdominio:_gs(),nome:c.nome,cargo:c.cargo||'Vendedor',login:c.login||'',cor:c.cor||'#FF5C00',bg:c.bg||'rgba(255,92,0,.2)',ini:c.ini||(c.nome||'').split(' ').map(function(p){return p[0];}).slice(0,2).join('').toUpperCase(),ativo:c.ativo!==false,online:!!c.online,perms:JSON.stringify(c.perms||{})};if(c._dbId){_rq('colaboradores','PATCH',row,'?id=eq.'+c._dbId);}else{_rq('colaboradores','POST',row).then(function(res){if(res&&res[0]){c._dbId=res[0].id;c.id=res[0].id;}});}};
-window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&ativo=eq.true').then(function(rows){if(!rows||!rows.length)return;window.COLABORADORES=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo,login:r.login,cor:r.cor,bg:r.bg,ini:r.ini,ativo:r.ativo,online:r.online,perms:JSON.parse(r.perms||'{}')};});if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();});};
+window.dbCarregarColabs=function(){_rq('colaboradores','GET',null,'?cliente_subdominio=eq.'+_gs()+'&order=id.asc').then(function(rows){if(!rows||!rows.length)return;var ia=COLABORADORES.find(function(c){return c.id==='ia';});var loaded=rows.map(function(r){return{_dbId:r.id,id:r.id,nome:r.nome,cargo:r.cargo||'Vendedor',login:r.login||'',cor:r.cor||'#3B82F6',bg:r.bg||'rgba(59,130,246,.2)',ini:r.ini||(r.nome||'').substring(0,2).toUpperCase(),ativo:r.ativo!==false,online:!!r.online,perms:JSON.parse(r.perms||'{}')};});COLABORADORES.length=0;if(ia)COLABORADORES.push(ia);loaded.forEach(function(c){COLABORADORES.push(c);});console.log('[DB] Colaboradores carregados:',loaded.length);if(typeof renderColabTable==='function')renderColabTable();if(typeof renderRoleta==='function')renderRoleta();if(typeof renderConfigs==='function')try{renderConfigs();}catch(e){}});};
 var _fpT=0,_fpI=setInterval(function(){_fpT++;if(_fpT>120){clearInterval(_fpI);}else if(typeof window.goView==='function'){clearInterval(_fpI);var _og=window.goView;window.goView=function(id,btn){if(id)localStorage.setItem('mf_last_tab',id);var res=_og.apply(this,arguments);if(id==='conversas')setTimeout(window._injetarAbasConv,200);return res;};document.querySelectorAll('.topbar-right button').forEach(function(b){if(b.textContent&&b.textContent.replace(/\s+/g,'').indexOf('NovoLead')>=0){b.innerHTML=b.innerHTML.replace(/Novo\s*Lead/,'Contato');b.onclick=function(e){e.preventDefault();e.stopPropagation();window.abrirModalContato();};}});new MutationObserver(function(){var conv=document.getElementById('conversas');if(conv&&conv.style.display!=='none')window._injetarAbasConv();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});if(typeof window.addLead==='function'){var _oAL=window.addLead;window.addLead=function(){_oAL.apply(this,arguments);setTimeout(function(){var l=window.LEADS&&window.LEADS[0];if(l&&!l._dbId)window.dbSalvarLead(l);},200);};}if(typeof window.salvarColab==='function'){var _oSC=window.salvarColab;window.salvarColab=function(){_oSC.apply(this,arguments);setTimeout(function(){(window.COLABORADORES||[]).filter(function(c){return !c._dbId;}).forEach(function(c){window.dbSalvarColab(c);});},200);};}var last=localStorage.getItem('mf_last_tab');if(last&&last!=='dashboard')setTimeout(function(){if(typeof window.goView==='function')window.goView(last);},300);window.dbCarregarColabs();window.carregarEmpresa();window.carregarAgente();setTimeout(window.carregarPlaybook,500);setTimeout(window.dbCarregarLeads,600);setTimeout(window._carregarContatos,700);
 window.renderDash=function(){
   var leads=window._LEADS_REF||[];
@@ -5040,9 +5040,9 @@ function renderConfigs(){
   // Pós-venda cfg
 
 }
-function toggleOnline(id){const c=COLABORADORES.find(x=>x.id===id);if(c){c.online=!c.online;renderConfigs();renderRoleta();}}
-function toggleAtivo(id){const c=COLABORADORES.find(x=>x.id===id);if(c){c.ativo=!c.ativo;renderConfigs();renderRoleta();}}
-function addColab(){const nome=prompt('Nome do colaborador:');if(!nome)return;COLABORADORES.push({id:Date.now(),nome,cargo:'Vendedor',ativo:true,online:false,cor:'#3B82F6',bg:'rgba(59,130,246,.2)',ini:nome.substring(0,2).toUpperCase(),leads:0});renderConfigs();renderRoleta();toast('✅ Colaborador adicionado!');}
+function toggleOnline(id){var c=COLABORADORES.find(function(x){return x.id===id||x._dbId===id;});if(c){c.online=!c.online;if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(c);renderConfigs();renderRoleta();}}
+function toggleAtivo(id){var c=COLABORADORES.find(function(x){return x.id===id||x._dbId===id;});if(c){c.ativo=!c.ativo;if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(c);renderConfigs();renderRoleta();}}
+function addColab(){var nome=prompt('Nome do colaborador:');if(!nome)return;var ini=nome.split(' ').map(function(p){return p[0];}).join('').substring(0,2).toUpperCase();var cores=['#3B82F6','#00E5A0','#FF5C00','#A78BFA','#FBB040','#FF3B8B','#00B4D8'];var cor=cores[COLABORADORES.length%cores.length];var bg=cor+'33';var novoColab={id:Date.now(),nome:nome,cargo:'Vendedor',ativo:true,online:false,cor:cor,bg:bg,ini:ini,leads:0,perms:{}};COLABORADORES.push(novoColab);if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(novoColab);renderConfigs();renderRoleta();toast('✅ Colaborador adicionado!');}
 function addPlaybook(){const nome=prompt('Nome do produto/serviço:');if(!nome)return;const texto=prompt('Informações para a IA e equipe:');if(!texto)return;PLAYBOOK_DATA.push({nome,tags:['Novo'],texto});renderConfigs();toast('✅ Item adicionado ao playbook!');}
 
 // ═══════════════════ NOVO LEAD ═══════════════════
@@ -5711,10 +5711,12 @@ function salvarColab(){
   const cargo=document.getElementById('colab-cargo')?.value||'Vendedor';
   const ini2=nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   if(editColabId){
-    const existing=COLABORADORES.find(c=>c.id===editColabId);
-    if(existing){Object.assign(existing,{nome,cargo,login,cor:colabColorSel,bg:colabBgSel,ini:ini2,perms});}
+    const existing=COLABORADORES.find(c=>c.id===editColabId||c._dbId===editColabId);
+    if(existing){Object.assign(existing,{nome,cargo,login,cor:colabColorSel,bg:colabBgSel,ini:ini2,perms});if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(existing);}
   } else {
-    COLABORADORES.push({id:Date.now(),nome,cargo,login,senha_hash:'****',ativo:true,online:false,cor:colabColorSel,bg:colabBgSel,ini:ini2,leads:0,perms});
+    var novoC={id:Date.now(),nome,cargo,login,senha_hash:'****',ativo:true,online:false,cor:colabColorSel,bg:colabBgSel,ini:ini2,leads:0,perms};
+    COLABORADORES.push(novoC);
+    if(typeof window.dbSalvarColab==='function')window.dbSalvarColab(novoC);
   }
   document.getElementById('modal-colab').classList.remove('open');
   renderConfigs();renderRoleta();
@@ -5725,20 +5727,20 @@ function renderColabTable(){
   const ct=document.getElementById('colab-table');
   if(!ct)return;
   ct.innerHTML=`<thead><tr><th>Colaborador</th><th>Cargo</th><th>Login</th><th>Online</th><th>Na fila</th><th>Permissões</th><th>Ações</th></tr></thead>
-  <tbody>${COLABORADORES.map(col=>`<tr>
-    <td style="font-family:var(--font);font-weight:700;"><div style="display:flex;align-items:center;gap:7px;"><div style="width:24px;height:24px;border-radius:50%;background:${col.bg};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:${col.cor};">${col.ini}</div>${col.nome}</div></td>
-    <td style="color:var(--muted);">${col.cargo}</td>
+  <tbody>${COLABORADORES.map(col=>{var cid=col._dbId||col.id;var cidStr=typeof cid==='string'?"'"+cid+"'":cid;return `<tr>
+    <td style="font-family:var(--font);font-weight:700;"><div style="display:flex;align-items:center;gap:7px;"><div style="width:24px;height:24px;border-radius:50%;background:${col.bg||'rgba(59,130,246,.2)'};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:${col.cor};">${col.ini||'--'}</div>${col.nome}</div></td>
+    <td style="color:var(--muted);">${col.cargo||'Vendedor'}</td>
     <td style="font-size:10px;color:var(--dim);">${col.login||'—'}</td>
-    <td><button class="toggle ${col.online?'on':'off'}" onclick="toggleOnline(${col.id})"></button></td>
-    <td><button class="toggle ${col.ativo?'on':'off'}" onclick="toggleAtivo(${col.id})"></button></td>
+    <td><button class="toggle ${col.online?'on':'off'}" onclick="toggleOnline(${cidStr})"></button></td>
+    <td><button class="toggle ${col.ativo?'on':'off'}" onclick="toggleAtivo(${cidStr})"></button></td>
     <td><span style="font-size:10px;color:var(--muted);">${Object.entries(col.perms||{}).filter(([k,v])=>v).map(([k])=>k).join(', ')||'Padrão'}</span></td>
-    <td><button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;" onclick="editColab(${col.id})">Editar</button></td>
-  </tr>`).join('')}</tbody>`;
+    <td><button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;" onclick="editColab(${cidStr})">Editar</button></td>
+  </tr>`;}).join('')}</tbody>`;
 }
 
 function editColab(id){
-  const col=COLABORADORES.find(c=>c.id===id);if(!col)return;
-  editColabId=id;
+  const col=COLABORADORES.find(c=>c.id===id||c._dbId===id);if(!col)return;
+  editColabId=col._dbId||col.id;
   document.getElementById('colab-modal-title').textContent='Editar colaborador';
   document.getElementById('colab-nome').value=col.nome;
   document.getElementById('colab-login').value=col.login||'';
