@@ -4618,15 +4618,19 @@ async function _processarFilaCadencia(){
     var agora=new Date().toISOString();
     var r=await fetch(_SB+'/rest/v1/cadencia_queue?enviado=eq.false&enviar_em=lte.'+encodeURIComponent(agora)+'&order=enviar_em.asc&limit=5',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
     var items=await r.json();
+    console.log('[CADENCIA] Processando fila — '+(items?items.length:0)+' item(ns) vencido(s).');
     if(!items||!items.length)return;
     for(var i=0;i<items.length;i++){
       var item=items[i];
-      // AUTO-PAUSE: Verificar se lead respondeu desde que a cadência foi criada
+      // AUTO-PAUSE: Verificar se lead respondeu APOS o agendamento (enviar_em)
+      // Usamos enviar_em (nao created_at) pra evitar falsos positivos de sync/import
       try{
         var numClean=item.numero.replace(/\D/g,'').replace(/@s\.whatsapp\.net/,'');
-        var checkR=await fetch(_SB+'/rest/v1/conversas_wpp?numero=like.*'+encodeURIComponent(numClean)+'*&role=eq.user&cliente_subdominio=eq.'+item.cliente_subdominio+'&created_at=gte.'+encodeURIComponent(item.created_at)+'&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+        var refTs=item.created_at||item.enviar_em;
+        var checkR=await fetch(_SB+'/rest/v1/conversas_wpp?numero=like.*'+encodeURIComponent(numClean)+'*&role=eq.user&cliente_subdominio=eq.'+item.cliente_subdominio+'&created_at=gte.'+encodeURIComponent(refTs)+'&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
         var checkMsgs=await checkR.json();
         if(checkMsgs&&checkMsgs.length>0){
+          console.log('[CADENCIA] Auto-pause acionado para '+item.lead_nome+' — msg do lead em '+checkMsgs[0].created_at+' (ref: '+refTs+')');
           // Lead respondeu! Cancelar TODAS as msgs pendentes deste lead
           await fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+item.cliente_subdominio+'&lead_id=eq.'+encodeURIComponent(item.lead_id)+'&enviado=eq.false',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
           var ld=LEADS.find(function(l){return String(l.id)===String(item.lead_id);});
@@ -4644,12 +4648,17 @@ async function _processarFilaCadencia(){
           continue;
         }
       }catch(e){}
-      // Buscar config Evolution API
-      var cfgR=await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+item.cliente_subdominio+'&chave=eq.evolution_api&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
-      var cfgs=await cfgR.json();
-      if(!cfgs||!cfgs.length)continue;
-      var evo=JSON.parse(cfgs[0].valor);
-      if(!evo.url||!evo.token||!evo.instance)continue;
+      // Buscar config Evolution API (DB → fallback localStorage)
+      var evo=null;
+      try{
+        var cfgR=await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+item.cliente_subdominio+'&chave=eq.evolution_api&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+        var cfgs=await cfgR.json();
+        if(cfgs&&cfgs.length)evo=JSON.parse(cfgs[0].valor);
+      }catch(e){}
+      if((!evo||!evo.url||!evo.token||!evo.instance)&&item.cliente_subdominio===_gs()){
+        try{var sc=localStorage.getItem('fp_evo_cfg_'+_gs());if(sc)evo=JSON.parse(sc);}catch(e){}
+      }
+      if(!evo||!evo.url||!evo.token||!evo.instance){console.warn('[CADENCIA] Sem config Evolution para '+item.cliente_subdominio+' — pulando '+item.lead_nome);continue;}
       var jid=item.numero.replace(/\D/g,'');
       if(jid.indexOf('@')<0)jid=jid+'@s.whatsapp.net';
       try{
@@ -4680,6 +4689,23 @@ async function _processarFilaCadencia(){
 }
 setInterval(_processarFilaCadencia,60000);
 setTimeout(_processarFilaCadencia,8000);
+
+// Auto-sync: se tem config Evolution no localStorage mas nao no banco, sincroniza
+setTimeout(function(){
+  try{
+    var sc=localStorage.getItem('fp_evo_cfg_'+_gs());
+    if(!sc)return;
+    fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.evolution_api&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(rows){
+      if(rows&&rows.length)return; // ja tem no banco
+      var o=JSON.parse(sc);
+      if(!o.url||!o.token||!o.instance)return;
+      fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:_gs(),chave:'evolution_api',valor:JSON.stringify(o)})}).then(function(){console.log('[CADENCIA] Config Evolution sincronizada do localStorage para o banco.');});
+    });
+  }catch(e){}
+},5000);
+
+// Botao manual de forcar processamento (via console: fpForcarCadencia())
+window.fpForcarCadencia=function(){console.log('[CADENCIA] Forcando processamento manual...');return _processarFilaCadencia();};
 
 // ═══════════════════ DOSSIÊ ═══════════════════
 function openLead(lead){
