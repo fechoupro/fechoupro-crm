@@ -218,9 +218,15 @@ Deno.serve(async(req)=>{
   const data=body?.data;
   if(!data||data?.key?.fromMe)return new Response("OK",{status:200});
   const inst=body?.instance||SUB;
-  const jid=data?.key?.remoteJid||"";
+  let jid=data?.key?.remoteJid||"";
+  // v28: se vier @lid (id local WhatsApp), usar senderPn (numero real) se disponivel
+  if(jid.indexOf("@lid")>=0){
+    const pn=data?.key?.senderPn||data?.key?.participant||"";
+    if(pn&&pn.indexOf("@lid")<0){jid=pn.indexOf("@")>=0?pn:(pn.replace(/\D/g,"")+"@s.whatsapp.net");}
+    else{console.log("[WEBHOOK] Ignorando @lid sem senderPn:",jid);return new Response("OK",{status:200});}
+  }
   const num=jid.replace(/@[^@]+$/,"");
-  if(!num)return new Response("OK",{status:200});
+  if(!num||!/^\d{10,15}$/.test(num))return new Response("OK",{status:200});
   const msgData=data?.message||{};
   const txt=msgData.conversation||msgData.extendedTextMessage?.text||"";
   const isImg=!!(msgData.imageMessage);
