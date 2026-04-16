@@ -150,6 +150,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:1
 .msg.sent{background:rgba(0,229,160,.12);align-self:flex-end;}
 .msg.agent{background:rgba(124,92,252,.12);align-self:flex-end;border:1px solid rgba(124,92,252,.18);}
 .msg-time{font-size:9px;color:var(--dim);margin-top:3px;}
+.msg-day-sep{align-self:center;background:rgba(255,255,255,.06);color:var(--muted);font-size:10px;font-family:var(--font);font-weight:700;padding:4px 12px;border-radius:12px;margin:8px 0;border:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px;}
 .chat-input-row{display:flex;gap:7px;padding:9px 11px;border-top:1px solid var(--border);}
 .chat-inp{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:18px;padding:7px 13px;font-size:11px;color:var(--text);font-family:var(--body);outline:none;}
 .chat-inp:focus{border-color:var(--accent2);}
@@ -2939,7 +2940,7 @@ function openConv(id){
       <div style="display:flex;justify-content:space-between;"><span class="timer-warn" id="timer-lbl">⏱ Respondendo em...</span><span class="timer-warn" id="timer-count">1:30</span></div>
       <div class="timer-bar"><div class="timer-fill" id="timer-fill" style="width:100%;"></div></div>
     </div>
-    <div class="conv-messages" id="conv-msgs">${currentConv.msgs.map(m=>`<div class="msg ${m.tipo==='recv'?'recv':m.tipo==='agent'?'agent':'sent'}">${m.txt}<div class="msg-time">${m.hora}${m.tipo==='agent'?' · IA':''}</div></div>`).join('')}</div>
+    <div class="conv-messages" id="conv-msgs">${_renderMsgsComData(currentConv.msgs)}</div>
     <div class="conv-input-row">
       <input class="conv-inp" id="conv-inp" placeholder="${iaOn?'IA respondendo automaticamente...':'Digite mensagem...'}" onkeydown="if(event.key==='Enter')sendConvMsg()" ${iaOn?'disabled':''} />
       <button class="conv-send" onclick="sendConvMsg()" ${iaOn?'style="opacity:.4;cursor:not-allowed;"':''}>Enviar</button>
@@ -2986,7 +2987,7 @@ ${hist}
 Continue a conversa naturalmente com o cliente, avançando no atendimento.`,120);
   if(resp&&resp.length>5&&!resp.startsWith('[Modo')){
     const now=new Date(),h=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
-    lead.msgs.push({tipo:'agent',txt:resp,hora:h});
+    lead.msgs.push({tipo:'agent',txt:resp,hora:h,ts:new Date().toISOString()});
     const msgs=document.getElementById('conv-msgs');
     if(msgs){const div=document.createElement('div');div.className='msg agent';div.innerHTML=resp+`<div class="msg-time">${h} · IA</div>`;msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;}
     renderConvs();
@@ -3042,7 +3043,7 @@ function sendConvMsg(){
   const txt=inp.value.trim();if(!txt)return;
   clearResponseTimer();// human responded, stop timer
   const now=new Date(),h=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
-  currentConv.msgs.push({tipo:'sent',txt,hora:h});
+  currentConv.msgs.push({tipo:'sent',txt,hora:h,ts:new Date().toISOString()});
   inp.value='';
   const msgs=document.getElementById('conv-msgs');
   const div=document.createElement('div');div.className='msg sent';div.innerHTML=txt+`<div class="msg-time">${h}</div>`;
@@ -4444,6 +4445,39 @@ function renderCadenciaRec(){
 }
 
 function _parseDelay(str){var s=String(str||'').trim().toLowerCase();var num=parseFloat(s);if(isNaN(num)||num<=0)return 3600000;if(s.indexOf('min')>=0)return num*60*1000;if(s.indexOf('m')>=0&&s.indexOf('h')<0)return num*60*1000;if(s.indexOf('h')>=0)return num*3600*1000;if(s.indexOf('d')>=0)return num*86400000;return num*3600*1000;}
+
+// Renderiza mensagens com separadores de data estilo WhatsApp
+function _formatarDataSep(d){
+  if(!d)return '';
+  var hoje=new Date();var ontem=new Date(hoje.getTime()-86400000);
+  var dStr=d.toDateString();
+  if(dStr===hoje.toDateString())return 'HOJE';
+  if(dStr===ontem.toDateString())return 'ONTEM';
+  var diffDias=Math.floor((hoje-d)/86400000);
+  if(diffDias>=0&&diffDias<7){
+    var dias=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+    return dias[d.getDay()];
+  }
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function _renderMsgsComData(msgs){
+  if(!msgs||!msgs.length)return '';
+  var out=[];var ultimaData=null;
+  msgs.forEach(function(m){
+    var d=m.ts?new Date(m.ts):null;
+    if(d&&!isNaN(d.getTime())){
+      var dKey=d.toDateString();
+      if(dKey!==ultimaData){
+        out.push('<div class="msg-day-sep">'+_formatarDataSep(d)+'</div>');
+        ultimaData=dKey;
+      }
+    }
+    var cls=m.tipo==='recv'?'recv':(m.tipo==='agent'?'agent':'sent');
+    var sufixo=m.tipo==='agent'?' · IA':'';
+    out.push('<div class="msg '+cls+'">'+m.txt+'<div class="msg-time">'+(m.hora||'')+sufixo+'</div></div>');
+  });
+  return out.join('');
+}
 function _getEvoConfig(){var url=(document.getElementById('evolution-url')||{}).value||'';var token=(document.getElementById('evolution-token')||{}).value||'';var instance=(document.getElementById('evolution-instance')||{}).value||'';if(!url)try{var sc=localStorage.getItem('fp_evo_cfg_'+_gs());if(sc){var o=JSON.parse(sc);url=o.url||'';token=o.token||'';instance=o.instance||'';}}catch(e){}return{url:url.replace(/\/$/,''),token:token,instance:instance};}
 function _saveEvoConfig(){try{var o={url:(document.getElementById('evolution-url')||{}).value||'',token:(document.getElementById('evolution-token')||{}).value||'',instance:(document.getElementById('evolution-instance')||{}).value||''};localStorage.setItem('fp_evo_cfg_'+_gs(),JSON.stringify(o));fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.evolution_api',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(){fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:_gs(),chave:'evolution_api',valor:JSON.stringify(o)})});});}catch(e){}}
 // ═══════════════════ IMPORTAR DO CELULAR (Evolution API) ═══════════════════
@@ -4756,7 +4790,7 @@ function openLead(lead){
   if(_ep){_ep.innerHTML=ETAPAS.map(function(e){return '<button onclick="moverEtapaManual(\''+e.key+'\')" style="padding:4px 10px;border-radius:6px;border:1px solid '+e.cor+'44;background:'+(e.key===lead.etapa?e.cor+'33':'transparent')+';color:'+e.cor+';cursor:pointer;font-size:10px;font-family:var(--font);font-weight:700;">'+e.label+'</button>';}).join('');}
   document.getElementById('etapa-panel').style.display='none';
   const msgs=document.getElementById('chat-msgs');
-  msgs.innerHTML=lead.msgs.map(m=>`<div class="msg ${m.tipo==='recv'?'recv':m.tipo==='agent'?'agent':'sent'}">${m.txt}<div class="msg-time">${m.hora}${m.tipo==='agent'?' · IA':''}</div></div>`).join('');
+  msgs.innerHTML=_renderMsgsComData(lead.msgs);
   msgs.scrollTop=msgs.scrollHeight;
   var prodEl=document.getElementById('produto-content');
   if(prodEl){prodEl.innerHTML='<div style="color:var(--muted);font-size:12px;">Buscando produtos...</div>';
@@ -4835,7 +4869,7 @@ function sendChatMsg(){
   const msgs=document.getElementById('chat-msgs');
   const now=new Date(),h=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
   const div=document.createElement('div');div.className='msg sent';div.innerHTML=txt+`<div class="msg-time">${h} · Você</div>`;
-  msgs.appendChild(div);currentLead.msgs.push({tipo:'sent',txt,hora:h});msgs.scrollTop=msgs.scrollHeight;inp.value='';
+  msgs.appendChild(div);currentLead.msgs.push({tipo:'sent',txt,hora:h,ts:new Date().toISOString()});msgs.scrollTop=msgs.scrollHeight;inp.value='';
   renderConvs();
   setTimeout(()=>{const t=document.createElement('div');t.className='msg recv';t.innerHTML='<span class="dot-anim"><span></span><span></span><span></span></span>';msgs.appendChild(t);msgs.scrollTop=msgs.scrollHeight;setTimeout(()=>{msgs.removeChild(t);const r=document.createElement('div');r.className='msg recv';const rep=['Entendido! Pode passar mais detalhes?','Deixa eu verificar...','Ótimo! Retorno em instantes.'];r.innerHTML=rep[Math.floor(Math.random()*rep.length)]+`<div class="msg-time">${h}</div>`;msgs.appendChild(r);currentLead.msgs.push({tipo:'recv',txt:r.textContent,hora:h});msgs.scrollTop=msgs.scrollHeight;renderConvs();},2000);},600);
 }
@@ -6166,11 +6200,17 @@ function _syncConvs(){
             if(typeof renderConvs==='function')renderConvs();
           }).catch(function(){delete window._syncProcessando[num];});
         } else {
+          var qtdAntes=(existe.msgs||[]).length;
           existe.msgs=msgsArr;
           if(nm[num])existe.nome=nm[num];
           existe.ini=(existe.nome||'WP').replace(/[^A-Za-z]/g,'').substring(0,2).toUpperCase()||'WP';
           existe.tempo=new Date(conv.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
           // NÃO sobrescrever etapa — manter a etapa do banco
+          // Se este eh o lead atualmente aberto no Dossie e novas msgs chegaram, re-renderizar o chat
+          if(window.currentLead&&window.currentLead._dbId===existe._dbId&&msgsArr.length>qtdAntes){
+            var cm=document.getElementById('chat-msgs');
+            if(cm&&typeof _renderMsgsComData==='function'){cm.innerHTML=_renderMsgsComData(existe.msgs);cm.scrollTop=cm.scrollHeight;}
+          }
         }
       });
       if(typeof renderConvs==='function')renderConvs();
