@@ -4,23 +4,50 @@
 --
 -- Execute este SQL no Supabase SQL Editor.
 -- Roda a cada minuto via pg_cron, envia mensagens automaticamente
--- mesmo com a página fechada — RESPEITANDO o horário comercial:
+-- mesmo com a página fechada — RESPEITANDO:
 --   Segunda a sexta: 08h às 18h (Brasília)
 --   Sábado:          08h às 11h (Brasília)
 --   Domingo:         sem envio
+--   Feriados:        sem envio (tabela feriados)
 -- =====================================================
 
--- 1. Função auxiliar: retorna TRUE se estamos na janela comercial
-CREATE OR REPLACE FUNCTION fp_dentro_horario_comercial()
+-- 0. Tabela de feriados (pre-populada via API Management)
+CREATE TABLE IF NOT EXISTS feriados (
+  id SERIAL PRIMARY KEY,
+  data DATE NOT NULL,
+  descricao TEXT NOT NULL,
+  tipo TEXT NOT NULL CHECK (tipo IN ('nacional','estadual','municipal')),
+  cliente_subdominio TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(data, descricao, cliente_subdominio)
+);
+CREATE INDEX IF NOT EXISTS idx_feriados_data ON feriados(data);
+ALTER TABLE feriados ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS feriados_select ON feriados;
+CREATE POLICY feriados_select ON feriados FOR SELECT USING (true);
+
+-- 1. Função auxiliar: retorna TRUE se estamos na janela comercial E nao é feriado
+CREATE OR REPLACE FUNCTION fp_dentro_horario_comercial(p_sub TEXT DEFAULT NULL)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
 DECLARE
   dow INT;
   h INT;
+  hoje DATE;
+  eh_feriado BOOLEAN;
 BEGIN
-  dow := EXTRACT(DOW FROM (NOW() AT TIME ZONE 'America/Sao_Paulo'))::INT;
-  h   := EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'America/Sao_Paulo'))::INT;
+  hoje := (NOW() AT TIME ZONE 'America/Sao_Paulo')::DATE;
+  dow  := EXTRACT(DOW  FROM (NOW() AT TIME ZONE 'America/Sao_Paulo'))::INT;
+  h    := EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'America/Sao_Paulo'))::INT;
+
+  -- feriado nacional (NULL) ou do cliente
+  SELECT EXISTS(
+    SELECT 1 FROM feriados
+    WHERE data = hoje AND (cliente_subdominio IS NULL OR cliente_subdominio = p_sub)
+  ) INTO eh_feriado;
+  IF eh_feriado THEN RETURN FALSE; END IF;
+
   -- dow: 0=Dom, 1=Seg ... 6=Sab
   IF dow BETWEEN 1 AND 5 THEN
     RETURN h >= 8 AND h < 18;
@@ -33,12 +60,16 @@ END;
 $$;
 
 -- 2. Função principal: processa a fila de cadência
+--    DISTINCT ON(lead_id): só 1 msg por lead por ciclo — preserva intervalo
+--    Após enviar, reagenda a próxima msg do lead baseado no intervalo original
 CREATE OR REPLACE FUNCTION processar_cadencia_auto()
 RETURNS void
 LANGUAGE plpgsql
 AS $$
 DECLARE
   item RECORD;
+  prox RECORD;
+  diff INTERVAL;
   evo_config JSONB;
   evo_url TEXT;
   evo_token TEXT;
@@ -46,19 +77,13 @@ DECLARE
   jid TEXT;
   send_url TEXT;
 BEGIN
-  -- Respeitar horário comercial (se fora, msgs ficam aguardando)
-  IF NOT fp_dentro_horario_comercial() THEN
-    RAISE NOTICE 'CADENCIA: fora do horario comercial, nao processando';
-    RETURN;
-  END IF;
-
-  -- Buscar até 10 mensagens pendentes cujo horário já passou
   FOR item IN
-    SELECT cq.*
+    SELECT DISTINCT ON (cq.lead_id) cq.*
     FROM cadencia_queue cq
     WHERE cq.enviado = FALSE
       AND cq.enviar_em <= NOW()
-    ORDER BY cq.enviar_em ASC
+      AND fp_dentro_horario_comercial(cq.cliente_subdominio)
+    ORDER BY cq.lead_id, cq.enviar_em ASC
     LIMIT 10
   LOOP
     BEGIN
@@ -115,6 +140,20 @@ BEGIN
       -- Registrar na conversas_wpp para aparecer no chat
       INSERT INTO conversas_wpp (cliente_subdominio, numero, role, content)
       VALUES (item.cliente_subdominio, jid, 'assistant', item.mensagem);
+
+      -- REAGENDAR próxima msg do mesmo lead preservando intervalo original
+      SELECT * INTO prox FROM cadencia_queue
+        WHERE lead_id = item.lead_id
+          AND cliente_subdominio = item.cliente_subdominio
+          AND enviado = FALSE
+          AND step_num > item.step_num
+        ORDER BY step_num ASC LIMIT 1;
+      IF prox.id IS NOT NULL THEN
+        diff := prox.enviar_em - item.enviar_em;
+        IF diff > INTERVAL '0 seconds' THEN
+          UPDATE cadencia_queue SET enviar_em = NOW() + diff WHERE id = prox.id;
+        END IF;
+      END IF;
 
       RAISE NOTICE 'CADENCIA: Enviado para % (%): %', item.lead_nome, item.numero, item.titulo;
 

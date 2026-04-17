@@ -4647,21 +4647,43 @@ function desativarRecuperacao(){
 function configurarCadencia(){
   toggleRecCfg();
 }
-// Janela comercial para envio (horario de Brasilia): seg-sex 8h-18h, sab 8h-11h, dom nunca
+// Cache de feriados (recarrega a cada 1h)
+window._fpFeriados={set:new Set(),ts:0};
+function _fpCarregarFeriados(){
+  var agora=Date.now();
+  if(agora-window._fpFeriados.ts<3600000&&window._fpFeriados.set.size>0)return Promise.resolve();
+  var sub=typeof _gs==='function'?_gs():'';
+  return fetch(_SB+'/rest/v1/feriados?or=(cliente_subdominio.is.null,cliente_subdominio.eq.'+encodeURIComponent(sub)+')&select=data',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(rows){
+    var s=new Set();(rows||[]).forEach(function(f){s.add(f.data);});
+    window._fpFeriados={set:s,ts:agora};
+  }).catch(function(){});
+}
+// Janela comercial (America/Sao_Paulo): seg-sex 8h-18h, sab 8h-11h, dom nunca, feriados nunca
 function _fpDentroHorario(){
   var ag=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));
   var dow=ag.getDay();var h=ag.getHours();
+  // checar feriado (YYYY-MM-DD)
+  var y=ag.getFullYear();var mo=String(ag.getMonth()+1).padStart(2,'0');var d=String(ag.getDate()).padStart(2,'0');
+  var iso=y+'-'+mo+'-'+d;
+  if(window._fpFeriados&&window._fpFeriados.set.has(iso))return false;
   if(dow>=1&&dow<=5)return h>=8&&h<18;
   if(dow===6)return h>=8&&h<11;
   return false;
 }
+// Carregar feriados logo ao inicio
+setTimeout(_fpCarregarFeriados,3000);
 async function _processarFilaCadencia(){
   try{
-    if(!_fpDentroHorario()){console.log('[CADENCIA] Fora do horario comercial — aguardando janela valida.');return;}
+    await _fpCarregarFeriados();
+    if(!_fpDentroHorario()){console.log('[CADENCIA] Fora do horario comercial/feriado — aguardando janela valida.');return;}
     var agora=new Date().toISOString();
-    var r=await fetch(_SB+'/rest/v1/cadencia_queue?enviado=eq.false&enviar_em=lte.'+encodeURIComponent(agora)+'&order=enviar_em.asc&limit=5',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
-    var items=await r.json();
-    console.log('[CADENCIA] Processando fila — '+(items?items.length:0)+' item(ns) vencido(s).');
+    var r=await fetch(_SB+'/rest/v1/cadencia_queue?enviado=eq.false&enviar_em=lte.'+encodeURIComponent(agora)+'&order=enviar_em.asc&limit=20',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var raw=await r.json();
+    // Pegar apenas 1 msg por lead (a mais antiga) — preserva intervalo entre msgs do mesmo lead
+    var porLead={};
+    (raw||[]).forEach(function(m){if(!porLead[m.lead_id]||new Date(m.enviar_em)<new Date(porLead[m.lead_id].enviar_em))porLead[m.lead_id]=m;});
+    var items=Object.values(porLead).slice(0,5);
+    console.log('[CADENCIA] Processando fila — '+items.length+' item(ns) (1 por lead) de '+(raw?raw.length:0)+' vencidos.');
     if(!items||!items.length)return;
     for(var i=0;i<items.length;i++){
       var item=items[i];
@@ -4710,6 +4732,17 @@ async function _processarFilaCadencia(){
         await fetch(_SB+'/rest/v1/conversas_wpp',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:item.cliente_subdominio,numero:jid,role:'assistant',content:item.mensagem})});
         console.log('[CADENCIA] Enviado para '+item.lead_nome+': '+item.titulo);
         toast('📤 Recuperação enviada para '+item.lead_nome+': '+item.titulo);
+        // REAGENDAR proxima msg do mesmo lead preservando intervalo original
+        var proxR=await fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+item.cliente_subdominio+'&lead_id=eq.'+encodeURIComponent(item.lead_id)+'&enviado=eq.false&step_num=gt.'+item.step_num+'&order=step_num.asc&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+        var prox=await proxR.json();
+        if(prox&&prox.length){
+          var diffMs=new Date(prox[0].enviar_em).getTime()-new Date(item.enviar_em).getTime();
+          if(diffMs>0){
+            var novoEnviar=new Date(Date.now()+diffMs).toISOString();
+            await fetch(_SB+'/rest/v1/cadencia_queue?id=eq.'+prox[0].id,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({enviar_em:novoEnviar})});
+            console.log('[CADENCIA] Reagendada proxima msg de '+item.lead_nome+' para '+novoEnviar+' (preservando intervalo '+Math.round(diffMs/60000)+'min)');
+          }
+        }
         // Verificar se foi a ÚLTIMA mensagem de cadência deste lead
         var pendR=await fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+item.cliente_subdominio+'&lead_id=eq.'+encodeURIComponent(item.lead_id)+'&enviado=eq.false&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
         var pend=await pendR.json();
