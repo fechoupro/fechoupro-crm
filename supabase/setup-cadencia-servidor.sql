@@ -2,12 +2,37 @@
 -- CADÊNCIA DE RECUPERAÇÃO - PROCESSAMENTO NO SERVIDOR
 -- FechouPro CRM
 --
--- Execute este SQL no Supabase SQL Editor
--- Isso faz as mensagens serem enviadas automaticamente
--- mesmo com a página fechada!
+-- Execute este SQL no Supabase SQL Editor.
+-- Roda a cada minuto via pg_cron, envia mensagens automaticamente
+-- mesmo com a página fechada — RESPEITANDO o horário comercial:
+--   Segunda a sexta: 08h às 18h (Brasília)
+--   Sábado:          08h às 11h (Brasília)
+--   Domingo:         sem envio
 -- =====================================================
 
--- 1. Função que processa a fila de cadência
+-- 1. Função auxiliar: retorna TRUE se estamos na janela comercial
+CREATE OR REPLACE FUNCTION fp_dentro_horario_comercial()
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  dow INT;
+  h INT;
+BEGIN
+  dow := EXTRACT(DOW FROM (NOW() AT TIME ZONE 'America/Sao_Paulo'))::INT;
+  h   := EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'America/Sao_Paulo'))::INT;
+  -- dow: 0=Dom, 1=Seg ... 6=Sab
+  IF dow BETWEEN 1 AND 5 THEN
+    RETURN h >= 8 AND h < 18;
+  ELSIF dow = 6 THEN
+    RETURN h >= 8 AND h < 11;
+  ELSE
+    RETURN FALSE; -- domingo
+  END IF;
+END;
+$$;
+
+-- 2. Função principal: processa a fila de cadência
 CREATE OR REPLACE FUNCTION processar_cadencia_auto()
 RETURNS void
 LANGUAGE plpgsql
@@ -21,6 +46,12 @@ DECLARE
   jid TEXT;
   send_url TEXT;
 BEGIN
+  -- Respeitar horário comercial (se fora, msgs ficam aguardando)
+  IF NOT fp_dentro_horario_comercial() THEN
+    RAISE NOTICE 'CADENCIA: fora do horario comercial, nao processando';
+    RETURN;
+  END IF;
+
   -- Buscar até 10 mensagens pendentes cujo horário já passou
   FOR item IN
     SELECT cq.*
@@ -38,7 +69,6 @@ BEGIN
         AND chave = 'evolution_api'
       LIMIT 1;
 
-      -- Se não tem config, pular
       IF evo_config IS NULL THEN
         RAISE NOTICE 'Sem config Evolution para %', item.cliente_subdominio;
         CONTINUE;
@@ -48,13 +78,12 @@ BEGIN
       evo_token := evo_config->>'token';
       evo_instance := evo_config->>'instance';
 
-      -- Validar config
       IF evo_url IS NULL OR evo_token IS NULL OR evo_instance IS NULL THEN
         RAISE NOTICE 'Config Evolution incompleta para %', item.cliente_subdominio;
         CONTINUE;
       END IF;
 
-      -- Preparar número (JID)
+      -- Preparar JID
       jid := regexp_replace(item.numero, '[^0-9]', '', 'g');
       IF position('@' IN item.numero) = 0 THEN
         jid := jid || '@s.whatsapp.net';
@@ -62,7 +91,6 @@ BEGIN
         jid := item.numero;
       END IF;
 
-      -- Remover barra final da URL
       evo_url := rtrim(evo_url, '/');
       send_url := evo_url || '/message/sendText/' || evo_instance;
 
@@ -99,19 +127,23 @@ BEGIN
   DELETE FROM cadencia_queue
   WHERE enviado = TRUE
     AND enviado_em < NOW() - INTERVAL '7 days';
-
 END;
 $$;
 
--- 2. Remover cron antigo (se existir) que chamava Edge Function
-SELECT cron.unschedule('processar-cadencia');
+-- 3. Remover cron antigo (se existir)
+DO $$
+BEGIN
+  PERFORM cron.unschedule('processar-cadencia');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
--- 3. Agendar a função para rodar a cada minuto
+-- 4. Agendar a cada minuto (a função faz a checagem de horário por conta própria)
 SELECT cron.schedule(
   'processar-cadencia-db',
   '* * * * *',
   $$SELECT processar_cadencia_auto();$$
 );
 
--- 4. Verificar se o cron foi criado
-SELECT * FROM cron.job WHERE jobname = 'processar-cadencia-db';
+-- 5. Verificar
+SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'processar-cadencia-db';
+SELECT fp_dentro_horario_comercial() AS dentro_horario_agora;

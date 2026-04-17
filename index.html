@@ -4647,8 +4647,17 @@ function desativarRecuperacao(){
 function configurarCadencia(){
   toggleRecCfg();
 }
+// Janela comercial para envio (horario de Brasilia): seg-sex 8h-18h, sab 8h-11h, dom nunca
+function _fpDentroHorario(){
+  var ag=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));
+  var dow=ag.getDay();var h=ag.getHours();
+  if(dow>=1&&dow<=5)return h>=8&&h<18;
+  if(dow===6)return h>=8&&h<11;
+  return false;
+}
 async function _processarFilaCadencia(){
   try{
+    if(!_fpDentroHorario()){console.log('[CADENCIA] Fora do horario comercial — aguardando janela valida.');return;}
     var agora=new Date().toISOString();
     var r=await fetch(_SB+'/rest/v1/cadencia_queue?enviado=eq.false&enviar_em=lte.'+encodeURIComponent(agora)+'&order=enviar_em.asc&limit=5',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
     var items=await r.json();
