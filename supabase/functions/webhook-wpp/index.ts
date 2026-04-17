@@ -11,9 +11,9 @@
 // aqui no repo ficam como placeholders por seguranca.
 const OAIKEY=Deno.env.get("OPENAI_API_KEY")||"";
 const EVO="https://evolution.fechoupro.com.br";
-const EVOKEY="REDACTED_EVOLUTION_KEY";
-const SB="https://udtoojqdjcbxnvevazum.supabase.co";
-const SK="REDACTED_SUPABASE_ANON_KEY";
+const EVOKEY=Deno.env.get("EVOLUTION_API_KEY")||"";
+const SB=Deno.env.get("SUPABASE_URL")||"https://udtoojqdjcbxnvevazum.supabase.co";
+const SK=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const SUB="mileniofitness-altamira";
 const MODEL="gpt-5.4-mini";
 const WAIT_NOVO=7000;
