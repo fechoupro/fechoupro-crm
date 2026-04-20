@@ -49,21 +49,6 @@ async function sbUpsert(t: string, b: unknown) {
   });
 }
 
-// Checar horário comercial (mesma lógica da cadência)
-async function dentroHorario(sub: string): Promise<boolean> {
-  const r = await fetch(`${SB}/rest/v1/rpc/fp_dentro_horario_comercial`, {
-    method: "POST",
-    headers: H,
-    body: JSON.stringify({ p_sub: sub }),
-  });
-  try {
-    const j = await r.json();
-    return !!j;
-  } catch {
-    return false;
-  }
-}
-
 // Gerar mensagem de recuperação via IA baseado no contexto
 async function gerarMsgRecuperacao(
   historico: string,
@@ -231,12 +216,10 @@ Deno.serve(async (_req: Request) => {
 
       processados++;
 
-      // Horário comercial?
-      const hOk = await dentroHorario(info.sub);
-      if (!hOk) {
-        console.log(`[RECUP] Fora do horario comercial — ${info.sub}`);
-        continue;
-      }
+      // IMPORTANTE: recuperacao automatica NAO respeita horario comercial.
+      // Foi o cliente que iniciou a conversa — podemos responder a qualquer hora.
+      // A cadencia do CRM (ativada apos a 3a tentativa) SIM respeita horario,
+      // pois e uma acao proativa do sistema, nao continuacao de conversa viva.
 
       // Ler/criar registro em recuperacao_sessao
       const existes = await sbGet(
