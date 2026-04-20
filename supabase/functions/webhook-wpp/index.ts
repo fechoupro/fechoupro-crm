@@ -233,6 +233,12 @@ Deno.serve(async(req)=>{
   const isDoc=!!(msgData.documentMessage);
   if(!txt.trim()&&!isImg&&!isDoc)return new Response("OK",{status:200});
 
+  // v29: Reset recuperacao_sessao quando cliente volta a responder
+  // (cancela tentativas futuras se o cliente retoma a conversa)
+  try{
+    await fetch(SB+"/rest/v1/recuperacao_sessao?cliente_subdominio=eq."+SUB+"&numero=eq."+num,{method:"DELETE",headers:H});
+  }catch(_){}
+
   // ---- v26: persistir pushName (nome do perfil WhatsApp) ----
   // Roda em paralelo ao resto, nao bloqueia resposta da Mila
   const pushNameRaw=(data?.pushName||"").trim();
