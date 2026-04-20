@@ -2901,6 +2901,17 @@ function renderConvs(filter=''){
   if(!list)return;
   const base=_filtrarLeadsVendedor(LEADS);
   const filtered=base.filter(l=>!filter||l.nome.toLowerCase().includes(filter.toLowerCase())||l.canal&&l.canal.toLowerCase().includes(filter.toLowerCase()));
+  // Ordenar igual WhatsApp: ultima mensagem mais recente em cima
+  filtered.sort(function(a,b){
+    function ultimoTs(l){
+      var m=l.msgs&&l.msgs.length?l.msgs[l.msgs.length-1]:null;
+      if(m&&m.ts){var t=new Date(m.ts).getTime();if(!isNaN(t))return t;}
+      if(l.created_at){var t2=new Date(l.created_at).getTime();if(!isNaN(t2))return t2;}
+      if(l.hora){var t3=new Date(l.hora).getTime();if(!isNaN(t3))return t3;}
+      return 0;
+    }
+    return ultimoTs(b)-ultimoTs(a);
+  });
   list.innerHTML=``+filtered.map(l=>{
     const msgs=l.msgs||[];
     const last=msgs[msgs.length-1];
