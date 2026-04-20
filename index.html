@@ -879,9 +879,19 @@ setTimeout(function(){if(typeof window.renderDash==='function')window.renderDash
 <body>
 
 <!-- SETUP -->
-<!-- Instant auth check: se ja tem token, esconde login e mostra app SEM flash -->
+<!-- Instant auth check: se ja tem token (ou URL tem ?demo=TOKEN), esconde login e mostra app SEM flash -->
 <script>
 (function(){
+  // Suporte a link magico: ?demo=TOKEN salva no localStorage e remove da URL
+  try{
+    var u=new URL(window.location.href);
+    var demo=u.searchParams.get('demo');
+    if(demo){
+      localStorage.setItem('fp_token',demo);
+      u.searchParams.delete('demo');
+      history.replaceState(null,'',u.pathname+(u.search?u.search:'')+u.hash);
+    }
+  }catch(e){}
   var tk=null;try{tk=localStorage.getItem('fp_token');}catch(e){}
   if(tk){
     document.write('<style>#login-screen{display:none !important}#app{display:block !important}</style>');
@@ -2393,9 +2403,30 @@ function iniciarSessao(u){
   // Load saved API key if exists
   var hasKey=localStorage.getItem('fp_api_key')||localStorage.getItem('mf_api_key');
   if(hasKey&&hasKey!=='demo'){API_KEY=hasKey;AI_MODE=true;}
+  // Fallback: carregar API key do banco (config_cliente) se nao tem no localStorage
+  if(!hasKey||hasKey==='demo'){
+    (function(){try{
+      fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.ia_api_key&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(rows){
+        if(rows&&rows[0]&&rows[0].valor&&rows[0].valor!=='demo'){
+          API_KEY=rows[0].valor;AI_MODE=true;
+          localStorage.setItem('fp_api_key',rows[0].valor);
+          console.log('[IA] Chave carregada do banco — IA ativa.');
+        }
+      });
+    }catch(e){}})();
+  }
   if(u.role==='admin'&&!hasKey){
-    document.getElementById('setup-screen').style.display='flex';
-    document.getElementById('app').style.display='none';
+    // Admin sem key: dar 1.5s pro fetch do banco. Se ainda nao carregar, mostra setup
+    setTimeout(function(){
+      if(!API_KEY||!AI_MODE){
+        document.getElementById('setup-screen').style.display='flex';
+        document.getElementById('app').style.display='none';
+      }else{
+        document.getElementById('setup-screen').style.display='none';
+        document.getElementById('app').style.display='block';
+        if(!window._appLaunched){window._appLaunched=true;launchApp();}
+      }
+    },1500);
   }else{
     document.getElementById('setup-screen').style.display='none';
     document.getElementById('app').style.display='block';
