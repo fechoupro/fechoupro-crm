@@ -54,30 +54,35 @@ async function gerarMsgRecuperacao(
   historico: string,
   lead_nome: string,
   tentativa: number,
+  tentativasAnteriores: string[],
 ): Promise<string> {
   const sys =
-    "Voce e uma atendente humana e proxima, nao robo. Lembre o cliente que ficou uma conversa em aberto. Responda APENAS o texto da mensagem que sera enviada, sem prefixo, sem aspas, sem explicacao.";
+    "Voce e uma atendente humana e proxima, nao robo. Lembre o cliente que ficou uma conversa em aberto. Responda APENAS o texto da mensagem que sera enviada, sem prefixo, sem aspas, sem explicacao. REGRAS CRITICAS: (1) NUNCA invente assuntos que nao estao na conversa (nao mencione endereco, horario, promocoes, entregas se o cliente nao pediu). (2) Retome EXATAMENTE o assunto real que o cliente estava tratando. (3) Se ja houver tentativas anteriores, esta nova mensagem DEVE ser claramente diferente em tom e abordagem.";
 
   let orientacao = "";
   if (tentativa === 1) {
     orientacao =
-      "Lembrete LEVE e curto. Retome o assunto exato que estava sendo falado. Maximo 2 mensagens curtas separadas por |||.";
+      "TENTATIVA 1 - Lembrete LEVE e curto. Pergunta aberta retomando EXATAMENTE o assunto que o cliente estava tratando. Tom: casual, como se voce tivesse se distraido. Maximo 2 mensagens curtas separadas por |||. Exemplo de tom: 'Oi vc, ta ai? Ficou alguma duvida sobre X?'";
   } else if (tentativa === 2) {
     orientacao =
-      "Oferece ajuda direta ou uma alternativa. Pode sugerir algo especifico baseado no contexto. Maximo 2 mensagens separadas por |||.";
+      "TENTATIVA 2 - OFERECER AJUDA ATIVA. Traga uma proposta concreta relacionada ao assunto ja conversado. Pode oferecer sugestao, alternativa ou pergunta especifica pra destravar. Tom: proativo, util. DIFERENTE da tentativa 1 em estrutura e abordagem. Maximo 2 mensagens separadas por |||.";
   } else {
     orientacao =
-      "Despedida leve e respeitosa, deixa a porta aberta. NAO insista. Tom acolhedor. Maximo 2 mensagens separadas por |||.";
+      "TENTATIVA 3 - DESPEDIDA RESPEITOSA. Encerre o ciclo sem insistir. Tom: acolhedor, deixa a porta aberta. NAO repita o conteudo das tentativas anteriores. Maximo 2 mensagens separadas por |||. Exemplo de tom: 'Beleza vc, vou te deixar tranquilo. Qualquer coisa e so chamar.'";
   }
 
-  const user = `Cliente: ${lead_nome}
-Numero da tentativa: ${tentativa}
-Orientacao: ${orientacao}
+  const tentativasJa = tentativasAnteriores.length > 0
+    ? `\n\nMENSAGENS JA ENVIADAS NAS TENTATIVAS ANTERIORES (NAO REPITA, NAO USE TEMAS PARECIDOS):\n${tentativasAnteriores.map((t, i) => (i + 1) + ". " + t).join("\n")}`
+    : "";
 
-Ultimas mensagens da conversa:
+  const user = `Cliente: ${lead_nome}
+Numero da tentativa atual: ${tentativa}
+Orientacao: ${orientacao}${tentativasJa}
+
+Ultimas mensagens da conversa (CONTEXTO REAL - USE APENAS ESSES ASSUNTOS):
 ${historico}
 
-Gere a mensagem de recuperacao agora. Separe bolhas com |||. Maximo 15 palavras por bolha.`;
+Gere a mensagem de recuperacao agora. Separe bolhas com |||. Maximo 15 palavras por bolha. Foque APENAS no assunto real da conversa acima.`;
 
   try {
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -273,15 +278,35 @@ Deno.serve(async (_req: Request) => {
       // Buscar histórico recente (últimas 20 msgs)
       const histRaw = await sbGet(
         "conversas_wpp",
-        `cliente_subdominio=eq.${info.sub}&numero=like.*${info.num}*&order=created_at.desc&limit=20&select=role,content`,
+        `cliente_subdominio=eq.${info.sub}&numero=like.*${info.num}*&order=created_at.desc&limit=20&select=role,content,created_at`,
       );
       const historico = (histRaw || [])
         .reverse()
         .map((h: { role: string; content: string }) => (h.role === "user" ? "Cliente" : "Mila") + ": " + h.content)
         .join("\n");
 
+      // Coletar tentativas anteriores deste ciclo pra evitar repeticao/alucinacao
+      const tentativasAnteriores: string[] = [];
+      const datasAnteriores: Array<Date | null> = [
+        sess.tentativa_1_em ? new Date(sess.tentativa_1_em) : null,
+        sess.tentativa_2_em ? new Date(sess.tentativa_2_em) : null,
+      ];
+      for (const dt of datasAnteriores) {
+        if (!dt) continue;
+        const margem = 2 * 60 * 1000; // 2 min
+        const msgsNessaJanela = (histRaw || []).filter((h: { role: string; content: string; created_at: string }) => {
+          if (h.role !== "assistant") return false;
+          const t = new Date(h.created_at).getTime();
+          return Math.abs(t - dt.getTime()) <= margem;
+        });
+        const textoTent = msgsNessaJanela
+          .map((m: { content: string }) => m.content)
+          .join(" ");
+        if (textoTent) tentativasAnteriores.push(textoTent);
+      }
+
       // Gerar mensagem com IA
-      const texto = await gerarMsgRecuperacao(historico, lead.nome || "vc", tentativa);
+      const texto = await gerarMsgRecuperacao(historico, lead.nome || "vc", tentativa, tentativasAnteriores);
       if (!texto) {
         console.log(`[RECUP] IA nao gerou texto para ${info.num}`);
         continue;
