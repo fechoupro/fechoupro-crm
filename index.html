@@ -1680,8 +1680,9 @@ Qualquer dúvida é só chamar 💪</textarea>
           Para conectar o Instagram, você precisa de uma <strong style="color:var(--text);">conta profissional ou comercial</strong> vinculada a uma <strong style="color:var(--text);">Página do Facebook</strong>. O login é feito via Meta Business — não é necessário trocar de conta nem instalar nada.
         </div>
         <div class="fg"><label class="fl">Usuário do Instagram da loja</label><input class="fi" id="ig-username" placeholder="@millenniumfitnessuruara" /></div>
-        <div class="fg"><label class="fl">Token de acesso Meta (Page Access Token)</label><input class="fi" id="ig-token" type="password" placeholder="Gerado no Meta Business Manager" /></div>
-        <div class="fg"><label class="fl">ID da conta Instagram Business</label><input class="fi" id="ig-account-id" placeholder="Ex: 123456789" /></div>
+        <div class="fg"><label class="fl">Page ID (da página Facebook vinculada)</label><input class="fi" id="ig-page-id" placeholder="Ex: 10012345678901" /></div>
+        <div class="fg"><label class="fl">Page Access Token (longa duração)</label><input class="fi" id="ig-token" type="password" placeholder="Gerado no Meta Business Manager" /></div>
+        <div class="fg"><label class="fl">ID da conta Instagram Business (opcional)</label><input class="fi" id="ig-account-id" placeholder="Ex: 178414567890123" /></div>
         <button class="btn" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#E1306C,#833AB4);color:white;border:none;padding:11px;border-radius:var(--r);font-family:var(--font);font-weight:700;font-size:12px;cursor:pointer;" onclick="conectarInstagram()">
           📷 Conectar Instagram
         </button>
@@ -5665,21 +5666,59 @@ window.carregarStatusCanaisWpp=async function(){
   },500);
 })();
 
-function conectarInstagram(){
-  const user=document.getElementById('ig-username')?.value.trim();
+async function conectarInstagram(){
+  const user=document.getElementById('ig-username')?.value.trim().replace(/^@/,'');
+  const pageId=document.getElementById('ig-page-id')?.value.trim();
   const token=document.getElementById('ig-token')?.value.trim();
-  if(!user){toast('⚠️ Informe o usuário do Instagram.');return;}
-  igConnected=true;
-  document.getElementById('ig-connect-area').style.display='none';
-  document.getElementById('ig-connected-area').style.display='block';
-  document.getElementById('ig-status-badge').textContent='● Conectado';
-  document.getElementById('ig-status-badge').style.background='rgba(225,48,108,.15)';
-  document.getElementById('ig-status-badge').style.color='#E1306C';
-  document.getElementById('ig-connected-user').textContent=user;
-  toast('✅ Instagram conectado! DMs chegando na aba Conversas.');
+  const igUserId=document.getElementById('ig-account-id')?.value.trim();
+  if(!user){toast('⚠️ Informe o @usuário do Instagram.');return;}
+  if(!pageId){toast('⚠️ Informe o Page ID da página Facebook.');return;}
+  if(!token){toast('⚠️ Informe o Page Access Token.');return;}
+
+  toast('🔗 Validando conexão com Meta...');
+  try{
+    // Validar token chamando Graph API
+    const r=await fetch('https://graph.facebook.com/v21.0/'+pageId+'?fields=id,name&access_token='+encodeURIComponent(token));
+    const d=await r.json();
+    if(d.error){
+      toast('❌ Erro: '+(d.error.message||'Token invalido'));
+      return;
+    }
+    if(!d.id){toast('❌ Page ID nao encontrado.');return;}
+
+    // Salvar no banco
+    const sub=_gs();
+    const cfg={username:user,page_id:pageId,access_token:token,ig_user_id:igUserId,page_name:d.name||'',connected_at:new Date().toISOString()};
+    await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+sub+'&chave=eq.instagram_api',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    const ir=await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,chave:'instagram_api',valor:JSON.stringify(cfg)})});
+    if(!ir.ok){toast('❌ Erro ao salvar no banco.');return;}
+
+    // Tentar subscribe_apps na página (necessario pro webhook receber msgs)
+    try{
+      await fetch('https://graph.facebook.com/v21.0/'+pageId+'/subscribed_apps?subscribed_fields=messages,messaging_postbacks&access_token='+encodeURIComponent(token),{method:'POST'});
+    }catch(e){console.warn('subscribe_apps falhou:',e);}
+
+    try{localStorage.setItem('fp_ig_cfg_'+sub,JSON.stringify(cfg));}catch(e){}
+
+    igConnected=true;
+    document.getElementById('ig-connect-area').style.display='none';
+    document.getElementById('ig-connected-area').style.display='block';
+    document.getElementById('ig-status-badge').textContent='● Conectado';
+    document.getElementById('ig-status-badge').style.background='rgba(225,48,108,.15)';
+    document.getElementById('ig-status-badge').style.color='#E1306C';
+    document.getElementById('ig-connected-user').textContent='@'+user+(d.name?' — '+d.name:'');
+    toast('✅ Instagram conectado! DMs chegando na aba Conversas.');
+  }catch(e){
+    toast('❌ Erro de rede: '+(e.message||e));
+  }
 }
 
-function desconectarInstagram(){
+async function desconectarInstagram(){
+  const sub=_gs();
+  try{
+    await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+sub+'&chave=eq.instagram_api',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    localStorage.removeItem('fp_ig_cfg_'+sub);
+  }catch(e){}
   igConnected=false;
   document.getElementById('ig-connect-area').style.display='block';
   document.getElementById('ig-connected-area').style.display='none';
@@ -5689,7 +5728,62 @@ function desconectarInstagram(){
   toast('Instagram desconectado.');
 }
 
-function testarInstagram(){toast('📤 DM de teste enviado para o Instagram da loja!');}
+async function testarInstagram(){
+  const sub=_gs();
+  let cfg=null;
+  try{const rows=await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+sub+'&chave=eq.instagram_api&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(r=>r.json());if(rows&&rows[0])cfg=JSON.parse(rows[0].valor);}catch(e){}
+  if(!cfg){toast('⚠️ Instagram nao configurado.');return;}
+  try{
+    const r=await fetch('https://graph.facebook.com/v21.0/'+cfg.page_id+'/conversations?access_token='+encodeURIComponent(cfg.access_token));
+    const d=await r.json();
+    if(d.error){toast('❌ '+d.error.message);return;}
+    toast('✅ Conexao OK! '+(d.data?d.data.length:0)+' conversas ativas na pagina.');
+  }catch(e){toast('❌ '+(e.message||e));}
+}
+
+// Auto-carregar config IG quando entrar na aba Canais
+window.carregarStatusCanaisIg=async function(){
+  try{
+    const sub=typeof _gs==='function'?_gs():'';
+    const rows=await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+sub+'&chave=eq.instagram_api&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(r=>r.json());
+    if(!rows||!rows.length)return;
+    const cfg=JSON.parse(rows[0].valor||'{}');
+    if(!cfg.username||!cfg.page_id)return;
+    const usrEl=document.getElementById('ig-username');if(usrEl)usrEl.value='@'+cfg.username;
+    const pgEl=document.getElementById('ig-page-id');if(pgEl)pgEl.value=cfg.page_id;
+    const tkEl=document.getElementById('ig-token');if(tkEl)tkEl.value=cfg.access_token;
+    const acEl=document.getElementById('ig-account-id');if(acEl)acEl.value=cfg.ig_user_id||'';
+    // Validar se ainda funciona
+    try{
+      const r=await fetch('https://graph.facebook.com/v21.0/'+cfg.page_id+'?fields=id,name&access_token='+encodeURIComponent(cfg.access_token));
+      const d=await r.json();
+      const ativo=!!d.id;
+      const badge=document.getElementById('ig-status-badge');
+      if(ativo){
+        igConnected=true;
+        document.getElementById('ig-connect-area').style.display='none';
+        document.getElementById('ig-connected-area').style.display='block';
+        if(badge){badge.textContent='● Conectado';badge.style.background='rgba(225,48,108,.15)';badge.style.color='#E1306C';}
+        const u=document.getElementById('ig-connected-user');if(u)u.textContent='@'+cfg.username+(d.name?' — '+d.name:'');
+      }
+    }catch(e){}
+  }catch(e){console.warn('[CANAIS-IG]',e);}
+};
+// Hook adicional no goView
+(function(){
+  var tentar=0;var iv=setInterval(function(){
+    tentar++;if(tentar>60){clearInterval(iv);return;}
+    if(typeof window.goView==='function'&&!window._igGoViewHook){
+      clearInterval(iv);window._igGoViewHook=true;
+      var _og=window.goView;
+      window.goView=function(id,btn){
+        var res=_og.apply(this,arguments);
+        if(id==='canais')setTimeout(window.carregarStatusCanaisIg,500);
+        return res;
+      };
+    }
+  },500);
+})();
 
 window.carregarAgente=function(){
   var sub=window._gs?window._gs():(location.hostname.split('.')[0]);
