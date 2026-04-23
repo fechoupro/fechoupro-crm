@@ -5592,6 +5592,79 @@ function desconectarWpp(){
 function adicionarNumero(){toast('ℹ️ Para adicionar múltiplos números, configure uma nova instância no painel Evolution API.');}
 function testarWpp(){toast('📤 Mensagem de teste enviada para o número configurado!');}
 
+// v2: Carrega status real do WhatsApp ao entrar na aba Canais
+window.carregarStatusCanaisWpp=async function(){
+  try{
+    var sub=typeof _gs==='function'?_gs():'';
+    // 1. Buscar config do banco
+    var r=await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+sub+'&chave=eq.evolution_api&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var rows=await r.json();
+    if(!rows||!rows.length){
+      // Fallback localStorage
+      try{var sc=localStorage.getItem('fp_evo_cfg_'+sub);if(sc)rows=[{valor:sc}];}catch(e){}
+    }
+    if(!rows||!rows.length)return;
+    var cfg=JSON.parse(rows[0].valor||'{}');
+    if(!cfg.url||!cfg.token||!cfg.instance)return;
+    // 2. Preencher campos da UI
+    var urlEl=document.getElementById('evolution-url');if(urlEl)urlEl.value=cfg.url;
+    var tokEl=document.getElementById('evolution-token');if(tokEl)tokEl.value=cfg.token;
+    var instEl=document.getElementById('evolution-instance');if(instEl)instEl.value=cfg.instance;
+    // 3. Verificar conexão real via Evolution API
+    var stRes=await fetch(cfg.url.replace(/\/$/,'')+'/instance/connectionState/'+cfg.instance,{headers:{apikey:cfg.token}});
+    var stData=await stRes.json();
+    var conectado=stData?.instance?.state==='open';
+    // 4. Buscar info da instância (número, nome)
+    var nomeNumero=null;
+    try{
+      var infoRes=await fetch(cfg.url.replace(/\/$/,'')+'/instance/fetchInstances?instanceName='+cfg.instance,{headers:{apikey:cfg.token}});
+      var infoData=await infoRes.json();
+      if(Array.isArray(infoData)&&infoData[0]){
+        var jid=infoData[0].ownerJid||'';
+        nomeNumero={numero:jid.replace(/@[^@]+$/,''),profileName:infoData[0].profileName||infoData[0].name};
+      }
+    }catch(e){}
+    // 5. Atualizar UI
+    var badge=document.getElementById('wpp-status-badge');
+    var connectArea=document.getElementById('wpp-connect-area');
+    var connectedArea=document.getElementById('wpp-connected-area');
+    var numEl=document.getElementById('wpp-connected-number');
+    if(conectado){
+      if(badge){badge.innerHTML='● Conectado';badge.style.background='rgba(0,229,160,.15)';badge.style.color='#00E5A0';badge.style.border='1px solid rgba(0,229,160,.3)';}
+      if(connectArea)connectArea.style.display='none';
+      if(connectedArea)connectedArea.style.display='block';
+      if(numEl&&nomeNumero){
+        var n=nomeNumero.numero;
+        var fmt=n.length>=12?'+'+n.substring(0,2)+' ('+n.substring(2,4)+') '+n.substring(4,9)+'-'+n.substring(9):n;
+        numEl.textContent=fmt+(nomeNumero.profileName?' — '+nomeNumero.profileName:'');
+      }
+    }else{
+      if(badge){badge.innerHTML='● Desconectado';badge.style.background='';badge.style.color='';badge.style.border='';}
+      if(connectArea)connectArea.style.display='block';
+      if(connectedArea)connectedArea.style.display='none';
+    }
+    console.log('[CANAIS] Status WhatsApp:',conectado?'CONECTADO':'DESCONECTADO',nomeNumero);
+  }catch(e){console.warn('[CANAIS] Erro ao carregar status:',e);}
+};
+
+// Hook: disparar ao entrar na aba Canais
+(function(){
+  var tentar=0;
+  var iv=setInterval(function(){
+    tentar++;
+    if(tentar>60){clearInterval(iv);return;}
+    if(typeof window.goView==='function'){
+      clearInterval(iv);
+      var _og=window.goView;
+      window.goView=function(id,btn){
+        var res=_og.apply(this,arguments);
+        if(id==='canais')setTimeout(window.carregarStatusCanaisWpp,300);
+        return res;
+      };
+    }
+  },500);
+})();
+
 function conectarInstagram(){
   const user=document.getElementById('ig-username')?.value.trim();
   const token=document.getElementById('ig-token')?.value.trim();
