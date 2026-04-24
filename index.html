@@ -4498,24 +4498,31 @@ async function _atualizarStatusCadencia(leadId){
   var btnPausar=document.getElementById('rec-btn-pausar');
   var btnReiniciar=document.getElementById('rec-btn-reiniciar');
   if(!box||!btnAtivar)return;
+  // Garantir que feriados estao carregados
+  if(typeof _fpCarregarFeriados==='function')await _fpCarregarFeriados();
   var ativa=await _fpVerificarCadenciaAtiva(String(leadId));
   if(ativa){
-    // Cadencia ATIVA
-    var dt=new Date(ativa.proxima_em);
-    var dtFmt=dt.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    var dtOriginal=new Date(ativa.proxima_em);
+    var dtEfetiva=_fpProximoHorarioValido(dtOriginal);
+    var fmtEfetiva=_fpFormatDataBR(dtEfetiva);
+    var diferente=Math.abs(dtEfetiva.getTime()-dtOriginal.getTime())>60000; // > 1min = foi adiada
+    var fmtOriginal=_fpFormatDataBR(dtOriginal);
     box.style.display='block';
+    var aviso=diferente
+      ? '<div style="font-size:9px;color:#FBB040;margin-top:4px;">⏰ Ajustado p/ horário comercial (original: '+fmtOriginal+')</div>'
+      : '';
     box.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
       +'<div style="width:8px;height:8px;border-radius:50%;background:var(--accent2);animation:pulse 2s infinite;"></div>'
       +'<div style="font-size:11px;font-family:var(--font);font-weight:700;color:var(--accent2);">Cadência ATIVA</div>'
       +'</div>'
       +'<div style="font-size:11px;color:var(--muted);line-height:1.5;">'
-        +ativa.total+' mensagem(ns) pendente(s) · Próxima: <strong>'+ativa.proxima.titulo+'</strong> em '+dtFmt
-      +'</div>';
+        +ativa.total+' mensagem(ns) pendente(s) · Próxima: <strong>'+ativa.proxima.titulo+'</strong> em <strong style="color:var(--text);">'+fmtEfetiva+'</strong>'
+      +'</div>'
+      +aviso;
     btnAtivar.style.display='none';
     btnPausar.style.display='inline-flex';
     btnReiniciar.style.display='inline-flex';
   }else{
-    // Cadencia INATIVA
     box.style.display='none';
     btnAtivar.style.display='inline-flex';
     btnAtivar.style.flex='1';
@@ -4798,6 +4805,51 @@ function _fpDentroHorario(){
   if(dow>=1&&dow<=5)return h>=8&&h<18;
   if(dow===6)return h>=8&&h<12; // sabado agora ate 12h (era 11h)
   return false;
+}
+
+// Calcula o proximo horario VALIDO de envio a partir de um Date
+// Respeita horario comercial (seg-sex 8-18h, sab 8-12h) e feriados
+function _fpProximoHorarioValido(dt){
+  var feriados=(window._fpFeriados&&window._fpFeriados.set)||new Set();
+  // Converte pra horario de Sao Paulo
+  var local=new Date(dt.toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));
+  var offsetDiff=local.getTime()-dt.getTime();
+  // Loop ate achar uma janela valida (max 30 iteracoes = segurança)
+  for(var i=0;i<30;i++){
+    var dow=local.getDay();
+    var h=local.getHours();var m=local.getMinutes();
+    var y=local.getFullYear();
+    var mo=String(local.getMonth()+1).padStart(2,'0');
+    var d=String(local.getDate()).padStart(2,'0');
+    var iso=y+'-'+mo+'-'+d;
+    var ehFeriado=feriados.has(iso);
+    var domingo=dow===0;
+    var sabado=dow===6;
+    var segSex=dow>=1&&dow<=5;
+    // Dentro da janela?
+    if(!ehFeriado){
+      if(segSex&&h>=8&&h<18)return new Date(local.getTime()-offsetDiff);
+      if(sabado&&h>=8&&h<12)return new Date(local.getTime()-offsetDiff);
+    }
+    // Fora — avancar pra proxima janela valida
+    if(!ehFeriado&&segSex&&h<8){
+      // Mesmo dia, abrir 8h
+      local=new Date(local.getFullYear(),local.getMonth(),local.getDate(),8,0,0);
+      continue;
+    }
+    if(!ehFeriado&&sabado&&h<8){
+      local=new Date(local.getFullYear(),local.getMonth(),local.getDate(),8,0,0);
+      continue;
+    }
+    // Passou do horario ou domingo/feriado — avanca pro dia seguinte 8h
+    local=new Date(local.getFullYear(),local.getMonth(),local.getDate()+1,8,0,0);
+  }
+  return dt; // fallback
+}
+
+// Formata data bonito
+function _fpFormatDataBR(dt){
+  return dt.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});
 }
 // Carregar feriados logo ao inicio
 setTimeout(_fpCarregarFeriados,3000);
