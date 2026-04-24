@@ -1286,6 +1286,17 @@ Qualquer dúvida, estamos aqui! 💪</textarea>
         <span id="pvim-attach-badge" style="font-size:10px;color:#00E5A0;display:none;"></span>
       </div>
       <input type="file" id="pvim-file" style="display:none;" onchange="pvimHandleFile(this)" />
+      <div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;">
+          <input type="radio" name="pvim-send-mode" value="msg_midia" checked style="accent-color:var(--accent2);" /> Mensagem + anexo
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;">
+          <input type="radio" name="pvim-send-mode" value="only_msg" style="accent-color:var(--accent2);" /> Somente mensagem
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;">
+          <input type="radio" name="pvim-send-mode" value="only_midia" style="accent-color:var(--accent2);" /> Somente anexo
+        </label>
+      </div>
     </div>
     <button class="btn btn-primary" style="font-size:11px;" onclick="salvarPvImediata()">✓ Salvar configuração</button>
   </div>
@@ -2621,7 +2632,7 @@ function goView(id,btn){
   if(id==='master'){safeRun('renderMasterClients',renderMasterClients);}
   if(id==='dashboard'){safeRun('initDashboard',initDashboard);}
   if(id==='posv30'){safeRun('renderPosv30Counts',renderPosv30Counts);safeRun('renderPosv30Segs',renderPosv30Segs);safeRun('renderPosvCfg',renderPosvCfg);safeRun('renderRecRules',renderRecRules);safeRun('renderUpsellRules',renderUpsellRules);safeRun('renderRecDash',renderRecDash);}
-  if(id==='posv'){safeRun('checkPvImediataWindow',checkPvImediataWindow);safeRun('renderPvImediataLeads',renderPvImediataLeads);}
+  if(id==='posv'){safeRun('checkPvImediataWindow',checkPvImediataWindow);safeRun('renderPvImediataLeads',renderPvImediataLeads);safeRun('_cbLoadAndApplyConfig',_cbLoadAndApplyConfig);safeRun('_pvImediataLoadConfig',_pvImediataLoadConfig);safeRun('renderCashbackLeadsReal',renderCashbackLeadsReal);}
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('view-'+id).classList.add('active','fade');
@@ -3848,45 +3859,97 @@ function checkPvImediataWindow(){
   }
 }
 
-function renderPvImediataLeads(){
+async function renderPvImediataLeads(){
   const el=document.getElementById('pvimediata-leads-list');if(!el)return;
-  if(PV_IMEDIATA_LEADS.length===0){el.innerHTML='<div style="font-size:11px;color:var(--dim);text-align:center;padding:14px;">Nenhum cliente novo ontem.</div>';return;}
+  // Buscar leads FINALIZADOS (resultado_final=venda) do dia anterior e hoje
+  try{
+    var sub=_gs();
+    var limIni=new Date(Date.now()-3*86400000).toISOString();
+    var r=await fetch(_SB+'/rest/v1/leads?cliente_subdominio=eq.'+sub+'&resultado_final=eq.venda&finalizado_em=gte.'+encodeURIComponent(limIni)+'&order=finalizado_em.desc&select=id,nome,telefone,numero,produto,valor,vendedor,finalizado_em',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var leadsDB=await r.json();
+    // Pra cada, verificar se ja foi enfileirado/enviado agradecimento
+    var ids=(leadsDB||[]).map(function(l){return String(l.id);}).filter(Boolean);
+    var enviados={};
+    if(ids.length){
+      var idsQ=ids.map(function(i){return encodeURIComponent(i);}).join(',');
+      var qr=await fetch(_SB+'/rest/v1/posvenda_queue?cliente_subdominio=eq.'+sub+'&tipo=eq.agradecimento&lead_id=in.('+idsQ+')&select=lead_id,enviado',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+      var q=await qr.json();
+      (q||[]).forEach(function(x){enviados[String(x.lead_id)]=x.enviado;});
+    }
+    // Rehidrata PV_IMEDIATA_LEADS do banco
+    PV_IMEDIATA_LEADS.length=0;
+    (leadsDB||[]).forEach(function(l){
+      var dt=new Date(l.finalizado_em);
+      PV_IMEDIATA_LEADS.push({
+        id:l.id,nome:l.nome||'Cliente',
+        tel:l.telefone||l.numero||'',
+        produto:l.produto||'',valor:l.valor||0,vendedor:l.vendedor||'',
+        compra:dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),
+        hora:dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+        enviado:!!enviados[String(l.id)]
+      });
+    });
+  }catch(e){console.error('[PVIM] load leads:',e);}
+  if(PV_IMEDIATA_LEADS.length===0){el.innerHTML='<div style="font-size:11px;color:var(--dim);text-align:center;padding:14px;">Nenhum cliente finalizado (venda) nos últimos 3 dias.</div>';return;}
   el.innerHTML=PV_IMEDIATA_LEADS.map(l=>`
     <div class="pvimediata-lead-row">
-      <div class="pvimediata-av">${l.nome.split(' ').map(w=>w[0]).slice(0,2).join('')}</div>
+      <div class="pvimediata-av">${(l.nome||'').split(' ').map(w=>w[0]||'').slice(0,2).join('').toUpperCase()||'?'}</div>
       <div class="pvimediata-info">
         <div class="pvimediata-name">${l.nome}</div>
-        <div class="pvimediata-sub">${l.produto} · Vendedor: ${l.vendedor}</div>
+        <div class="pvimediata-sub">${l.produto||'(sem produto)'} · ${l.vendedor||'—'}</div>
       </div>
-      <div class="pvimediata-valor">R$${l.valor.toFixed(2).replace('.',',')}</div>
+      <div class="pvimediata-valor">R$${(l.valor||0).toFixed(2).replace('.',',')}</div>
       <div class="pvimediata-time">${l.compra} ${l.hora}</div>
       ${l.enviado
         ? '<span class="pvimediata-sent-badge">✓ Enviado</span>'
-        : `<button class="pvimediata-send-btn" onclick="enviarPvImediata(${l.id})">📤 Enviar</button>`
+        : `<button class="pvimediata-send-btn" onclick="enviarPvImediata('${l.id}')">📤 Enviar</button>`
       }
     </div>`).join('');
 }
 
-function enviarPvImediata(id){
-  const lead=PV_IMEDIATA_LEADS.find(l=>l.id===id);
-  if(!lead)return;
-  const msg=(document.getElementById('pvimediata-msg')?.value||'Obrigado {nome}!')
-    .replace(/{nome}/g,lead.nome.split(' ')[0])
-    .replace(/{produto}/g,lead.produto)
-    .replace(/{valor}/g,'R$'+lead.valor.toFixed(2).replace('.',','))
-    .replace(/{loja}/g,'Millennium Fitness')
-    .replace(/{link_google}/g,document.getElementById('pvimediata-link')?.value||'https://g.page/r/review');
+async function enviarPvImediata(id){
+  const lead=PV_IMEDIATA_LEADS.find(l=>String(l.id)===String(id));
+  if(!lead){toast('Lead nao encontrado');return;}
+  var numero=lead.tel||lead.telefone||lead.numero||'';
+  if(!numero){toast('⚠️ Lead sem número.');return;}
+  const msgRaw=document.getElementById('pvimediata-msg')?.value||'Obrigado {nome}!';
+  const msg=msgRaw
+    .replace(/\{nome\}/g,(lead.nome||'').split(' ')[0]||'vc')
+    .replace(/\{produto\}/g,lead.produto||'sua compra')
+    .replace(/\{valor\}/g,'R$'+((lead.valor||0).toFixed(2)).replace('.',','))
+    .replace(/\{loja\}/g,_getNomeLoja())
+    .replace(/\{link_google\}/g,document.getElementById('pvimediata-link')?.value||'');
+  // Enfileira em posvenda_queue (tipo='agradecimento') pra SQL processar respeitando horario
+  var sub=_gs();
+  // Apagar se ja existir (permite reenvio)
+  await fetch(_SB+'/rest/v1/posvenda_queue?cliente_subdominio=eq.'+sub+'&lead_id=eq.'+encodeURIComponent(String(lead.id))+'&tipo=eq.agradecimento&enviado=eq.false',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  var anexoUrl=window._pvimAnexoUrl||null;
+  var anexoTipo=window._pvimAnexoTipo||null;
+  var modo=document.querySelector('input[name="pvim-send-mode"]:checked')?.value||'msg_midia';
+  var ir=await fetch(_SB+'/rest/v1/posvenda_queue',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify([{cliente_subdominio:sub,lead_id:String(lead.id),lead_nome:lead.nome,numero:numero,tipo:'agradecimento',mensagem:msg,anexo_url:anexoUrl,anexo_tipo:anexoTipo,modo:modo,enviar_em:new Date().toISOString()}])});
+  if(!ir.ok){toast('❌ Erro ao enfileirar.');return;}
   lead.enviado=true;
   renderPvImediataLeads();
-  toast('✅ Mensagem de agradecimento enviada para '+lead.nome+'!');
+  toast('✅ Agradecimento enfileirado para '+lead.nome+'. Envio em até 1 min (dentro do horário).');
 }
 
-function enviarTodosPvImediata(){
+async function enviarTodosPvImediata(){
   const pendentes=PV_IMEDIATA_LEADS.filter(l=>!l.enviado);
   if(pendentes.length===0){toast('ℹ️ Todos os clientes já receberam a mensagem.');return;}
-  pendentes.forEach(l=>l.enviado=true);
-  renderPvImediataLeads();
-  toast('✅ Mensagem de agradecimento enviada para '+pendentes.length+' cliente(s)!');
+  if(!confirm('📤 Enviar agradecimento pra '+pendentes.length+' cliente(s)?\n\nSerá enfileirado agora e o servidor dispara respeitando horário comercial.'))return;
+  var sub=_gs();
+  var enfileirados=0;
+  for(var i=0;i<pendentes.length;i++){
+    try{await enviarPvImediata(pendentes[i].id);enfileirados++;}catch(e){}
+  }
+  toast('✅ '+enfileirados+' agradecimento(s) enfileirado(s).');
+}
+
+function _getNomeLoja(){
+  try{
+    var c=JSON.parse(localStorage.getItem('mf_company')||'{}');
+    return c.nome||'nossa loja';
+  }catch(e){return 'nossa loja';}
 }
 
 function togglePvImediata(){
@@ -3905,12 +3968,46 @@ function pvimSelectAnexo(tipo,btn){
   if(inp){inp.accept=acc[tipo]||'*/*';inp.click();}
 }
 
-function pvimHandleFile(input){
+async function pvimHandleFile(input){
   const file=input.files[0];if(!file)return;
   pvImediataAnexo=file;
   const badge=document.getElementById('pvim-attach-badge');
-  if(badge){badge.style.display='inline';badge.textContent='📎 '+file.name+' ('+Math.round(file.size/1024)+'KB)';}
-  toast('✅ Anexo: '+file.name);input.value='';
+  if(badge){badge.style.display='inline';badge.textContent='⏳ Fazendo upload: '+file.name;}
+  // Upload pro Supabase Storage bucket 'posvenda-anexos' (cria se nao existir)
+  try{
+    var url=await _uploadAnexoStorage(file,'posvenda');
+    if(url){
+      window._pvimAnexoUrl=url;
+      window._pvimAnexoTipo=pvImediataAnexoTipo==='imagem'?'image':(pvImediataAnexoTipo==='video'?'video':'document');
+      if(badge){badge.style.display='inline';badge.textContent='📎 '+file.name+' (salvo)';}
+      toast('✅ Anexo enviado: '+file.name);
+    }else{
+      if(badge){badge.style.display='inline';badge.textContent='❌ Falhou: '+file.name;}
+      toast('❌ Erro no upload. Salve a config mesmo assim se quiser só msg.');
+    }
+  }catch(e){
+    console.error('[UPLOAD]',e);
+    if(badge){badge.textContent='❌ '+e.message;}
+  }
+  input.value='';
+}
+
+// Upload de arquivo pro Supabase Storage. Retorna URL publica.
+async function _uploadAnexoStorage(file,prefixo){
+  var sub=_gs();
+  var bucket='anexos';
+  var path=sub+'/'+prefixo+'/'+Date.now()+'_'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  try{
+    // Tentar upload direto (bucket precisa existir e ser public)
+    var up=await fetch(_SB+'/storage/v1/object/'+bucket+'/'+encodeURIComponent(path),{method:'POST',headers:{'Authorization':'Bearer '+_SK,'apikey':_SK,'x-upsert':'true','Content-Type':file.type||'application/octet-stream'},body:file});
+    if(!up.ok){
+      // Tentar criar bucket publico e refazer
+      await fetch(_SB+'/storage/v1/bucket',{method:'POST',headers:{'Authorization':'Bearer '+_SK,'apikey':_SK,'Content-Type':'application/json'},body:JSON.stringify({id:bucket,name:bucket,public:true})});
+      up=await fetch(_SB+'/storage/v1/object/'+bucket+'/'+encodeURIComponent(path),{method:'POST',headers:{'Authorization':'Bearer '+_SK,'apikey':_SK,'x-upsert':'true','Content-Type':file.type||'application/octet-stream'},body:file});
+    }
+    if(!up.ok){console.error('upload failed',up.status,await up.text());return null;}
+    return _SB+'/storage/v1/object/public/'+bucket+'/'+path;
+  }catch(e){console.error('[UPLOAD ERR]',e);return null;}
 }
 
 function pvimClearAnexo(){
@@ -3920,8 +4017,71 @@ function pvimClearAnexo(){
   document.querySelectorAll('.pvimediata-cfg .rec-attach-btn').forEach(b=>b.classList.remove('active'));
 }
 
-function salvarPvImediata(){toast('✅ Configuração de Pós-Venda Imediata salva!');}
-function salvarCfgPvImediata(){toast('✅ Configurações salvas!');}
+async function salvarPvImediata(){
+  try{
+    var cfg={
+      ativo:pvImediataAtivo,
+      msg:document.getElementById('pvimediata-msg')?.value||'',
+      link_google:document.getElementById('pvimediata-link')?.value||'',
+      anexo_url:window._pvimAnexoUrl||null,
+      anexo_tipo:window._pvimAnexoTipo||null,
+      modo:document.querySelector('input[name="pvim-send-mode"]:checked')?.value||'msg_midia'
+    };
+    await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.posvenda_config',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:_gs(),chave:'posvenda_config',valor:JSON.stringify(cfg)})});
+    toast('✅ Configuração de Pós-Venda Imediata salva!');
+  }catch(e){toast('❌ Erro: '+e.message);}
+}
+
+async function _pvImediataLoadConfig(){
+  try{
+    var r=await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.posvenda_config&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var rows=await r.json();
+    if(!rows||!rows.length)return;
+    var cfg=JSON.parse(rows[0].valor);
+    pvImediataAtivo=!!cfg.ativo;
+    var toggle=document.getElementById('pvimediata-toggle');
+    if(toggle)toggle.className='toggle '+(pvImediataAtivo?'on':'off');
+    if(cfg.msg){var m=document.getElementById('pvimediata-msg');if(m)m.value=cfg.msg;}
+    if(cfg.link_google){var l=document.getElementById('pvimediata-link');if(l)l.value=cfg.link_google;}
+    window._pvimAnexoUrl=cfg.anexo_url;
+    window._pvimAnexoTipo=cfg.anexo_tipo;
+    if(cfg.anexo_url){
+      var badge=document.getElementById('pvim-attach-badge');
+      if(badge){badge.style.display='inline';badge.textContent='📎 Anexo salvo';}
+    }
+    var modoRadio=document.querySelector('input[name="pvim-send-mode"][value="'+(cfg.modo||'msg_midia')+'"]');
+    if(modoRadio)modoRadio.checked=true;
+  }catch(e){console.warn('[PVIMED] load:',e);}
+}
+
+async function _cbLoadAndApplyConfig(){
+  var cfg=await _cbLoadConfig();
+  if(!cfg)return;
+  cashbackOn=!!cfg.ativo;
+  var btn=document.getElementById('cb-master-toggle');
+  var lbl=document.getElementById('cb-status-lbl');
+  if(btn)btn.className='toggle '+(cashbackOn?'on':'off');
+  if(lbl){lbl.textContent=cashbackOn?'● Ativo':'● Inativo';lbl.className='cashback-active '+(cashbackOn?'cb-on':'cb-off');}
+  var pct=document.getElementById('cb-pct');if(pct&&cfg.pct)pct.value=cfg.pct;
+  var val=document.getElementById('cb-validade');if(val&&cfg.validade)val.value=cfg.validade;
+  var desc=document.getElementById('cb-desc');if(desc&&cfg.msg)desc.value=cfg.msg;
+  cbFilter=cfg.filtro_pagamento||'todos';
+  document.querySelectorAll('.cb-filter-btn').forEach(function(b){b.classList.remove('active');});
+  var filterBtn=Array.from(document.querySelectorAll('.cb-filter-btn')).find(function(b){
+    var txt=b.textContent.toLowerCase();
+    if(cbFilter==='todos'&&txt.indexOf('todos')>=0)return true;
+    if(cbFilter==='avista'&&txt.indexOf('vista')>=0)return true;
+    if(cbFilter==='debito'&&txt.indexOf('débito')>=0)return true;
+    if(cbFilter==='credito'&&txt.indexOf('crédito')>=0)return true;
+    return false;
+  });
+  if(filterBtn)filterBtn.classList.add('active');
+  var modoRadio=document.querySelector('input[name="cb-send-mode"][value="'+(cfg.modo||'msg_midia')+'"]');
+  if(modoRadio)modoRadio.checked=true;
+}
+
+function salvarCfgPvImediata(){salvarPvImediata();}
 function toggleCashback2(){
   const btn=document.getElementById('cb-master-toggle2');
   const lbl=document.getElementById('cb-status-lbl2');
@@ -4371,27 +4531,174 @@ function reativarLead(nome,key){
 let cashbackOn=true;
 const CASHBACK_DATA=[];
 
-function toggleCashback(){
+async function toggleCashback(){
   cashbackOn=!cashbackOn;
   const btn=document.getElementById('cb-master-toggle');
   const lbl=document.getElementById('cb-status-lbl');
   if(btn){btn.className='toggle '+(cashbackOn?'on':'off');}
   if(lbl){lbl.textContent=cashbackOn?'● Ativo':'● Inativo';lbl.className='cashback-active '+(cashbackOn?'cb-on':'cb-off');}
+  // Persistir toggle no banco
+  await _cbSalvarConfig({ativo:cashbackOn});
   toast(cashbackOn?'✅ Cash Back ativado!':'⚠️ Cash Back desativado.');
 }
 
-function salvarCashback(){
-  toast('✅ Configuração de Cash Back salva! Disparos automáticos ativos.');
+// Salva a config completa do cashback no config_cliente
+async function _cbSalvarConfig(override){
+  try{
+    var atual=await _cbLoadConfig();
+    var cfg=Object.assign({
+      ativo:cashbackOn,
+      pct:parseInt(document.getElementById('cb-pct')?.value||'10',10),
+      validade:parseInt(document.getElementById('cb-validade')?.value||'30',10),
+      msg:document.getElementById('cb-desc')?.value||'',
+      filtro_pagamento:cbFilter||'todos',
+      modo:document.querySelector('input[name="cb-send-mode"]:checked')?.value||'msg_midia',
+      anexo_url:atual?atual.anexo_url:null,
+      anexo_tipo:atual?atual.anexo_tipo:null,
+      delay_dias:2
+    },override||{});
+    await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.cashback_config',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:_gs(),chave:'cashback_config',valor:JSON.stringify(cfg)})});
+    return cfg;
+  }catch(e){console.error('[CB] salvar:',e);return null;}
 }
 
-function dispararCashbackManual(){
-  const pct=document.getElementById('cb-pct')?.value||10;
-  CASHBACK_DATA.filter(l=>l.status==='pending').forEach(l=>l.status='sent');
-  renderCashbackLeads();
-  toast(`📤 Cash Back de ${pct}% disparado para ${CASHBACK_DATA.length} leads!`);
+async function _cbLoadConfig(){
+  try{
+    var r=await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.cashback_config&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var rows=await r.json();
+    if(!rows||!rows.length)return null;
+    return JSON.parse(rows[0].valor);
+  }catch(e){return null;}
+}
+
+async function salvarCashback(){
+  var cfg=await _cbSalvarConfig();
+  if(!cfg){toast('❌ Erro ao salvar. Ver console.');return;}
+  toast('✅ Configuração de Cash Back salva! Disparos automáticos em até 10 min.');
+}
+
+// Disparo manual: enfileira cashback pra TODOS leads com venda, agora
+async function dispararCashbackManual(){
+  if(!confirm('📤 Disparar cashback agora para todos os leads com venda recente (últimos 60 dias) que ainda não receberam?\n\nContinuar?'))return;
+  var cfg=await _cbLoadConfig();
+  if(!cfg){
+    await _cbSalvarConfig();
+    cfg=await _cbLoadConfig();
+  }
+  if(!cfg){toast('❌ Configure e salve primeiro.');return;}
+  var sub=_gs();
+  var pct=parseInt(cfg.pct||10,10);
+  var validade=parseInt(cfg.validade||30,10);
+  var msgTpl=cfg.msg||'Olá {nome}! Você ganhou {pct}% de desconto na próxima compra! Válido por {dias} dias.';
+  // Buscar leads com venda
+  var limDate=new Date(Date.now()-60*86400000).toISOString();
+  var r=await fetch(_SB+'/rest/v1/leads?cliente_subdominio=eq.'+sub+'&resultado_final=eq.venda&finalizado_em=gte.'+encodeURIComponent(limDate)+'&select=id,nome,telefone,numero,produto,valor,forma_pagamento',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  var leads=await r.json();
+  if(!Array.isArray(leads)||leads.length===0){toast('ℹ️ Nenhum lead finalizado recente.');return;}
+  // Filtro pagamento
+  var filtro=cbFilter||cfg.filtro_pagamento||'todos';
+  var elegiveis=leads.filter(function(l){
+    if(filtro==='todos')return true;
+    var fp=(l.forma_pagamento||'').toLowerCase();
+    if(filtro==='avista')return ['avista','pix','dinheiro'].indexOf(fp)>=0;
+    if(filtro==='debito')return fp==='debito';
+    if(filtro==='credito')return fp==='credito';
+    return false;
+  });
+  if(!elegiveis.length){toast('ℹ️ Nenhum lead com a forma de pagamento selecionada.');return;}
+  var enfileirados=0,jaTinham=0;
+  for(var i=0;i<elegiveis.length;i++){
+    var l=elegiveis[i];
+    var numero=l.numero||l.telefone||'';
+    if(!numero)continue;
+    // Já na fila?
+    var eR=await fetch(_SB+'/rest/v1/posvenda_queue?cliente_subdominio=eq.'+sub+'&lead_id=eq.'+l.id+'&tipo=eq.cashback&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var ex=await eR.json();
+    if(ex&&ex.length){jaTinham++;continue;}
+    var nome=(l.nome||'vc').split(' ')[0];
+    var msg=msgTpl.replace(/\{nome\}/g,nome).replace(/\{pct\}/g,String(pct)).replace(/\{dias\}/g,String(validade)).replace(/\{produto\}/g,l.produto||'sua compra').replace(/\{valor\}/g,'R$'+((l.valor||0).toFixed(2)).replace('.',','));
+    var ir=await fetch(_SB+'/rest/v1/posvenda_queue',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify([{cliente_subdominio:sub,lead_id:String(l.id),lead_nome:l.nome,numero:numero,tipo:'cashback',mensagem:msg,anexo_url:cfg.anexo_url||null,anexo_tipo:cfg.anexo_tipo||null,modo:cfg.modo||'msg_midia',enviar_em:new Date().toISOString()}])});
+    if(ir.ok)enfileirados++;
+  }
+  toast('📤 Enfileirados: '+enfileirados+' (já tinham: '+jaTinham+'). Envio respeita horário comercial.');
+  renderCashbackLeadsReal();
+}
+
+// Renderiza lista REAL de cashbacks (da fila posvenda_queue + leads finalizados)
+async function renderCashbackLeadsReal(){
+  const el=document.getElementById('cb-leads-list');
+  if(!el)return;
+  const pct=parseInt(document.getElementById('cb-pct')?.value||'10',10);
+  try{
+    var sub=_gs();
+    // 1. Busca queue de cashbacks (pendentes, enviados nos ultimos 30 dias)
+    var qR=await fetch(_SB+'/rest/v1/posvenda_queue?cliente_subdominio=eq.'+sub+'&tipo=eq.cashback&order=created_at.desc&limit=60&select=id,lead_id,lead_nome,numero,enviar_em,enviado,enviado_em',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var queue=await qR.json();
+    // 2. Busca leads com venda finalizada nos ultimos 60 dias (pra casos ainda nao enfileirados)
+    var limDate=new Date(Date.now()-60*86400000).toISOString();
+    var lR=await fetch(_SB+'/rest/v1/leads?cliente_subdominio=eq.'+sub+'&resultado_final=eq.venda&finalizado_em=gte.'+encodeURIComponent(limDate)+'&order=finalizado_em.desc&select=id,nome,valor,finalizado_em',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var leadsVenda=await lR.json();
+    var queueByLead={};
+    (queue||[]).forEach(function(q){queueByLead[String(q.lead_id)]=q;});
+    var rows=(leadsVenda||[]).map(function(l){
+      var q=queueByLead[String(l.id)];
+      var status='pending';
+      if(q){status=q.enviado?'sent':'queued';}
+      var dias=Math.floor((Date.now()-new Date(l.finalizado_em).getTime())/86400000);
+      return {id:l.id,nome:l.nome||'Cliente',valor:l.valor||0,compra:new Date(l.finalizado_em).toLocaleDateString('pt-BR'),dias_passados:dias,status:status,q_id:q?q.id:null};
+    });
+    CASHBACK_DATA.length=0;
+    rows.forEach(function(r){CASHBACK_DATA.push(r);});
+    if(!rows.length){el.innerHTML='<div style="font-size:11px;color:var(--dim);text-align:center;padding:14px;">Nenhuma venda finalizada nos últimos 60 dias.</div>';return;}
+    el.innerHTML=rows.map(function(l){
+      var cbVal=((l.valor*pct)/100).toFixed(2).replace('.',',');
+      var ini2=(l.nome||'').split(' ').map(function(w){return (w[0]||'');}).slice(0,2).join('').toUpperCase()||'?';
+      var statusLbl=l.status==='sent'?'✅ Enviado':l.status==='queued'?'⏳ Na fila':'📥 Disponível';
+      var statusCls=l.status==='sent'?'cbs-used':l.status==='queued'?'cbs-sent':'cbs-pending';
+      return '<div class="cb-lead-row">'
+        +'<div class="cb-lead-av">'+ini2+'</div>'
+        +'<div class="cb-lead-info">'
+          +'<div class="cb-lead-name">'+l.nome+'</div>'
+          +'<div class="cb-lead-sub">Última compra: R$'+l.valor.toFixed(2).replace('.',',')+' em '+l.compra+' · '+l.dias_passados+' dias atrás</div>'
+        +'</div>'
+        +'<div class="cb-lead-val">R$'+cbVal+' off</div>'
+        +'<span class="cb-lead-status '+statusCls+'">'+statusLbl+'</span>'
+        +(l.status==='pending'?'<button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;" onclick="dispararCashbackLeadReal(\''+l.id+'\')">Disparar</button>':'')
+      +'</div>';
+    }).join('');
+  }catch(e){console.error('[CB RENDER]',e);el.innerHTML='<div style="font-size:11px;color:#F87171;padding:14px;">Erro ao carregar: '+e.message+'</div>';}
+}
+
+// Dispara UM lead específico
+async function dispararCashbackLeadReal(leadId){
+  var cfg=await _cbLoadConfig();
+  if(!cfg){await _cbSalvarConfig();cfg=await _cbLoadConfig();}
+  if(!cfg){toast('❌ Salve a configuração primeiro.');return;}
+  var sub=_gs();
+  var lR=await fetch(_SB+'/rest/v1/leads?id=eq.'+encodeURIComponent(leadId)+'&select=id,nome,telefone,numero,produto,valor&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  var leads=await lR.json();
+  if(!leads||!leads.length){toast('Lead nao encontrado');return;}
+  var l=leads[0];
+  var numero=l.numero||l.telefone||'';
+  if(!numero){toast('⚠️ Sem número');return;}
+  var pct=parseInt(cfg.pct||10,10);
+  var validade=parseInt(cfg.validade||30,10);
+  var nome=(l.nome||'vc').split(' ')[0];
+  var msg=(cfg.msg||'Olá {nome}! Você ganhou {pct}% de desconto! Válido {dias} dias.').replace(/\{nome\}/g,nome).replace(/\{pct\}/g,String(pct)).replace(/\{dias\}/g,String(validade)).replace(/\{produto\}/g,l.produto||'sua compra').replace(/\{valor\}/g,'R$'+((l.valor||0).toFixed(2)).replace('.',','));
+  await fetch(_SB+'/rest/v1/posvenda_queue?cliente_subdominio=eq.'+sub+'&lead_id=eq.'+encodeURIComponent(String(l.id))+'&tipo=eq.cashback&enviado=eq.false',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  var ir=await fetch(_SB+'/rest/v1/posvenda_queue',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify([{cliente_subdominio:sub,lead_id:String(l.id),lead_nome:l.nome,numero:numero,tipo:'cashback',mensagem:msg,anexo_url:cfg.anexo_url||null,anexo_tipo:cfg.anexo_tipo||null,modo:cfg.modo||'msg_midia',enviar_em:new Date().toISOString()}])});
+  if(ir.ok){toast('✅ Cashback enfileirado para '+l.nome);renderCashbackLeadsReal();}
+  else toast('❌ Erro ao enfileirar');
 }
 
 function renderCashbackLeads(){
+  // Delega pra versao real
+  if(typeof renderCashbackLeadsReal==='function')renderCashbackLeadsReal();
+  return;
+}
+
+function renderCashbackLeadsFAKE(){
   const el=document.getElementById('cb-leads-list');
   if(!el)return;
   const pct=document.getElementById('cb-pct')?.value||10;
@@ -5418,7 +5725,7 @@ function cbSelectAttach(tipo,btn){
   if(inp){inp.accept=acceptMap[tipo]||'*/*';inp.click();}
 }
 
-function cbHandleFile(input){
+async function cbHandleFile(input){
   const file=input.files[0];if(!file)return;
   cbAttachFile=file;cbMediaFile=file;cbMediaType=cbAttachType;
   const preview=document.getElementById('cb-attach-preview');
@@ -5428,9 +5735,28 @@ function cbHandleFile(input){
     const icon=document.getElementById('cb-attach-icon');
     const name=document.getElementById('cb-attach-name');
     if(icon)icon.textContent=iconMap[cbAttachType]||'📎';
-    if(name)name.textContent=file.name+' ('+Math.round(file.size/1024)+'KB)';
+    if(name)name.textContent='⏳ '+file.name+' (upload...)';
   }
-  toast('✅ Anexo: '+file.name);
+  // Upload pro storage
+  try{
+    var url=await _uploadAnexoStorage(file,'cashback');
+    if(url){
+      // Atualizar config no banco com anexo_url
+      var cur=await _cbLoadConfig()||{};
+      cur.anexo_url=url;
+      cur.anexo_tipo=cbAttachType==='imagem'?'image':(cbAttachType==='video'?'video':'document');
+      await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.cashback_config',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+      await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:_gs(),chave:'cashback_config',valor:JSON.stringify(cur)})});
+      if(preview){
+        const name=document.getElementById('cb-attach-name');
+        if(name)name.textContent='✅ '+file.name;
+      }
+      toast('✅ Anexo salvo: '+file.name);
+    }else{
+      if(preview){const name=document.getElementById('cb-attach-name');if(name)name.textContent='❌ '+file.name;}
+      toast('❌ Erro no upload.');
+    }
+  }catch(e){console.error('[CB UPLOAD]',e);toast('❌ '+e.message);}
 }
 
 function cbClearAttach(){
