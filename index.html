@@ -1568,9 +1568,11 @@ Qualquer dúvida é só chamar 💪</textarea>
             <button class="btn btn-ghost" style="font-size:10px;color:#F87171;" onclick="resetRecCfgLead()">↩ Resetar para padrão</button>
           </div>
         </div>
-        <div style="display:flex;gap:6px;margin-top:10px;">
-          <button class="btn btn-primary" style="font-size:11px;flex:1;" onclick="ativarRecuperacao()">▶ Ativar cadência</button>
-          <button class="btn btn-ghost" style="font-size:11px;" onclick="desativarRecuperacao()">⏹ Pausar</button>
+        <div id="rec-status-box" style="display:none;margin-top:10px;padding:10px 12px;border-radius:var(--r);background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.25);"></div>
+        <div id="rec-buttons" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" id="rec-btn-ativar" style="font-size:11px;flex:1;" onclick="ativarRecuperacao()">▶ Ativar cadência</button>
+          <button class="btn btn-ghost" id="rec-btn-pausar" style="font-size:11px;display:none;" onclick="desativarRecuperacao()">⏸ Pausar</button>
+          <button class="btn btn-ghost" id="rec-btn-reiniciar" style="font-size:11px;display:none;color:#FBB040;" onclick="reiniciarCadencia()">♻ Reiniciar</button>
         </div>
       </div>
     </div>
@@ -4485,6 +4487,41 @@ function renderCadenciaRec(){
       </div>
       <div class="rec-step-delay">${s.delay}</div>
     </div>`).join('');
+  // Atualizar status ativo (ativa? botoes)
+  if(currentLead)_atualizarStatusCadencia(currentLead.id);
+}
+
+// Atualiza a box de status (ativa/inativa) e os botoes visivel/ocultos
+async function _atualizarStatusCadencia(leadId){
+  var box=document.getElementById('rec-status-box');
+  var btnAtivar=document.getElementById('rec-btn-ativar');
+  var btnPausar=document.getElementById('rec-btn-pausar');
+  var btnReiniciar=document.getElementById('rec-btn-reiniciar');
+  if(!box||!btnAtivar)return;
+  var ativa=await _fpVerificarCadenciaAtiva(String(leadId));
+  if(ativa){
+    // Cadencia ATIVA
+    var dt=new Date(ativa.proxima_em);
+    var dtFmt=dt.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    box.style.display='block';
+    box.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
+      +'<div style="width:8px;height:8px;border-radius:50%;background:var(--accent2);animation:pulse 2s infinite;"></div>'
+      +'<div style="font-size:11px;font-family:var(--font);font-weight:700;color:var(--accent2);">Cadência ATIVA</div>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--muted);line-height:1.5;">'
+        +ativa.total+' mensagem(ns) pendente(s) · Próxima: <strong>'+ativa.proxima.titulo+'</strong> em '+dtFmt
+      +'</div>';
+    btnAtivar.style.display='none';
+    btnPausar.style.display='inline-flex';
+    btnReiniciar.style.display='inline-flex';
+  }else{
+    // Cadencia INATIVA
+    box.style.display='none';
+    btnAtivar.style.display='inline-flex';
+    btnAtivar.style.flex='1';
+    btnPausar.style.display='none';
+    btnReiniciar.style.display='none';
+  }
 }
 
 function _parseDelay(str){var s=String(str||'').trim().toLowerCase();var num=parseFloat(s);if(isNaN(num)||num<=0)return 3600000;if(s.indexOf('min')>=0)return num*60*1000;if(s.indexOf('m')>=0&&s.indexOf('h')<0)return num*60*1000;if(s.indexOf('h')>=0)return num*3600*1000;if(s.indexOf('d')>=0)return num*86400000;return num*3600*1000;}
@@ -4658,35 +4695,84 @@ async function _importarHistoricoEvo(){
     if(btn){btn.disabled=false;btn.textContent='💬 Importar histórico de conversas';}
   }
 }
-function ativarRecuperacao(){
+// Cache em memoria de cadencias ativas { leadId -> { ativa_em, steps_count, proxima_em } }
+window._fpCadCache={};
+window._fpCadAtivando={};
+
+// Verificar no banco se ja tem cadencia ativa (msgs pendentes) pra este lead
+async function _fpVerificarCadenciaAtiva(leadId){
+  try{
+    var r=await fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+_gs()+'&lead_id=eq.'+encodeURIComponent(String(leadId))+'&enviado=eq.false&order=step_num.asc&select=id,step_num,titulo,enviar_em',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var rows=await r.json();
+    if(!rows||!rows.length)return null;
+    // Buscar ativacao (msg com menor step_num)
+    return {total:rows.length,proxima:rows[0],proxima_em:rows[0].enviar_em};
+  }catch(e){return null;}
+}
+
+async function ativarRecuperacao(){
   if(!currentLead){toast('⚠️ Selecione um lead.');return;}
-  var numero=currentLead.tel||currentLead.numero||'';
-  if(!numero){toast('⚠️ Lead sem número de WhatsApp.');return;}
+  var lid=String(currentLead.id);
+  // Protecao 1: flag de ativacao em progresso (duplo-clique)
+  if(window._fpCadAtivando[lid]){return;}
+  window._fpCadAtivando[lid]=true;
+  try{
+    var numero=currentLead.tel||currentLead.numero||'';
+    if(!numero){toast('⚠️ Lead sem número de WhatsApp.');return;}
+    // Protecao 2: verificar no banco se ja ta ativa
+    var ativa=await _fpVerificarCadenciaAtiva(lid);
+    if(ativa){
+      var dt=new Date(ativa.proxima_em);
+      var dtStr=dt.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      toast('⚠️ Cadência já ativa. Próxima msg ('+ativa.proxima.titulo+') em '+dtStr+'. Use Pausar ou Reiniciar.');
+      renderCadenciaRec();
+      return;
+    }
+    await _executarAtivacao(false);
+  }finally{
+    setTimeout(function(){delete window._fpCadAtivando[lid];},800);
+  }
+}
+
+async function _executarAtivacao(reiniciando){
   var nome=currentLead.nome||'Cliente';
   var produto=currentLead.produto||'nossos produtos';
-  var agora=new Date().toISOString();
+  var numero=currentLead.tel||currentLead.numero||'';
   var steps=_getLeadSteps(currentLead.id);
-  fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+_gs()+'&lead_id=eq.'+encodeURIComponent(String(currentLead.id))+'&enviado=eq.false',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(){
-    var rows=[];
-    steps.forEach(function(step,i){
-      var delayMs=_parseDelay(step.delay);
-      var enviarEm=new Date(Date.now()+delayMs).toISOString();
-      var msg=step.msg.replace(/\{nome\}/gi,nome).replace(/\{produto\}/gi,produto);
-      rows.push({cliente_subdominio:_gs(),lead_id:String(currentLead.id),lead_nome:nome,numero:numero,step_num:i,titulo:step.titulo,mensagem:msg,enviar_em:enviarEm,enviado:false});
-    });
-    fetch(_SB+'/rest/v1/cadencia_queue',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(rows)});
+  // Deletar pendentes antes (garante limpeza)
+  await fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+_gs()+'&lead_id=eq.'+encodeURIComponent(String(currentLead.id))+'&enviado=eq.false',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  var rows=[];
+  steps.forEach(function(step,i){
+    var delayMs=_parseDelay(step.delay);
+    var enviarEm=new Date(Date.now()+delayMs).toISOString();
+    var msg=step.msg.replace(/\{nome\}/gi,nome).replace(/\{produto\}/gi,produto);
+    rows.push({cliente_subdominio:_gs(),lead_id:String(currentLead.id),lead_nome:nome,numero:numero,step_num:i,titulo:step.titulo,mensagem:msg,enviar_em:enviarEm,enviado:false});
   });
+  var ir=await fetch(_SB+'/rest/v1/cadencia_queue',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(rows)});
+  if(!ir.ok){toast('❌ Erro ao salvar cadência.');return;}
   currentLead.recuperacao_ativa=true;
-  toast('🔄 Cadência ativada para '+nome+'! '+steps.length+' mensagens programadas.');
+  currentLead._cadencia_ativada_em=new Date().toISOString();
+  toast((reiniciando?'♻ Cadência reiniciada para ':'🔄 Cadência ativada para ')+nome+'! '+steps.length+' mensagens programadas.');
   renderCadenciaRec();
 }
-function desativarRecuperacao(){
+
+async function reiniciarCadencia(){
+  if(!currentLead){toast('⚠️ Selecione um lead.');return;}
+  var ativa=await _fpVerificarCadenciaAtiva(String(currentLead.id));
+  var qtd=ativa?ativa.total:0;
+  if(!confirm('♻ Reiniciar cadência?\n\nVai cancelar as '+qtd+' mensagens pendentes e começar do zero com os intervalos configurados.\n\nConfirmar?'))return;
+  await _executarAtivacao(true);
+}
+
+async function desativarRecuperacao(){
   if(!currentLead)return;
+  var lid=String(currentLead.id);
   currentLead.recuperacao_ativa=false;
-  fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+_gs()+'&lead_id=eq.'+encodeURIComponent(String(currentLead.id))+'&enviado=eq.false',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  await fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+_gs()+'&lead_id=eq.'+encodeURIComponent(lid)+'&enviado=eq.false',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
   toast('⏹ Cadência pausada para '+currentLead.nome+'. Mensagens pendentes canceladas.');
   renderCadenciaRec();
 }
+
 function configurarCadencia(){
   toggleRecCfg();
 }
@@ -4710,7 +4796,7 @@ function _fpDentroHorario(){
   var iso=y+'-'+mo+'-'+d;
   if(window._fpFeriados&&window._fpFeriados.set.has(iso))return false;
   if(dow>=1&&dow<=5)return h>=8&&h<18;
-  if(dow===6)return h>=8&&h<11;
+  if(dow===6)return h>=8&&h<12; // sabado agora ate 12h (era 11h)
   return false;
 }
 // Carregar feriados logo ao inicio
@@ -6148,19 +6234,80 @@ function removeRecStep(i){
   recCfgSteps.splice(i,1);renderRecCfgSteps();
 }
 
-function salvarRecCfg(tipo){
+async function salvarRecCfg(tipo){
   var stepsToSave=recCfgSteps.map(function(s){return{delay:s.delay,titulo:s.titulo,msg:s.msg};});
+  // Salvar config primeiro
   if(tipo==='lead'&&currentLead){
     _saveLeadCadConfig(currentLead.id,stepsToSave);
-    toast('✅ Cadência personalizada salva para '+currentLead.nome+'!');
   } else {
     CADENCIA_REC_DEFAULT.length=0;
     stepsToSave.forEach(function(s){CADENCIA_REC_DEFAULT.push(s);});
     try{localStorage.setItem('fp_rec_cfg_'+_gs(),JSON.stringify(CADENCIA_REC_DEFAULT));}catch(e){}
-    toast('✅ Cadência padrão salva para todos os leads!');
   }
+  // Se tem cadencia ATIVA pro lead atual, oferecer 3 opcoes
+  if(tipo==='lead'&&currentLead){
+    var ativa=await _fpVerificarCadenciaAtiva(String(currentLead.id));
+    if(ativa){
+      var escolha=prompt('⚠️ Cadência está ATIVA com '+ativa.total+' mensagem(ns) pendente(s).\n\nComo aplicar a nova config?\n\n1 = Atualizar textos apenas (mantém horários)\n2 = Reagendar usando novos intervalos (só as ainda não enviadas)\n3 = Reiniciar tudo do zero\n\nDigite 1, 2 ou 3:');
+      if(escolha==='1'){
+        await _cadAtualizarTextos(ativa,stepsToSave);
+      }else if(escolha==='2'){
+        await _cadReagendarPendentes(ativa,stepsToSave);
+      }else if(escolha==='3'){
+        await _executarAtivacao(true);
+      }else{
+        toast('Nenhuma alteração aplicada à cadência ativa.');
+      }
+      renderCadenciaRec();
+      toggleRecCfg();
+      return;
+    }
+  }
+  toast(tipo==='lead'?'✅ Cadência personalizada salva para '+currentLead.nome+'!':'✅ Cadência padrão salva para todos os leads!');
   renderCadenciaRec();
   toggleRecCfg();
+}
+
+// OPCAO 1: atualiza apenas os textos das msgs pendentes
+async function _cadAtualizarTextos(ativa,steps){
+  var r=await fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+_gs()+'&lead_id=eq.'+encodeURIComponent(String(currentLead.id))+'&enviado=eq.false&order=step_num.asc&select=id,step_num',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  var pendentes=await r.json();
+  var nome=currentLead.nome||'Cliente';
+  var produto=currentLead.produto||'nossos produtos';
+  for(var i=0;i<pendentes.length;i++){
+    var p=pendentes[i];
+    var step=steps[p.step_num];
+    if(!step)continue;
+    var msgTxt=step.msg.replace(/\{nome\}/gi,nome).replace(/\{produto\}/gi,produto);
+    await fetch(_SB+'/rest/v1/cadencia_queue?id=eq.'+p.id,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({titulo:step.titulo,mensagem:msgTxt})});
+  }
+  toast('✅ Textos das próximas mensagens atualizados. Horários mantidos.');
+}
+
+// OPCAO 2: reagenda as msgs pendentes usando os novos intervalos
+async function _cadReagendarPendentes(ativa,steps){
+  var r=await fetch(_SB+'/rest/v1/cadencia_queue?cliente_subdominio=eq.'+_gs()+'&lead_id=eq.'+encodeURIComponent(String(currentLead.id))+'&enviado=eq.false&order=step_num.asc&select=id,step_num',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  var pendentes=await r.json();
+  if(!pendentes||!pendentes.length)return;
+  var nome=currentLead.nome||'Cliente';
+  var produto=currentLead.produto||'nossos produtos';
+  // Base: usar o momento ATUAL como nova referencia, aplicar delays relativos
+  var primeiroStep=pendentes[0].step_num;
+  var delayBase=_parseDelay(steps[primeiroStep]?.delay||'1h');
+  // Primeira msg pendente: agora + seu delay original
+  var baseMs=Date.now()+delayBase;
+  for(var i=0;i<pendentes.length;i++){
+    var p=pendentes[i];
+    var step=steps[p.step_num];
+    if(!step)continue;
+    var msgTxt=step.msg.replace(/\{nome\}/gi,nome).replace(/\{produto\}/gi,produto);
+    // calcular enviar_em: base + soma dos delays (relativos à ativação original) - delay inicial
+    var delayThis=_parseDelay(step.delay);
+    var delayFirst=_parseDelay(steps[primeiroStep].delay);
+    var enviarEm=new Date(baseMs+(delayThis-delayFirst)).toISOString();
+    await fetch(_SB+'/rest/v1/cadencia_queue?id=eq.'+p.id,{method:'PATCH',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json'},body:JSON.stringify({titulo:step.titulo,mensagem:msgTxt,enviar_em:enviarEm})});
+  }
+  toast('✅ Mensagens pendentes reagendadas com os novos intervalos.');
 }
 function resetRecCfgLead(){
   if(!currentLead)return;
