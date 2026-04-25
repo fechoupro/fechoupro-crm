@@ -5161,6 +5161,10 @@ function _fpFormatDataBR(dt){
 // Carregar feriados logo ao inicio
 setTimeout(_fpCarregarFeriados,3000);
 async function _processarFilaCadencia(){
+  // v3: browser-side NAO envia mais. Processamento 100% server-side via pg_cron.
+  // Motivo: evita problemas de fuso horário do navegador e duplicação.
+  // Deixamos apenas a atualizacao visual do status (sync UI com banco).
+  return;
   try{
     await _fpCarregarFeriados();
     if(!_fpDentroHorario()){console.log('[CADENCIA] Fora do horario comercial/feriado — aguardando janela valida.');return;}
@@ -5875,36 +5879,114 @@ function toggleAgendamento(show){
 }
 
 async function executarDisparo(){
-  const msg=document.getElementById('disparo-msg')?.value.trim();
+  const msgTpl=document.getElementById('disparo-msg')?.value.trim();
   const mode=document.querySelector('input[name="disparo-mode"]:checked')?.value||'msg_midia';
-  if(mode!=='only_midia'&&!msg){toast('⚠️ Escreva a mensagem antes de disparar.');return;}
-  if(mode!=='only_msg'&&!disparoMediaFile&&mode==='only_midia'){toast('⚠️ Selecione um anexo antes de disparar.');return;}
-  const count=calcDisparoCount();
-  if(count===0){toast('⚠️ Selecione ao menos um grupo de destinatários.');return;}
-  if(!confirm(`Confirma o disparo para ${count} cliente(s)?`))return;
-  // Animate progress
-  const prog=document.getElementById('disparo-progress');
-  const progFill=document.getElementById('disparo-progress-fill');
-  const progLbl=document.getElementById('disparo-progress-lbl');
+  if(mode!=='only_midia'&&!msgTpl){toast('⚠️ Escreva a mensagem antes de disparar.');return;}
+  if(mode==='only_midia'&&!window._disparoAnexoUrl){toast('⚠️ Selecione um anexo.');return;}
+  // Pegar destinatários REAIS baseado no segmento selecionado
+  var destinatarios=await _disparoGetDestinatarios();
+  if(!destinatarios||destinatarios.length===0){toast('⚠️ Nenhum destinatário encontrado.');return;}
+  // Agendamento
+  var timing=document.querySelector('input[name="disparo-timing"]:checked')?.value||'agora';
+  var enviarEm=new Date();
+  if(timing==='agendar'){
+    var dt=document.getElementById('disparo-datetime')?.value;
+    if(!dt){toast('⚠️ Informe data e hora do agendamento.');return;}
+    enviarEm=new Date(dt);
+    if(isNaN(enviarEm.getTime())){toast('⚠️ Data/hora inválida.');return;}
+  }
+  if(!confirm('Confirma disparo para '+destinatarios.length+' cliente(s)?\n\n'+(timing==='agendar'?'Agendado: '+enviarEm.toLocaleString('pt-BR'):'Enviar agora (respeitando horário comercial)'))) return;
+  var prog=document.getElementById('disparo-progress');
+  var progFill=document.getElementById('disparo-progress-fill');
+  var progLbl=document.getElementById('disparo-progress-lbl');
   if(prog)prog.style.display='block';
-  if(progLbl){progLbl.style.display='block';progLbl.textContent='Enviando 0 de '+count+'...';}
-  let sent=0;
-  const interval=setInterval(()=>{
-    sent=Math.min(sent+Math.ceil(count/8),count);
-    const pct=Math.round(sent/count*100);
-    if(progFill)progFill.style.width=pct+'%';
-    if(progLbl)progLbl.textContent='Enviando '+sent+' de '+count+'...';
-    if(sent>=count){
-      clearInterval(interval);
-      setTimeout(()=>{
-        if(prog)prog.style.display='none';
-        if(progLbl)progLbl.style.display='none';
-        if(progFill)progFill.style.width='0%';
-        toast('✅ Disparo concluído! '+count+' mensagens enviadas com sucesso.');
-      },600);
-    }
-  },300);
+  if(progLbl){progLbl.style.display='block';progLbl.textContent='Enfileirando 0 de '+destinatarios.length+'...';}
+  var sub=_gs();
+  var enfileirados=0,erros=0,jaTinham=0;
+  for(var i=0;i<destinatarios.length;i++){
+    var d=destinatarios[i];
+    var numero=d.numero||d.telefone||'';
+    if(!numero){erros++;continue;}
+    var nome=(d.nome||'vc').split(' ')[0];
+    var msg=msgTpl
+      .replace(/\{nome\}/g,nome)
+      .replace(/\{produto\}/g,d.produto||'sua compra')
+      .replace(/\{valor\}/g,'R$'+((d.valor||0).toFixed(2)).replace('.',','))
+      .replace(/\{loja\}/g,_getNomeLoja()||'nossa loja');
+    // Ja tem disparo avulsa pendente pra esse lead?
+    var eR=await fetch(_SB+'/rest/v1/posvenda_queue?cliente_subdominio=eq.'+sub+'&lead_id=eq.'+encodeURIComponent(String(d.id))+'&tipo=eq.avulsa&enviado=eq.false&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var ex=await eR.json();
+    if(ex&&ex.length){jaTinham++;continue;}
+    try{
+      var ir=await fetch(_SB+'/rest/v1/posvenda_queue',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify([{cliente_subdominio:sub,lead_id:String(d.id),lead_nome:d.nome,numero:numero,tipo:'avulsa',mensagem:msg,anexo_url:window._disparoAnexoUrl||null,anexo_tipo:window._disparoAnexoTipo||null,modo:mode,enviar_em:enviarEm.toISOString()}])});
+      if(ir.ok)enfileirados++;else erros++;
+    }catch(e){erros++;}
+    if(progFill)progFill.style.width=Math.round(((i+1)/destinatarios.length)*100)+'%';
+    if(progLbl)progLbl.textContent='Enfileirando '+(i+1)+' de '+destinatarios.length+'...';
+  }
+  setTimeout(function(){
+    if(prog)prog.style.display='none';
+    if(progLbl)progLbl.style.display='none';
+    if(progFill)progFill.style.width='0%';
+    var msgFinal='✅ '+enfileirados+' enfileirado(s)';
+    if(jaTinham)msgFinal+=' · '+jaTinham+' já pendente(s)';
+    if(erros)msgFinal+=' · '+erros+' erro(s)';
+    msgFinal+='. Envio respeita horário comercial.';
+    toast(msgFinal);
+  },400);
 }
+
+// Busca destinatarios reais baseado no segmento selecionado
+async function _disparoGetDestinatarios(){
+  var sub=_gs();
+  var seg=window._disparoSegAtivo||'todos_posv';
+  // Buscar leads baseado no segmento
+  var query='cliente_subdominio=eq.'+sub;
+  if(seg==='todos_posv')query+='&resultado_final=eq.venda';
+  else if(seg==='d30'){var d=new Date(Date.now()-30*86400000).toISOString();query+='&resultado_final=eq.venda&finalizado_em=lte.'+encodeURIComponent(d);}
+  else if(seg==='d90'){var d=new Date(Date.now()-90*86400000).toISOString();query+='&resultado_final=eq.venda&finalizado_em=lte.'+encodeURIComponent(d);}
+  else if(seg==='d180'){var d=new Date(Date.now()-180*86400000).toISOString();query+='&resultado_final=eq.venda&finalizado_em=lte.'+encodeURIComponent(d);}
+  else if(seg==='fechados')query+='&resultado_final=eq.venda';
+  else if(seg==='custom'){
+    // Pegar IDs selecionados manualmente (se implementado)
+    var ids=window._disparoManualIds||[];
+    if(!ids.length)return [];
+    var q='&id=in.('+ids.map(encodeURIComponent).join(',')+')';
+    query+=q;
+  }
+  var r=await fetch(_SB+'/rest/v1/leads?'+query+'&select=id,nome,telefone,numero,produto,valor&limit=500',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  return await r.json();
+}
+
+// Hook toggleSeg pra guardar o segmento ativo
+if(typeof window._origToggleSeg==='undefined'){
+  window._origToggleSeg=window.toggleSeg;
+  window.toggleSeg=function(card,seg){
+    window._disparoSegAtivo=seg;
+    if(typeof window._origToggleSeg==='function')window._origToggleSeg.apply(this,arguments);
+  };
+}
+
+// Upload do anexo do disparo em massa
+var _origDisparoHandleFile=window.disparoHandleFile;
+window.disparoHandleFile=async function(input){
+  const file=input.files[0];if(!file)return;
+  window._disparoMediaFile=file;
+  var preview=document.getElementById('disparo-media-preview');
+  if(preview)preview.innerHTML='<div style="font-size:11px;color:var(--muted);">⏳ Upload: '+file.name+'...</div>';
+  try{
+    var url=await _uploadAnexoStorage(file,'disparo');
+    if(url){
+      window._disparoAnexoUrl=url;
+      window._disparoAnexoTipo=window._disparoMediaType==='imagem'?'image':(window._disparoMediaType==='video'?'video':'document');
+      if(preview)preview.innerHTML='<div style="font-size:11px;color:var(--accent2);">📎 '+file.name+' (salvo)</div>';
+      toast('✅ Anexo enviado');
+    }else{
+      if(preview)preview.innerHTML='<div style="font-size:11px;color:#F87171;">❌ Erro no upload</div>';
+    }
+  }catch(e){if(preview)preview.innerHTML='<div style="font-size:11px;color:#F87171;">❌ '+e.message+'</div>';}
+  input.value='';
+};
 
 function salvarDisparoTemplate(){
   const msg=document.getElementById('disparo-msg')?.value.trim();
