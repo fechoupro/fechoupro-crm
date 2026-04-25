@@ -3124,6 +3124,23 @@ function openConv(id){
   if(!currentConv.msgs)currentConv.msgs=[];
   // Marcar conversa como lida (zera badge verde)
   _fpMarcarLido(currentConv.id);
+  // Se msgs estao vazias mas tem telefone, carregar do banco sob demanda
+  if(currentConv.msgs.length===0&&(currentConv.tel||currentConv.telefone||currentConv.numero)){
+    var num=(currentConv.tel||currentConv.telefone||currentConv.numero||'').replace(/\D/g,'');
+    if(num){
+      fetch(_SB+'/rest/v1/conversas_wpp?cliente_subdominio=eq.'+_gs()+'&numero=like.*'+encodeURIComponent(num)+'*&select=role,content,created_at&order=created_at.asc&limit=500',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(rows){
+        if(!rows||!rows.length)return;
+        currentConv.msgs=rows.map(function(m){var d=new Date(m.created_at);return {tipo:m.role==='user'?'recv':'agent',txt:m.content,hora:d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),ts:m.created_at};});
+        // Re-renderizar o chat e a lista
+        if(typeof openConv==='function'&&currentConv){
+          // Atualizar so o conteudo do chat sem reabrir
+          var msgsEl=document.getElementById('conv-msgs');
+          if(msgsEl&&typeof _renderMsgsComData==='function'){msgsEl.innerHTML=_renderMsgsComData(currentConv.msgs);msgsEl.scrollTop=msgsEl.scrollHeight;}
+          renderConvs();
+        }
+      }).catch(function(){});
+    }
+  }
   renderConvs();
   clearResponseTimer();
   const main=document.getElementById('conv-main');
@@ -7477,7 +7494,7 @@ function _syncConvs(){
   // Esperar leads do banco carregarem antes de criar novos leads
   if(!window._dbLeadsLoaded)return;
   var sub=window._gs?window._gs():'mileniofitness-altamira';
-  fetch(_SB+'/rest/v1/conversas_wpp?cliente_subdominio=eq.'+sub+'&select=numero,role,content,created_at&order=created_at.desc&limit=300',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}})
+  fetch(_SB+'/rest/v1/conversas_wpp?cliente_subdominio=eq.'+sub+'&select=numero,role,content,created_at&order=created_at.desc&limit=2000',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}})
   .then(function(r){return r.json();}).then(function(msgs){
     if(!msgs||!msgs.length)return;
     // Buscar contatos para nomes
