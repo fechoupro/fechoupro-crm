@@ -106,7 +106,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:1
 .ds{background:rgba(0,229,160,.2);color:#00E5A0;}
 .dc{background:rgba(124,92,252,.2);color:#A78BFA;}
 /* DOSSIE */
-.dossie-grid{display:grid;grid-template-columns:290px 1fr;gap:12px;}
+.dossie-grid{display:grid;grid-template-columns:420px 1fr;gap:12px;}
+@media(max-width:1100px){.dossie-grid{grid-template-columns:340px 1fr;}}
+@media(max-width:768px){.dossie-grid{grid-template-columns:1fr;}}
 .d-left{display:flex;flex-direction:column;gap:10px;}
 .d-right{display:flex;flex-direction:column;gap:10px;}
 /* TABS DO DOSSIE */
