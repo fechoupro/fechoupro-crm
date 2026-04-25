@@ -1562,6 +1562,81 @@ Qualquer dúvida é só chamar 💪</textarea>
         </div>
         <div id="motivo-saved" style="display:none;margin-top:9px;padding:8px 11px;border-radius:var(--r);background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.2);font-size:11px;color:#00E5A0;"></div>
       </div>
+      <!-- HISTORICO COMPLETO DO CLIENTE -->
+      <div class="historico-cliente-panel" id="historico-cliente-panel" style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div class="section-title" style="margin-bottom:0;">📋 Histórico completo</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-ghost" style="font-size:10px;" onclick="abrirAdicionarCompra()">+ Compra</button>
+            <button class="btn btn-ghost" style="font-size:10px;" onclick="abrirEditarOrigem()">✎ Origem</button>
+          </div>
+        </div>
+        <!-- Cards de resumo -->
+        <div id="hist-resumo" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px;"></div>
+        <!-- Origem destacada -->
+        <div id="hist-origem" style="display:none;padding:9px 11px;border-radius:var(--r);background:rgba(124,92,252,.06);border:1px solid rgba(124,92,252,.18);font-size:11px;line-height:1.5;color:var(--muted);margin-bottom:10px;"></div>
+        <!-- Timeline -->
+        <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-family:var(--font);font-weight:700;">Linha do tempo</div>
+        <div id="hist-timeline" style="max-height:340px;overflow-y:auto;padding-right:4px;"></div>
+      </div>
+
+      <!-- MODAL: ADICIONAR COMPRA -->
+      <div id="modal-add-compra" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center;">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:20px;width:92%;max-width:440px;">
+          <div style="font-size:14px;font-family:var(--font);font-weight:800;margin-bottom:14px;">+ Registrar nova compra</div>
+          <div class="fg" style="margin-bottom:8px;"><label class="fl">Produtos</label><input class="fi" id="compra-produtos" placeholder="Ex: Whey 900g + Creatina" /></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <div class="fg"><label class="fl">Valor (R$)</label><input class="fi" id="compra-valor" type="number" step="0.01" placeholder="0.00" /></div>
+            <div class="fg"><label class="fl">Forma pagto</label>
+              <select class="fi" id="compra-pgto">
+                <option value="avista">À vista / PIX</option>
+                <option value="debito">Débito</option>
+                <option value="credito">Crédito</option>
+                <option value="crediario">Crediário</option>
+                <option value="boleto">Boleto</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:8px;"><label class="fl">Vendedor</label><input class="fi" id="compra-vendedor" placeholder="Nome do vendedor" /></div>
+          <div class="fg" style="margin-bottom:8px;"><label class="fl">Data da compra</label><input class="fi" id="compra-data" type="datetime-local" /></div>
+          <div class="fg" style="margin-bottom:14px;"><label class="fl">Observações (opcional)</label><textarea class="fi" id="compra-obs" rows="2"></textarea></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn btn-ghost" style="font-size:11px;" onclick="document.getElementById('modal-add-compra').style.display='none'">Cancelar</button>
+            <button class="btn btn-primary" style="font-size:11px;" onclick="salvarCompraManual()">✓ Salvar compra</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: ORIGEM DETALHADA -->
+      <div id="modal-edit-origem" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center;">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:20px;width:92%;max-width:480px;">
+          <div style="font-size:14px;font-family:var(--font);font-weight:800;margin-bottom:14px;">✎ Origem detalhada do lead</div>
+          <div class="fg" style="margin-bottom:8px;"><label class="fl">Canal de origem</label>
+            <select class="fi" id="orig-canal">
+              <option value="">Selecione...</option>
+              <option value="instagram_organico">📷 Instagram orgânico</option>
+              <option value="instagram_anuncio">📣 Instagram anúncio</option>
+              <option value="facebook_anuncio">📣 Facebook anúncio</option>
+              <option value="google_ads">🔍 Google Ads</option>
+              <option value="whatsapp_direto">💬 WhatsApp direto</option>
+              <option value="indicacao">🤝 Indicação</option>
+              <option value="loja_fisica">🏪 Loja física</option>
+              <option value="outro">📌 Outro</option>
+            </select>
+          </div>
+          <div class="fg" style="margin-bottom:8px;"><label class="fl">Título do anúncio (se aplicável)</label><input class="fi" id="orig-anuncio" placeholder="Ex: Whey 50% off Black Friday" /></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <div class="fg"><label class="fl">UTM Source</label><input class="fi" id="orig-utm-source" placeholder="instagram" /></div>
+            <div class="fg"><label class="fl">UTM Campaign</label><input class="fi" id="orig-utm-campaign" placeholder="black_friday" /></div>
+          </div>
+          <div class="fg" style="margin-bottom:14px;"><label class="fl">Observações</label><textarea class="fi" id="orig-obs" rows="2"></textarea></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn btn-ghost" style="font-size:11px;" onclick="document.getElementById('modal-edit-origem').style.display='none'">Cancelar</button>
+            <button class="btn btn-primary" style="font-size:11px;" onclick="salvarOrigemDetalhada()">✓ Salvar</button>
+          </div>
+        </div>
+      </div>
+
       <!-- CADÊNCIA RECUPERAÇÃO -->
       <div class="cad-rec-panel" id="cad-rec-panel">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
@@ -5127,6 +5202,170 @@ async function desativarRecuperacao(){
 function configurarCadencia(){
   toggleRecCfg();
 }
+
+// ═══════════════════ HISTÓRICO COMPLETO DO CLIENTE ═══════════════════
+async function renderHistoricoCliente(){
+  if(!currentLead)return;
+  const sub=_gs();
+  const lid=String(currentLead.id);
+  const numero=(currentLead.tel||currentLead.numero||currentLead.telefone||'').replace(/\D/g,'');
+  try{
+    const H={apikey:_SK,'Authorization':'Bearer '+_SK};
+    // Carregar 4 fontes em paralelo
+    const [comprasR, origemR, msgsR, avalR] = await Promise.all([
+      fetch(_SB+'/rest/v1/compras?cliente_subdominio=eq.'+sub+'&lead_id=eq.'+encodeURIComponent(lid)+'&order=data_compra.desc&select=id,produtos,valor,forma_pagamento,vendedor,data_compra,observacoes',{headers:H}).then(r=>r.json()),
+      fetch(_SB+'/rest/v1/leads_origem?cliente_subdominio=eq.'+sub+'&lead_id=eq.'+encodeURIComponent(lid)+'&limit=1&select=*',{headers:H}).then(r=>r.json()),
+      numero?fetch(_SB+'/rest/v1/conversas_wpp?cliente_subdominio=eq.'+sub+'&numero=like.*'+encodeURIComponent(numero)+'*&order=created_at.desc&limit=200&select=role,content,created_at,canal',{headers:H}).then(r=>r.json()):Promise.resolve([]),
+      fetch(_SB+'/rest/v1/avaliacoes_cliente?cliente_subdominio=eq.'+sub+'&lead_id=eq.'+encodeURIComponent(lid)+'&order=data_avaliacao.desc&select=*',{headers:H}).then(r=>r.json())
+    ]);
+    const compras=Array.isArray(comprasR)?comprasR:[];
+    const origem=Array.isArray(origemR)&&origemR[0]?origemR[0]:null;
+    const msgs=Array.isArray(msgsR)?msgsR:[];
+    const avals=Array.isArray(avalR)?avalR:[];
+    // ─── Cards de resumo ───
+    const totalGasto=compras.reduce((s,c)=>s+parseFloat(c.valor||0),0);
+    const ticketMedio=compras.length?totalGasto/compras.length:0;
+    const ultCompra=compras[0]?new Date(compras[0].data_compra):null;
+    const recencia=ultCompra?Math.floor((Date.now()-ultCompra.getTime())/86400000):null;
+    const recvCount=msgs.filter(m=>m.role==='user').length;
+    const sentCount=msgs.filter(m=>m.role==='assistant').length;
+    const igCount=msgs.filter(m=>m.canal==='ig').length;
+    const cardHTML=(label,valor,sub,cor)=>'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;"><div style="font-size:9px;color:var(--dim);text-transform:uppercase;font-family:var(--font);font-weight:700;letter-spacing:.5px;">'+label+'</div><div style="font-size:15px;font-family:var(--font);font-weight:800;color:'+(cor||'var(--text)')+';margin-top:2px;">'+valor+'</div>'+(sub?'<div style="font-size:9px;color:var(--muted);margin-top:2px;">'+sub+'</div>':'')+'</div>';
+    const elResumo=document.getElementById('hist-resumo');
+    if(elResumo){
+      elResumo.innerHTML=
+        cardHTML('💰 Compras',compras.length,'R$ '+totalGasto.toFixed(2).replace('.',','),'#00E5A0')+
+        cardHTML('🎯 Ticket médio','R$ '+ticketMedio.toFixed(0),compras.length+' compra(s)','#FBB040')+
+        cardHTML('⏰ Recência',recencia!==null?recencia+'d':'—',ultCompra?'última: '+ultCompra.toLocaleDateString('pt-BR'):'sem compra','#7C5CFC')+
+        cardHTML('💬 Conversas',msgs.length,recvCount+' recv · '+sentCount+' enviadas','#FF5C00')+
+        (igCount>0?cardHTML('📷 Instagram',igCount,'interações','#E1306C'):'');
+    }
+    // ─── Origem ───
+    const elOrigem=document.getElementById('hist-origem');
+    if(elOrigem){
+      if(origem){
+        const canalLabel={instagram_organico:'📷 Instagram orgânico',instagram_anuncio:'📣 Instagram anúncio',facebook_anuncio:'📣 Facebook anúncio',google_ads:'🔍 Google Ads',whatsapp_direto:'💬 WhatsApp direto',indicacao:'🤝 Indicação',loja_fisica:'🏪 Loja física',outro:'📌 Outro'}[origem.origem_canal]||origem.origem_canal||'—';
+        const partes=[];
+        partes.push('<div><strong>Veio por:</strong> '+canalLabel+'</div>');
+        if(origem.anuncio_titulo)partes.push('<div><strong>Anúncio:</strong> "'+origem.anuncio_titulo+'"</div>');
+        if(origem.utm_campaign)partes.push('<div><strong>Campanha:</strong> '+origem.utm_campaign+(origem.utm_source?' ('+origem.utm_source+')':'')+'</div>');
+        if(origem.observacoes)partes.push('<div style="color:var(--dim);">'+origem.observacoes+'</div>');
+        elOrigem.innerHTML=partes.join('');
+        elOrigem.style.display='block';
+      }else{
+        elOrigem.style.display='none';
+      }
+    }
+    // ─── Timeline unificada ───
+    const eventos=[];
+    compras.forEach(c=>eventos.push({ts:new Date(c.data_compra).getTime(),tipo:'compra',data:c}));
+    avals.forEach(a=>eventos.push({ts:new Date(a.data_avaliacao).getTime(),tipo:'avaliacao',data:a}));
+    msgs.forEach(m=>eventos.push({ts:new Date(m.created_at).getTime(),tipo:m.role==='user'?'msg_recv':'msg_sent',data:m}));
+    if(origem&&origem.created_at)eventos.push({ts:new Date(origem.created_at).getTime(),tipo:'origem',data:origem});
+    eventos.sort((a,b)=>b.ts-a.ts);
+    const elTL=document.getElementById('hist-timeline');
+    if(!elTL)return;
+    if(!eventos.length){elTL.innerHTML='<div style="font-size:11px;color:var(--dim);padding:14px;text-align:center;">Sem histórico ainda.</div>';return;}
+    elTL.innerHTML=eventos.slice(0,80).map(ev=>{
+      const dt=new Date(ev.ts);
+      const dataFmt=dt.toLocaleDateString('pt-BR')+' '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      let icon='💬',cor='var(--muted)',texto='';
+      if(ev.tipo==='compra'){
+        icon='💰';cor='#00E5A0';
+        const c=ev.data;
+        texto='<strong>Comprou:</strong> '+(c.produtos||'(produto)')+' · <strong>R$ '+parseFloat(c.valor||0).toFixed(2).replace('.',',')+'</strong>'+(c.forma_pagamento?' · '+c.forma_pagamento:'')+(c.vendedor?' · '+c.vendedor:'');
+      }else if(ev.tipo==='avaliacao'){
+        icon='⭐';cor='#FBB040';
+        const a=ev.data;
+        texto='<strong>Avaliação '+(a.plataforma||'')+':</strong> '+(a.nota?'⭐'.repeat(a.nota):'')+' '+(a.texto||'');
+      }else if(ev.tipo==='origem'){
+        icon='🎯';cor='#7C5CFC';
+        texto='<strong>Origem registrada:</strong> '+(ev.data.origem_canal||'—');
+      }else if(ev.tipo==='msg_recv'){
+        icon=ev.data.canal==='ig'?'📷':'💬';cor='var(--muted)';
+        texto='<strong>Cliente:</strong> '+ev.data.content.substring(0,120)+(ev.data.content.length>120?'…':'');
+      }else if(ev.tipo==='msg_sent'){
+        icon=ev.data.canal==='ig'?'📷':'🤖';cor='var(--accent)';
+        texto='<strong>Mila:</strong> '+ev.data.content.substring(0,120)+(ev.data.content.length>120?'…':'');
+      }
+      return '<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">'
+        +'<div style="font-size:14px;flex-shrink:0;">'+icon+'</div>'
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="font-size:11px;color:'+cor+';line-height:1.4;">'+texto+'</div>'
+          +'<div style="font-size:9px;color:var(--dim);margin-top:2px;">'+dataFmt+'</div>'
+        +'</div>'
+      +'</div>';
+    }).join('');
+  }catch(e){console.error('[HIST]',e);}
+}
+
+// ─── Modais ───
+function abrirAdicionarCompra(){
+  if(!currentLead){toast('Selecione um lead');return;}
+  document.getElementById('compra-produtos').value=currentLead.produto||'';
+  document.getElementById('compra-valor').value=currentLead.valor||'';
+  document.getElementById('compra-vendedor').value=currentLead.vendedor||'';
+  const now=new Date();const tz=now.getTimezoneOffset()*60000;
+  document.getElementById('compra-data').value=new Date(now.getTime()-tz).toISOString().slice(0,16);
+  document.getElementById('compra-pgto').value=currentLead.forma_pagamento||'avista';
+  document.getElementById('compra-obs').value='';
+  document.getElementById('modal-add-compra').style.display='flex';
+}
+async function salvarCompraManual(){
+  if(!currentLead)return;
+  const produtos=document.getElementById('compra-produtos').value.trim();
+  const valor=parseFloat(document.getElementById('compra-valor').value||'0');
+  const pgto=document.getElementById('compra-pgto').value;
+  const vendedor=document.getElementById('compra-vendedor').value.trim();
+  const dataStr=document.getElementById('compra-data').value;
+  const obs=document.getElementById('compra-obs').value.trim();
+  if(!produtos||valor<=0){toast('⚠️ Informe produto e valor.');return;}
+  const sub=_gs();
+  const numero=(currentLead.tel||currentLead.numero||currentLead.telefone||'').replace(/\D/g,'');
+  const dataCompra=dataStr?new Date(dataStr).toISOString():new Date().toISOString();
+  const r=await fetch(_SB+'/rest/v1/compras',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify([{cliente_subdominio:sub,lead_id:String(currentLead.id),numero:numero,produtos:produtos,valor:valor,forma_pagamento:pgto,vendedor:vendedor,data_compra:dataCompra,observacoes:obs}])});
+  if(r.ok){
+    document.getElementById('modal-add-compra').style.display='none';
+    toast('✅ Compra registrada');
+    renderHistoricoCliente();
+  }else{toast('❌ Erro ao salvar');}
+}
+
+async function abrirEditarOrigem(){
+  if(!currentLead){toast('Selecione um lead');return;}
+  const sub=_gs();
+  const r=await fetch(_SB+'/rest/v1/leads_origem?cliente_subdominio=eq.'+sub+'&lead_id=eq.'+encodeURIComponent(String(currentLead.id))+'&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  const rows=await r.json();
+  const orig=Array.isArray(rows)&&rows[0]?rows[0]:{};
+  document.getElementById('orig-canal').value=orig.origem_canal||'';
+  document.getElementById('orig-anuncio').value=orig.anuncio_titulo||'';
+  document.getElementById('orig-utm-source').value=orig.utm_source||'';
+  document.getElementById('orig-utm-campaign').value=orig.utm_campaign||'';
+  document.getElementById('orig-obs').value=orig.observacoes||'';
+  document.getElementById('modal-edit-origem').style.display='flex';
+}
+async function salvarOrigemDetalhada(){
+  if(!currentLead)return;
+  const sub=_gs();
+  const lid=String(currentLead.id);
+  const payload={
+    cliente_subdominio:sub,lead_id:lid,
+    origem_canal:document.getElementById('orig-canal').value||null,
+    anuncio_titulo:document.getElementById('orig-anuncio').value||null,
+    utm_source:document.getElementById('orig-utm-source').value||null,
+    utm_campaign:document.getElementById('orig-utm-campaign').value||null,
+    observacoes:document.getElementById('orig-obs').value||null,
+    updated_at:new Date().toISOString()
+  };
+  // Delete + Insert pra simular upsert (lead_id é UNIQUE)
+  await fetch(_SB+'/rest/v1/leads_origem?cliente_subdominio=eq.'+sub+'&lead_id=eq.'+encodeURIComponent(lid),{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  const r=await fetch(_SB+'/rest/v1/leads_origem',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify([payload])});
+  if(r.ok){
+    document.getElementById('modal-edit-origem').style.display='none';
+    toast('✅ Origem salva');
+    renderHistoricoCliente();
+  }else{toast('❌ Erro ao salvar');}
+}
 // Cache de feriados (recarrega a cada 1h)
 window._fpFeriados={set:new Set(),ts:0};
 function _fpCarregarFeriados(){
@@ -5318,6 +5557,8 @@ function openLead(lead){
   currentLead=lead;
   try{sessionStorage.setItem('fp_lead_id',String(lead.id));}catch(e){}
   try{_loadTasks(lead);}catch(e){}
+  // Carregar historico unificado em paralelo
+  setTimeout(function(){if(typeof renderHistoricoCliente==='function')renderHistoricoCliente();},100);
   try{var _mk='fp_motivo_'+String(lead.id);var _ms=localStorage.getItem(_mk);if(_ms){var _mo=JSON.parse(_ms);lead.motivo_nao_fechamento=_mo.motivo;lead.motivo_obs=_mo.obs;}}catch(e){}
   const etapa=ETAPAS.find(e=>e.key===lead.etapa)||{key:'novo',label:'Novo contato',cor:'#00E5A0'};
   const i=ini(lead.nome||'??');
