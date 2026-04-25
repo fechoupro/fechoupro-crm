@@ -109,6 +109,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:1
 .dossie-grid{display:grid;grid-template-columns:290px 1fr;gap:12px;}
 .d-left{display:flex;flex-direction:column;gap:10px;}
 .d-right{display:flex;flex-direction:column;gap:10px;}
+/* TABS DO DOSSIE */
+.dossie-tabs{display:flex;gap:2px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r);padding:4px;margin-bottom:10px;overflow-x:auto;}
+.dossie-tab{flex:1;background:transparent;border:none;color:var(--muted);font-family:var(--font);font-weight:700;font-size:11px;padding:8px 10px;border-radius:6px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.dossie-tab:hover{background:rgba(255,255,255,.04);color:var(--text);}
+.dossie-tab.active{background:var(--accent);color:#fff;}
+.dossie-tab-pane{display:flex;flex-direction:column;gap:10px;}
 .profile-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:16px;}
 .p-avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;font-family:var(--font);margin-bottom:10px;}
 .p-name{font-size:15px;font-family:var(--font);font-weight:800;margin-bottom:2px;}
@@ -1527,10 +1533,24 @@ Qualquer dúvida é só chamar 💪</textarea>
   </div>
   <div class="dossie-grid">
     <div class="d-left">
-      <div class="profile-card" id="dossie-profile"></div>
-      <div class="disc-card"><div class="section-title">Análise DISC</div><div id="disc-content"><div style="color:var(--muted);font-size:11px;">Selecione um lead para ver a análise DISC.</div></div></div>
-      <div class="disc-card"><div class="section-title">Abordagem com IA</div><div id="disc-abordagem"></div><button class="btn btn-ia" id="btn-disc" onclick="runDISC()">🧠 Gerar abordagem com IA</button></div>
-      <div class="section-card"><div class="section-title">Cadência WhatsApp</div><div class="cad-steps" id="cadencia"></div></div>
+      <!-- TABS DO DOSSIE -->
+      <div class="dossie-tabs" id="dossie-tabs">
+        <button class="dossie-tab active" data-tab="resumo" onclick="switchDossieTab('resumo')">📊 Resumo</button>
+        <button class="dossie-tab" data-tab="historico" onclick="switchDossieTab('historico')">📋 Histórico</button>
+        <button class="dossie-tab" data-tab="tarefas" onclick="switchDossieTab('tarefas')">🎯 Tarefas</button>
+        <button class="dossie-tab" data-tab="mais" onclick="switchDossieTab('mais')">⚙ Mais</button>
+      </div>
+
+      <!-- ABA: RESUMO -->
+      <div class="dossie-tab-pane" data-tab-pane="resumo">
+        <div class="profile-card" id="dossie-profile"></div>
+        <div class="disc-card"><div class="section-title">Análise DISC</div><div id="disc-content"><div style="color:var(--muted);font-size:11px;">Selecione um lead para ver a análise DISC.</div></div></div>
+        <div class="disc-card"><div class="section-title">Abordagem com IA</div><div id="disc-abordagem"></div><button class="btn btn-ia" id="btn-disc" onclick="runDISC()">🧠 Gerar abordagem com IA</button></div>
+        <div class="section-card"><div class="section-title">Cadência WhatsApp</div><div class="cad-steps" id="cadencia"></div></div>
+      </div>
+
+      <!-- ABA: TAREFAS -->
+      <div class="dossie-tab-pane" data-tab-pane="tarefas" style="display:none;">
       <!-- TAREFAS -->
       <div class="tasks-card" id="tasks-card">
         <div class="section-title">📋 Tarefas de acompanhamento</div>
@@ -1542,6 +1562,10 @@ Qualquer dúvida é só chamar 💪</textarea>
           <button class="btn btn-primary" style="font-size:11px;padding:6px 11px;flex-shrink:0;" onclick="addTask()">+</button>
         </div>
       </div>
+      </div><!-- /aba Tarefas -->
+
+      <!-- ABA: MAIS (Motivos + Cadência) -->
+      <div class="dossie-tab-pane" data-tab-pane="mais" style="display:none;">
       <!-- MOTIVOS NÃO FECHAMENTO -->
       <div class="motivo-panel" id="motivo-panel" style="display:none;">
         <div class="section-title">❌ Motivo de não fechamento</div>
@@ -1562,6 +1586,10 @@ Qualquer dúvida é só chamar 💪</textarea>
         </div>
         <div id="motivo-saved" style="display:none;margin-top:9px;padding:8px 11px;border-radius:var(--r);background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.2);font-size:11px;color:#00E5A0;"></div>
       </div>
+      </div><!-- /aba Mais (vai ser reaberta antes da cadencia) -->
+
+      <!-- ABA: HISTORICO -->
+      <div class="dossie-tab-pane" data-tab-pane="historico" style="display:none;">
       <!-- HISTORICO COMPLETO DO CLIENTE -->
       <div class="historico-cliente-panel" id="historico-cliente-panel" style="background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px;margin-bottom:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
@@ -1637,6 +1665,10 @@ Qualquer dúvida é só chamar 💪</textarea>
         </div>
       </div>
 
+      </div><!-- /aba Historico -->
+
+      <!-- ABA: MAIS (continuação - Cadencia de Recuperacao) -->
+      <div class="dossie-tab-pane" data-tab-pane="mais" style="display:none;">
       <!-- CADÊNCIA RECUPERAÇÃO -->
       <div class="cad-rec-panel" id="cad-rec-panel">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
@@ -1662,6 +1694,7 @@ Qualquer dúvida é só chamar 💪</textarea>
           <button class="btn btn-ghost" id="rec-btn-reiniciar" style="font-size:11px;display:none;color:#FBB040;" onclick="reiniciarCadencia()">♻ Reiniciar</button>
         </div>
       </div>
+      </div><!-- /aba Mais (continuacao) -->
     </div>
     <div class="d-right">
       <div class="chat-card">
@@ -5203,6 +5236,23 @@ function configurarCadencia(){
   toggleRecCfg();
 }
 
+// ═══════════════════ TABS DO DOSSIE ═══════════════════
+window.switchDossieTab=function(tabId){
+  document.querySelectorAll('.dossie-tab').forEach(function(b){
+    b.classList.toggle('active',b.getAttribute('data-tab')===tabId);
+  });
+  // Pode ter MULTIPLOS panes com mesmo data-tab-pane (caso "mais" foi quebrado em 2)
+  document.querySelectorAll('.dossie-tab-pane').forEach(function(p){
+    p.style.display=p.getAttribute('data-tab-pane')===tabId?'flex':'none';
+  });
+  // Se for historico, recarrega dados
+  if(tabId==='historico'&&typeof renderHistoricoCliente==='function')renderHistoricoCliente();
+};
+// Reset pra Resumo ao trocar de lead
+window._resetDossieTabs=function(){
+  if(typeof switchDossieTab==='function')switchDossieTab('resumo');
+};
+
 // ═══════════════════ HISTÓRICO COMPLETO DO CLIENTE ═══════════════════
 async function renderHistoricoCliente(){
   if(!currentLead)return;
@@ -5559,6 +5609,8 @@ function openLead(lead){
   try{_loadTasks(lead);}catch(e){}
   // Carregar historico unificado em paralelo
   setTimeout(function(){if(typeof renderHistoricoCliente==='function')renderHistoricoCliente();},100);
+  // Voltar pra aba Resumo ao trocar lead
+  setTimeout(function(){if(typeof _resetDossieTabs==='function')_resetDossieTabs();},50);
   try{var _mk='fp_motivo_'+String(lead.id);var _ms=localStorage.getItem(_mk);if(_ms){var _mo=JSON.parse(_ms);lead.motivo_nao_fechamento=_mo.motivo;lead.motivo_obs=_mo.obs;}}catch(e){}
   const etapa=ETAPAS.find(e=>e.key===lead.etapa)||{key:'novo',label:'Novo contato',cor:'#00E5A0'};
   const i=ini(lead.nome||'??');
