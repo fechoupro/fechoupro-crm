@@ -26,6 +26,44 @@ const MAX_NORMAL=15;
 const MAX_EXTENDIDO=22;
 const H={"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"};
 
+// v33: Validacao rigorosa de nome de pessoa
+function ehNomePessoaValido(nome: string): boolean {
+  if (!nome) return false;
+  const n = nome.trim();
+  if (n.length < 2 || n.length > 60) return false;
+  // Rejeita se eh apenas numeros / telefones
+  if (/^\+?[\d\s().-]+$/.test(n)) return false;
+  // Rejeita se contem urls
+  if (/(https?:\/\/|www\.|\.com|\.br)/i.test(n)) return false;
+  // Rejeita se eh emoji puro / muito emoji
+  const semEmoji = n.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}❤♥]/gu, "").trim();
+  if (semEmoji.length < 2) return false;
+  if ((n.length - semEmoji.length) > semEmoji.length) return false; // mais emoji que letra
+  // Rejeita expressoes/frases comuns que NAO sao nome
+  const blacklist = [
+    /^(eu|tu|ele|ela|nos|voces|vc|vcs)\s/i,
+    /\b(nao|n[ãa]o|sim|ok|tchau|oi|ola|alo|bom\s+dia|boa\s+tarde|boa\s+noite)\b/i,
+    /\b(quero|preciso|tenho|vou|vai|sou|estou|tava|tava|fui|gostaria)\b/i,
+    /\b(meu\s+numero|wpp|whats|insta|email|telefone|celular)\b/i,
+    /\b(loja|empresa|comercial|vendas|atendimento|fornecedor|distribuidora|distribuidor)\b/i,
+    /[!?.,;:]{2,}/, // pontuacao excessiva
+    /^(usuario|user|cliente|amigo|amiga)$/i,
+  ];
+  for (const re of blacklist) if (re.test(n)) return false;
+  // So aceita se for predominantemente letras + espacos (nome de pessoa)
+  const letras = (n.match(/[A-Za-zÀ-ÿ]/g) || []).length;
+  const total = n.replace(/\s/g, "").length;
+  if (total > 0 && letras / total < 0.7) return false;
+  // Rejeita se nao tem nenhuma maiuscula (provavel ser frase em msg, nao nome)
+  if (n === n.toLowerCase() && n.length > 4 && n.indexOf(" ") < 0) {
+    // mono-palavra sem maiuscula com mais de 4 chars: provavel substantivo, nao nome
+    // mas aceita nomes comuns como "ana", "leo", "maria" etc
+    const nomesCurtos = ["ana", "leo", "lia", "luna", "kai", "nina", "ivo", "iva", "noa", "rai", "tom", "pri", "duda"];
+    if (!nomesCurtos.includes(n.toLowerCase())) return false;
+  }
+  return true;
+}
+
 // Formato de saida imposto pelo sistema (independe do prompt do usuario)
 const FORMATO=`
 
@@ -242,13 +280,10 @@ Deno.serve(async(req)=>{
     await fetch(SB+"/rest/v1/recuperacao_sessao?cliente_subdominio=eq."+SUB+"&numero=eq."+num,{method:"DELETE",headers:H});
   }catch(_){}
 
-  // ---- v26: persistir pushName (nome do perfil WhatsApp) ----
+  // ---- v33: persistir pushName (nome do perfil WhatsApp) — validacao rigorosa ----
   // Roda em paralelo ao resto, nao bloqueia resposta da Mila
   const pushNameRaw=(data?.pushName||"").trim();
-  const nomeValido=pushNameRaw
-    && pushNameRaw.length>=2
-    && !/^\+?\d+$/.test(pushNameRaw)
-    && !/meu.?numero/i.test(pushNameRaw);
+  const nomeValido=ehNomePessoaValido(pushNameRaw);
   if(nomeValido){
     (async()=>{
       try{
@@ -355,12 +390,19 @@ Deno.serve(async(req)=>{
     if(msgsParaAgente.length>0&&msgsParaAgente.length%5===0){
       try{
         const extrTxt=await oai([
-          {role:"system",content:"Extraia info do cliente. Responda APENAS JSON valido (sem markdown): {nome,objetivo,cidade,produtos_interesse,valor_total}."},
+          {role:"system",content:"Extraia info do cliente. Use null se nao tiver certeza. Para nome, retorne SO o primeiro nome de pessoa real (NUNCA expressoes, frases, nome de empresa, emoji ou negacoes como 'eu nao'). Responda APENAS JSON valido (sem markdown): {nome,objetivo,cidade,produtos_interesse,valor_total}."},
           {role:"user",content:"Contexto atual:"+JSON.stringify(ctx)+"\nHistorico:\n"+msgsParaAgente.slice(-8).map(m=>m.role+":"+m.content).join("\n")}
         ],200);
         const novo=JSON.parse((extrTxt||"{}").match(/\{[\s\S]*\}/)?.[0]||"{}");
+        // v33: validar nome antes de aceitar
+        if (novo.nome && !ehNomePessoaValido(novo.nome)) {
+          console.log("[WEBHOOK v33] IA retornou nome invalido:", novo.nome);
+          delete novo.nome;
+        }
         ctx={...ctx,...novo};
-        await sbUpsert("contatos",{cliente_subdominio:SUB,numero:num,nome:ctx.nome||null,contexto:JSON.stringify(ctx),updated_at:new Date().toISOString()});
+        // Se nome final ainda for invalido, salvar como null
+        const nomeParaSalvar = ctx.nome && ehNomePessoaValido(ctx.nome) ? ctx.nome : null;
+        await sbUpsert("contatos",{cliente_subdominio:SUB,numero:num,nome:nomeParaSalvar,contexto:JSON.stringify(ctx),updated_at:new Date().toISOString()});
       }catch(_){}
     }
 
@@ -373,16 +415,26 @@ Deno.serve(async(req)=>{
       try{const ws=txFull.toLowerCase().split(/\s+/).filter(w=>w.length>3).sort((a,b)=>b.length-a.length);if(ws[0]){const ps=await sbGet("produtos","cliente_subdominio=eq."+SUB+"&quantidade=gt.0&nome=ilike.*"+encodeURIComponent(ws[0])+"*&select=nome,preco,preco_oferta&limit=10");if(ps?.length)prod="\nESTOQUE:\n"+ps.map(p=>"- "+p.nome+": "+(p.preco_oferta?"R$"+p.preco_oferta+" (oferta)":"R$"+p.preco)).join("\n");}}catch(_){}
     }
 
-    const ctxStr=Object.entries(ctx).filter(([,v])=>v&&(Array.isArray(v)?v.length:true)).map(([k,v])=>k+": "+(Array.isArray(v)?v.join(","):v)).join(" | ");
+    // v33: usar pushName SO se passar na validacao rigorosa de nome de pessoa
+    const nomeContextoValido = ctx.nome && ehNomePessoaValido(ctx.nome);
+    if (ctx.nome && !nomeContextoValido) {
+      // Nome no banco ta errado (ex: "eu nao", "Loja XYZ"). Limpar pra Mila perguntar.
+      console.log("[WEBHOOK v33] Nome invalido em contexto, ignorando:", ctx.nome);
+      ctx.nome = null;
+    }
+    const pushNameComoSugestao = nomeValido && !nomeContextoValido ? pushNameRaw : null;
+    const ctxStr=Object.entries(ctx).filter(([k,v])=>k!=='nome'&&v&&(Array.isArray(v)?v.length:true)).map(([k,v])=>k+": "+(Array.isArray(v)?v.join(","):v)).join(" | ");
     let instr="";
-    if(eNovoAtendimento&&ctx.nome){
+    if(eNovoAtendimento&&nomeContextoValido){
       instr="\nCONTEXTO: Novo atendimento. Cliente ja conhecido, nome: "+ctx.nome+"."+(ctxStr?" Dados em memoria (use SOMENTE se ele mencionar o assunto): "+ctxStr+".":"")+" Cumprimente pelo nome de forma breve e natural. NAO pergunte o nome de novo. NAO retome assuntos anteriores.";
     } else if(eNovoAtendimento){
-      instr="\nCONTEXTO: Novo atendimento. Cliente novo, nome desconhecido. Apresente-se como Mila e pergunte o nome.";
-    } else if(ctx.nome){
+      const dica = pushNameComoSugestao ? " O perfil WhatsApp dele exibe '"+pushNameComoSugestao+"' — confirme pedindo educadamente o primeiro nome (ex: 'Posso te chamar de "+pushNameComoSugestao.split(' ')[0]+"?')." : " IMPORTANTE: pergunte de forma natural o PRIMEIRO NOME do cliente (ex: 'E como posso te chamar?'). Nao aceite respostas como 'eu nao', expressoes ou nome de empresa — se vier algo assim, pergunte de novo.";
+      instr="\nCONTEXTO: Novo atendimento. Cliente novo, nome desconhecido. Apresente-se como Mila."+dica;
+    } else if(nomeContextoValido){
       instr="\nCLIENTE: "+ctx.nome+"."+(ctxStr?" Dados: "+ctxStr+".":"")+" Atendimento em andamento. NAO se reapresente. NAO pergunte o nome (ja sabemos). Responda APENAS as msgs novas.";
     } else {
-      instr="\nCLIENTE: sem dados salvos. Atendimento em andamento. NAO se reapresente. Responda APENAS as msgs novas.";
+      const dica = pushNameComoSugestao ? " Perfil WhatsApp dele exibe '"+pushNameComoSugestao+"'. Confirme se pode te chamar assim ou peça o nome correto." : " Pergunte o nome quando fizer sentido na conversa, mas SEM forcar.";
+      instr="\nCLIENTE: ainda sem nome confirmado."+dica+" Atendimento em andamento. NAO se reapresente. Responda APENAS as msgs novas.";
     }
 
     // Chamada principal ao GPT-5.4-mini
@@ -399,8 +451,31 @@ Deno.serve(async(req)=>{
     await enviar(inst,jid,blocos);
     await sbPost("conversas_wpp",[{cliente_subdominio:SUB,numero:num,role:"user",content:txFull},{cliente_subdominio:SUB,numero:num,role:"assistant",content:blocos.join(" ")}]);
 
-    // Fallback regex para capturar nome se ainda nao temos
-    if(!ctx.nome){const m=txFull.match(/(?:me chamo|meu nome|sou o|sou a)\s+([A-Za-zÀ-ú]{3,}(?:\s+[A-Za-zÀ-ú]{3,})?)/i);if(m)try{await sbUpsert("contatos",{cliente_subdominio:SUB,numero:num,nome:m[1],updated_at:new Date().toISOString()});}catch(_){}}
+    // v33: Fallback regex captura nome com validacao rigorosa
+    if(!nomeContextoValido){
+      // Tentar varios padroes
+      const padroes=[
+        /(?:me chamo|meu nome (?:e|é))\s+([A-Za-zÀ-ÿ]{2,}(?:\s+[A-Za-zÀ-ÿ]{2,}){0,2})/i,
+        /(?:^|\s)(?:sou (?:o|a))\s+([A-Za-zÀ-ÿ]{3,}(?:\s+[A-Za-zÀ-ÿ]{3,})?)/i,
+        /(?:pode me chamar de)\s+([A-Za-zÀ-ÿ]{2,}(?:\s+[A-Za-zÀ-ÿ]{2,})?)/i,
+        // Resposta direta a "qual seu nome": uma palavra capitalizada
+        /^([A-ZÀ-Ý][a-zà-ÿ]{2,}(?:\s+[A-ZÀ-Ý][a-zà-ÿ]{2,})?)\s*[!.]?$/,
+      ];
+      for (const re of padroes){
+        const m = txFull.match(re);
+        if (m && m[1]){
+          const nomeCandidato = m[1].trim();
+          if (ehNomePessoaValido(nomeCandidato)){
+            try{
+              await sbUpsert("contatos",{cliente_subdominio:SUB,numero:num,nome:nomeCandidato,updated_at:new Date().toISOString()});
+              ctx.nome = nomeCandidato;
+              console.log("[WEBHOOK v33] Nome extraido do texto:", nomeCandidato);
+            }catch(_){}
+            break;
+          }
+        }
+      }
+    }
 
     // v27: Auto-criar lead + roleta para contatos novos
     if(eNovoAtendimento){
