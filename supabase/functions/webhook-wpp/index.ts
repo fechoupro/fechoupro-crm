@@ -219,14 +219,17 @@ Deno.serve(async(req)=>{
   if(!data||data?.key?.fromMe)return new Response("OK",{status:200});
   const inst=body?.instance||SUB;
   let jid=data?.key?.remoteJid||"";
-  // v28: se vier @lid (id local WhatsApp), usar senderPn (numero real) se disponivel
+  // v32: Se vier @lid (WhatsApp moderno), priorizar remoteJidAlt (numero real)
+  // Ordem: remoteJidAlt > senderPn > participantPn > participant
   if(jid.indexOf("@lid")>=0){
-    const pn=data?.key?.senderPn||data?.key?.participant||"";
-    if(pn&&pn.indexOf("@lid")<0){jid=pn.indexOf("@")>=0?pn:(pn.replace(/\D/g,"")+"@s.whatsapp.net");}
-    else{console.log("[WEBHOOK] Ignorando @lid sem senderPn:",jid);return new Response("OK",{status:200});}
+    const alt=data?.key?.remoteJidAlt||"";
+    const pn=data?.key?.senderPn||data?.key?.participantPn||data?.key?.participant||"";
+    if(alt&&alt.indexOf("@lid")<0){jid=alt.indexOf("@")>=0?alt:(alt.replace(/\D/g,"")+"@s.whatsapp.net");}
+    else if(pn&&pn.indexOf("@lid")<0&&pn.replace(/\D/g,"").length>=10){jid=pn.indexOf("@")>=0?pn:(pn.replace(/\D/g,"")+"@s.whatsapp.net");}
+    else{console.log("[WEBHOOK] Ignorando @lid sem remoteJidAlt nem senderPn valido:",JSON.stringify(data?.key));return new Response("OK",{status:200});}
   }
   const num=jid.replace(/@[^@]+$/,"");
-  if(!num||!/^\d{10,15}$/.test(num))return new Response("OK",{status:200});
+  if(!num||!/^\d{10,15}$/.test(num)){console.log("[WEBHOOK] Numero invalido:",num,"jid:",jid);return new Response("OK",{status:200});}
   const msgData=data?.message||{};
   const txt=msgData.conversation||msgData.extendedTextMessage?.text||"";
   const isImg=!!(msgData.imageMessage);
