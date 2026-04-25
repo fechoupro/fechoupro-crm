@@ -1713,7 +1713,13 @@ Qualquer dúvida é só chamar 💪</textarea>
       </div>
       <div class="ai-box"><div class="ai-header"><div class="ai-icon">🧠</div><div class="ai-title">Avaliação IA do atendimento</div></div><div id="ai-avaliacao-content"><div style="font-size:11px;color:var(--muted);line-height:1.6;">Clique para avaliação com pontuação, pontos fortes, erros e próxima ação.</div></div><button class="btn btn-ia" id="btn-avaliar" onclick="runAvaliacao()">🔍 Analisar atendimento com IA</button></div>
       <div class="ai-box"><div class="ai-header"><div class="ai-icon">🎯</div><div class="ai-title">Script de fechamento</div></div><div id="ai-fechamento-content"><div style="font-size:11px;color:var(--muted);line-height:1.6;">Script personalizado baseado no perfil DISC e histórico do lead.</div></div><button class="btn btn-ia" id="btn-fechar" onclick="runFechamento()">💡 Gerar script com IA</button></div>
-      <div class="section-card"><div class="section-title">Produtos de interesse</div><div id="produto-content"></div></div>
+      <div class="section-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div class="section-title" style="margin-bottom:0;">🛒 Produtos de interesse</div>
+          <button class="btn btn-ghost" style="font-size:10px;" onclick="atualizarProdutosInteresseIA()" id="btn-prod-refresh">🔄 Atualizar com IA</button>
+        </div>
+        <div id="produto-content"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -5255,6 +5261,138 @@ window._resetDossieTabs=function(){
   if(typeof switchDossieTab==='function')switchDossieTab('resumo');
 };
 
+// ═══════════════════ PRODUTOS DE INTERESSE — IA ═══════════════════
+// Busca cache no banco. Se vazio/stale ou forceRefresh, chama IA.
+async function renderProdutosInteresseLead(lead,forceRefresh){
+  var prodEl=document.getElementById('produto-content');
+  if(!prodEl||!lead)return;
+  prodEl.innerHTML='<div style="color:var(--muted);font-size:12px;padding:8px 0;">Carregando produtos…</div>';
+  var sub=_gs();
+  var lid=String(lead.id);
+  var H={apikey:_SK,'Authorization':'Bearer '+_SK};
+  var msgsCount=(lead.msgs||[]).length;
+  var cache=null;
+  try{
+    var rR=await fetch(_SB+'/rest/v1/produtos_interesse_lead?cliente_subdominio=eq.'+sub+'&lead_id=eq.'+encodeURIComponent(lid)+'&limit=1',{headers:H});
+    var rows=await rR.json();
+    if(rows&&rows[0])cache=rows[0];
+  }catch(e){}
+  // Decidir se precisa rodar IA
+  var precisaIA=forceRefresh
+    || !cache
+    || (cache.msg_count_analisado||0) < msgsCount - 3; // analisa de novo se chegou >3 msgs novas
+  if(precisaIA){
+    var btn=document.getElementById('btn-prod-refresh');
+    if(btn){btn.disabled=true;btn.textContent='⏳ IA analisando...';}
+    var produtos=await _extrairProdutosViaIA(lead);
+    if(btn){btn.disabled=false;btn.textContent='🔄 Atualizar com IA';}
+    if(produtos&&produtos.length){
+      // Salvar cache
+      try{
+        await fetch(_SB+'/rest/v1/produtos_interesse_lead?cliente_subdominio=eq.'+sub+'&lead_id=eq.'+encodeURIComponent(lid),{method:'DELETE',headers:H});
+        await fetch(_SB+'/rest/v1/produtos_interesse_lead',{method:'POST',headers:{...H,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,lead_id:lid,produtos_extraidos:produtos,msg_count_analisado:msgsCount,fonte:'ia',updated_at:new Date().toISOString()})});
+      }catch(e){}
+      _renderListaProdutosInteresse(prodEl,produtos);
+    }else{
+      _renderListaProdutosInteresse(prodEl,[]);
+    }
+  }else{
+    _renderListaProdutosInteresse(prodEl,cache.produtos_extraidos||[]);
+  }
+}
+
+// Chama Claude para extrair produtos REAIS mencionados na conversa
+async function _extrairProdutosViaIA(lead){
+  if(!AI_MODE){
+    // fallback simples: busca palavras-chave conhecidas
+    return _extrairProdutosFallback(lead);
+  }
+  var msgsCliente=(lead.msgs||[]).filter(function(m){return m.tipo==='recv'&&m.txt;}).map(function(m){return m.txt;}).slice(-25).join('\n');
+  if(!msgsCliente.trim())return [];
+  // Buscar produtos do estoque pra dar contexto
+  var sub=_gs();
+  var produtosEstoque=[];
+  try{
+    var pR=await fetch(_SB+'/rest/v1/produtos?cliente_subdominio=eq.'+sub+'&select=nome,preco,preco_oferta,quantidade&limit=200',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    produtosEstoque=await pR.json();
+  }catch(e){}
+  var nomesEstoque=produtosEstoque.map(function(p){return p.nome;}).join(' | ');
+  var sys='Voce extrai os produtos que o cliente DEMONSTROU INTERESSE na conversa de WhatsApp. Considera sinonimos, contexto e nega negativas (se cliente diz "nao quero whey", NAO incluir whey). Responde APENAS um array JSON valido sem cercas markdown, no formato [{"nome":"X","categoria":"Y"}]. Maximo 5 itens.';
+  var user='ESTOQUE DA LOJA (use os nomes EXATOS quando possivel):\n'+nomesEstoque+'\n\nMENSAGENS DO CLIENTE:\n'+msgsCliente+'\n\nRetorne JSON com produtos que o cliente demonstrou interesse (mencionou querer, perguntou preco, pediu opcoes, mostrou intencao de compra). Se nao identificar nada claro, retorne [].';
+  try{
+    var resp=await callClaude(sys,user,500);
+    // Extrair JSON da resposta
+    var m=resp.match(/\[[\s\S]*\]/);
+    if(!m)return [];
+    var arr=JSON.parse(m[0]);
+    if(!Array.isArray(arr))return [];
+    // Pra cada item identificado, busca match no estoque pra pegar preço real
+    var enriquecidos=[];
+    for(var i=0;i<arr.length&&i<5;i++){
+      var item=arr[i];
+      var nomeBusca=item.nome||'';
+      if(!nomeBusca)continue;
+      // Tentar match no estoque (case-insensitive, contains)
+      var match=produtosEstoque.find(function(p){
+        var pn=(p.nome||'').toLowerCase();
+        var bn=nomeBusca.toLowerCase();
+        return pn===bn||pn.indexOf(bn)>=0||bn.indexOf(pn)>=0;
+      });
+      if(match){
+        enriquecidos.push({
+          nome:match.nome,
+          categoria:item.categoria||'',
+          preco:parseFloat(match.preco_oferta||match.preco)||0,
+          preco_original:parseFloat(match.preco)||0,
+          em_oferta:!!match.preco_oferta&&parseFloat(match.preco_oferta)<parseFloat(match.preco),
+          quantidade:match.quantidade,
+          em_estoque:match.quantidade!==null?match.quantidade>0:null
+        });
+      }else{
+        enriquecidos.push({nome:nomeBusca,categoria:item.categoria||'',preco:null,em_estoque:false,nao_no_estoque:true});
+      }
+    }
+    return enriquecidos;
+  }catch(e){console.error('[PROD IA]',e);return [];}
+}
+
+function _extrairProdutosFallback(lead){
+  // Sem IA: detecta palavras-chave conhecidas
+  var keywords=['whey','creatina','bcaa','glutamina','termogenico','termogênico','pre-treino','pré-treino','omega','vitamina','colageno','colágeno','hipercalorico','hipercalórico','albumina','maltodextrina','dextrose','barra','protein','isolado','complexo b','multivitaminico'];
+  var encontrados=new Set();
+  (lead.msgs||[]).forEach(function(m){
+    if(m.tipo==='recv'&&m.txt){
+      var t=m.txt.toLowerCase();
+      keywords.forEach(function(k){if(t.indexOf(k)>=0)encontrados.add(k);});
+    }
+  });
+  return Array.from(encontrados).slice(0,5).map(function(k){return {nome:k.charAt(0).toUpperCase()+k.slice(1),categoria:'',preco:null,nao_no_estoque:true};});
+}
+
+function _renderListaProdutosInteresse(el,produtos){
+  if(!produtos||!produtos.length){
+    el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0;">Nenhum produto identificado na conversa ainda.<br><span style="color:var(--dim);font-size:10px;">A IA analisa quando ha mensagens suficientes do cliente.</span></div>';
+    return;
+  }
+  var totalEstoque=produtos.filter(function(p){return p.preco;}).reduce(function(s,p){return s+(p.preco||0);},0);
+  var html='<div class="produto-grid">'+produtos.map(function(p,idx){
+    var precoHtml=p.preco?'<div class="prod-price">R$'+p.preco.toFixed(2).replace('.',',')+'</div>'+(p.em_oferta?'<div style="font-size:9px;color:var(--accent2);">⚡ em oferta</div>':''):'<div style="font-size:11px;color:#FBB040;">📦 Não cadastrado no estoque</div>';
+    var estoqueHtml=p.quantidade!==null&&p.quantidade!==undefined?'<div style="font-size:9px;color:'+(p.em_estoque?'var(--dim)':'#F87171')+';margin-top:2px;">'+(p.em_estoque?'Estoque: '+p.quantidade:'⚠️ Sem estoque')+'</div>':'';
+    return '<div class="produto-item"><div class="prod-lbl">'+((idx+1)+'. '+(p.categoria||'Item'))+'</div><div class="prod-name">'+p.nome+'</div>'+precoHtml+estoqueHtml+'</div>';
+  }).join('')+'</div>';
+  if(totalEstoque>0){
+    html+='<div class="total-bar"><div><div class="total-lbl">Valor estimado ('+produtos.filter(function(p){return p.preco;}).length+' itens)</div><div class="total-val">R$'+totalEstoque.toFixed(2).replace('.',',')+'</div></div></div>';
+  }
+  el.innerHTML=html;
+}
+
+// Botão manual: força reanálise
+async function atualizarProdutosInteresseIA(){
+  if(!currentLead){toast('Selecione um lead');return;}
+  await renderProdutosInteresseLead(currentLead,true);
+  toast('✅ Produtos atualizados');
+}
+
 // ═══════════════════ HISTÓRICO COMPLETO DO CLIENTE ═══════════════════
 // Agrupa mensagens em CONVERSAS distintas (gap > 48h = nova conversa)
 window._FP_GAP_CONVERSA_MS=48*60*60*1000; // 48h
@@ -5696,20 +5834,8 @@ function openLead(lead){
   const msgs=document.getElementById('chat-msgs');
   msgs.innerHTML=_renderMsgsComData(lead.msgs);
   msgs.scrollTop=msgs.scrollHeight;
-  var prodEl=document.getElementById('produto-content');
-  if(prodEl){prodEl.innerHTML='<div style="color:var(--muted);font-size:12px;">Buscando produtos...</div>';
-    var termos=[];
-    (lead.msgs||[]).forEach(function(m){if(m.tipo==='recv'&&m.txt){var words=m.txt.split(/\s+/).filter(function(w){return w.length>3;});termos=termos.concat(words);}});
-    if(produto)termos=termos.concat(produto.split('+').map(function(p){return p.trim();}));
-    var busca=termos.slice(-10).map(function(t){return 'nome.ilike.*'+encodeURIComponent(t)+'*';}).join(',');
-    if(busca){
-      fetch(_SB+'/rest/v1/produtos?cliente_subdominio=eq.'+_gs()+'&or=('+busca+')&limit=6&select=nome,preco,preco_oferta,quantidade',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}}).then(function(r){return r.json();}).then(function(prods){
-        if(!prods||!prods.length){prodEl.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0;">Nenhum produto encontrado no estoque.</div>';return;}
-        var total=prods.reduce(function(s,p){return s+(parseFloat(p.preco_oferta||p.preco)||0);},0);
-        prodEl.innerHTML='<div class="produto-grid">'+prods.slice(0,4).map(function(p,idx){var preco=parseFloat(p.preco_oferta||p.preco)||0;return '<div class="produto-item"><div class="prod-lbl">Produto '+(idx+1)+'</div><div class="prod-name">'+p.nome+'</div><div class="prod-price">R$'+preco.toFixed(2).replace('.',',')+'</div>'+(p.quantidade!==null?'<div style="font-size:9px;color:var(--dim);margin-top:2px;">Estoque: '+p.quantidade+'</div>':'')+'</div>';}).join('')+'</div><div class="total-bar"><div><div class="total-lbl">Valor estimado ('+prods.length+' itens)</div><div class="total-val">R$'+total.toFixed(2).replace('.',',')+'</div></div></div>';
-      }).catch(function(){prodEl.innerHTML='<div style="color:var(--muted);font-size:12px;">Erro ao buscar produtos.</div>';});
-    } else {prodEl.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0;">Nenhum produto mencionado na conversa ainda.</div>';}
-  }
+  // Carregar do cache primeiro (rápido); só chamar IA se vazio ou stale
+  if(typeof renderProdutosInteresseLead==='function')renderProdutosInteresseLead(lead,false);
   ['ai-avaliacao-content','ai-fechamento-content'].forEach(id=>document.getElementById(id).innerHTML='<div style="font-size:11px;color:var(--muted);line-height:1.6;">Clique no botão abaixo para análise com IA.</div>');
   ['btn-avaliar','btn-fechar','btn-disc'].forEach(id=>{const b=document.getElementById(id);if(b){b.disabled=false;b.textContent=b.id==='btn-disc'?'🧠 Gerar abordagem com IA':b.id==='btn-avaliar'?'🔍 Analisar atendimento com IA':'💡 Gerar script com IA';}});
   // TAREFAS — mostrar só para "observacao"
