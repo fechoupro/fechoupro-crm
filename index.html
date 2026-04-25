@@ -223,6 +223,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:1
 .conv-online{position:absolute;bottom:0;right:0;width:9px;height:9px;border-radius:50%;background:var(--accent2);border:2px solid var(--card);}
 .conv-body{flex:1;min-width:0;}
 .conv-name{font-size:12px;font-family:var(--font);font-weight:700;margin-bottom:2px;}
+.conv-name-bold{font-weight:900;color:#fff;}
 .conv-preview{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .conv-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
 .conv-time{font-size:10px;color:var(--dim);}
@@ -2929,14 +2930,14 @@ function renderConvs(filter=''){
   list.innerHTML=``+filtered.map(l=>{
     const msgs=l.msgs||[];
     const last=msgs[msgs.length-1];
-    const unread=msgs.filter(m=>m.tipo==='recv').length;
+    const unread=_fpContarNaoLidas(l);
     const canal=l.canal||'wpp';
     const origem=l.origem||'Manual';
     const canalBadge=canal==='ig'?'<span class="ch-badge ch-ig">📷 Instagram</span>':'<span class="ch-badge ch-wpp">💬 WhatsApp</span>';
     return`<div class="conv-item ${currentConv&&currentConv.id===l.id?'active':''}" onclick="openConv('${l.id}')" data-canal="${canal}">
       <div class="conv-av" style="${canal==='ig'?'background:linear-gradient(135deg,#E1306C,#833AB4);':''}">${ini(l.nome)}${l.etapa==='atendimento'?'<div class="conv-online"></div>':''}</div>
       <div class="conv-body">
-        <div class="conv-name">${l.nome}</div>
+        <div class="conv-name${unread>0?' conv-name-bold':''}">${l.nome}</div>
         <div class="conv-preview">${last?last.txt.substring(0,48)+(last.txt.length>48?'...':''):'Sem mensagens'}</div>
         <div style="display:flex;gap:5px;margin-top:3px;align-items:center;">${canalBadge}<span class="src-tag ${srcClass(origem)}">${origem.split(' ')[0]}</span></div>
       </div>
@@ -2947,6 +2948,40 @@ function renderConvs(filter=''){
     </div>`;
   }).join('');
 }
+
+// Conta msgs do tipo 'recv' (cliente -> nos) com timestamp posterior à última leitura
+function _fpContarNaoLidas(lead){
+  if(!lead||!lead.msgs||!lead.msgs.length)return 0;
+  var lidoEm=_fpGetLidoEm(lead.id);
+  return lead.msgs.filter(function(m){
+    if(m.tipo!=='recv')return false;
+    var ts=m.ts?new Date(m.ts).getTime():0;
+    return ts>lidoEm;
+  }).length;
+}
+// Pega timestamp da última leitura desse lead (em ms)
+function _fpGetLidoEm(leadId){
+  try{var v=localStorage.getItem('fp_lido_'+_gs()+'_'+String(leadId));return v?parseInt(v,10):0;}catch(e){return 0;}
+}
+// Marca conversa como lida agora
+function _fpMarcarLido(leadId){
+  try{localStorage.setItem('fp_lido_'+_gs()+'_'+String(leadId),String(Date.now()));}catch(e){}
+}
+// Migracao one-time: na primeira execucao da nova logica, marcar TODAS conversas
+// existentes como lidas. Senao usuario abriria o CRM com tudo verde.
+(function _migrarLidosUmaVez(){
+  try{
+    var key='fp_lidos_migrados_v1';
+    if(localStorage.getItem(key))return;
+    var executar=function(){
+      if(typeof LEADS==='undefined'||!Array.isArray(LEADS))return setTimeout(executar,2000);
+      LEADS.forEach(function(l){if(l&&l.id)_fpMarcarLido(l.id);});
+      localStorage.setItem(key,'1');
+      if(typeof renderConvs==='function')renderConvs();
+    };
+    setTimeout(executar,3500);
+  }catch(e){}
+})();
 let convChannelFilter='todos';
 function filterConvsChannel(ch,btn){
   convChannelFilter=ch;
@@ -2971,6 +3006,8 @@ function openConv(id){
   currentConv=LEADS.find(l=>String(l.id)===String(id));
   if(!currentConv)return;
   if(!currentConv.msgs)currentConv.msgs=[];
+  // Marcar conversa como lida (zera badge verde)
+  _fpMarcarLido(currentConv.id);
   renderConvs();
   clearResponseTimer();
   const main=document.getElementById('conv-main');
