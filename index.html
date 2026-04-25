@@ -5859,13 +5859,18 @@ function openLead(lead){
   // Tasks and recovery: show for ALL leads
   const tc=document.getElementById('tasks-card');
   if(tc){tc.style.display='block';}
-  // Motivo panel: show for all non-closed leads
+  // Motivo panel: SEMPRE visivel pra leads finalizados como nao_venda OU nao finalizados
+  // (leads finalizados como 'venda' nao precisam de motivo)
   const mp=document.getElementById('motivo-panel');
   if(mp){
-    mp.style.display=lead.etapa!=='finalizado'?'block':'none';
+    var ehVenda=(lead.resultado_final==='venda');
+    mp.style.display=ehVenda?'none':'block';
     // If already has motivo, show it
     const saved=document.getElementById('motivo-saved');
-    if(saved&&lead.motivo_nao_fechamento){saved.style.display='block';saved.textContent=`✓ Registrado: "${lead.motivo_nao_fechamento}"${lead.motivo_obs?' — '+lead.motivo_obs:''}`;}
+    if(saved&&lead.motivo_nao_fechamento){
+      saved.style.display='block';
+      saved.textContent='✓ Registrado: "'+lead.motivo_nao_fechamento+'"'+(lead.motivo_obs?' — '+lead.motivo_obs:'');
+    }
     else if(saved){saved.style.display='none';}
     motivoSelecionado='';
     document.querySelectorAll('.motivo-btn').forEach(b=>b.classList.remove('selected'));
