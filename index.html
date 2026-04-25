@@ -5256,6 +5256,34 @@ window._resetDossieTabs=function(){
 };
 
 // ═══════════════════ HISTÓRICO COMPLETO DO CLIENTE ═══════════════════
+// Agrupa mensagens em CONVERSAS distintas (gap > 48h = nova conversa)
+window._FP_GAP_CONVERSA_MS=48*60*60*1000; // 48h
+function _fpAgruparConversas(msgs){
+  if(!msgs||!msgs.length)return [];
+  // Garantir ordem cronológica ascendente
+  var ordenadas=msgs.slice().sort(function(a,b){return new Date(a.created_at)-new Date(b.created_at);});
+  var conversas=[];
+  var atual=null;
+  ordenadas.forEach(function(m){
+    var ts=new Date(m.created_at).getTime();
+    if(!atual){
+      atual={inicio:ts,fim:ts,qtd:1,iniciada_por:m.role};
+    }else{
+      var gap=ts-atual.fim;
+      if(gap>window._FP_GAP_CONVERSA_MS){
+        conversas.push(atual);
+        atual={inicio:ts,fim:ts,qtd:1,iniciada_por:m.role};
+      }else{
+        atual.fim=ts;
+        atual.qtd++;
+      }
+    }
+  });
+  if(atual)conversas.push(atual);
+  // Devolve mais recente primeiro
+  return conversas.reverse();
+}
+
 async function renderHistoricoCliente(){
   if(!currentLead)return;
   const sub=_gs();
@@ -5279,9 +5307,19 @@ async function renderHistoricoCliente(){
     const ticketMedio=compras.length?totalGasto/compras.length:0;
     const ultCompra=compras[0]?new Date(compras[0].data_compra):null;
     const recencia=ultCompra?Math.floor((Date.now()-ultCompra.getTime())/86400000):null;
+    // Calcular CONVERSAS DISTINTAS (agrupar msgs com gap > 48h)
+    const conversas=_fpAgruparConversas(msgs);
+    const totalMsgs=msgs.length;
     const recvCount=msgs.filter(m=>m.role==='user').length;
     const sentCount=msgs.filter(m=>m.role==='assistant').length;
     const igCount=msgs.filter(m=>m.canal==='ig').length;
+    const ultConv=conversas.length?conversas[0]:null;
+    var ultConvSub='—';
+    if(ultConv){
+      var ultConvDt=new Date(ultConv.fim);
+      var diasUlt=Math.floor((Date.now()-ultConvDt.getTime())/86400000);
+      ultConvSub=diasUlt===0?'última hoje':(diasUlt===1?'última ontem':'última há '+diasUlt+'d');
+    }
     const cardHTML=(label,valor,sub,cor)=>'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;"><div style="font-size:9px;color:var(--dim);text-transform:uppercase;font-family:var(--font);font-weight:700;letter-spacing:.5px;">'+label+'</div><div style="font-size:15px;font-family:var(--font);font-weight:800;color:'+(cor||'var(--text)')+';margin-top:2px;">'+valor+'</div>'+(sub?'<div style="font-size:9px;color:var(--muted);margin-top:2px;">'+sub+'</div>':'')+'</div>';
     const elResumo=document.getElementById('hist-resumo');
     if(elResumo){
@@ -5289,7 +5327,7 @@ async function renderHistoricoCliente(){
         cardHTML('💰 Compras',compras.length,'R$ '+totalGasto.toFixed(2).replace('.',','),'#00E5A0')+
         cardHTML('🎯 Ticket médio','R$ '+ticketMedio.toFixed(0),compras.length+' compra(s)','#FBB040')+
         cardHTML('⏰ Recência',recencia!==null?recencia+'d':'—',ultCompra?'última: '+ultCompra.toLocaleDateString('pt-BR'):'sem compra','#7C5CFC')+
-        cardHTML('💬 Conversas',msgs.length,recvCount+' recv · '+sentCount+' enviadas','#FF5C00')+
+        cardHTML('💬 Conversas',conversas.length,ultConvSub+' · '+totalMsgs+' msgs trocadas','#FF5C00')+
         (igCount>0?cardHTML('📷 Instagram',igCount,'interações','#E1306C'):'');
     }
     // ─── Origem ───
