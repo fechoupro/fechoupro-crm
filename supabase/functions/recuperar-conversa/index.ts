@@ -221,10 +221,53 @@ Deno.serve(async (_req: Request) => {
 
       processados++;
 
-      // IMPORTANTE: recuperacao automatica NAO respeita horario comercial.
-      // Foi o cliente que iniciou a conversa — podemos responder a qualquer hora.
-      // A cadencia do CRM (ativada apos a 3a tentativa) SIM respeita horario,
-      // pois e uma acao proativa do sistema, nao continuacao de conversa viva.
+      // v2 GUARD #1: Verificar se lead esta finalizado (venda ou nao_venda).
+      // Recuperacao so faz sentido em atendimento ATIVO, nao em lead encerrado.
+      const leadCheck = await sbGet(
+        "leads",
+        `cliente_subdominio=eq.${info.sub}&telefone=like.*${info.num}*&select=id,nome,produto,resultado_final,etapa&limit=1`,
+      );
+      const leadInfo = leadCheck?.[0] || null;
+      if (leadInfo && (leadInfo.resultado_final === "venda" || leadInfo.resultado_final === "nao_venda" || leadInfo.etapa === "finalizado")) {
+        console.log(`[RECUP] Pulando lead finalizado ${leadInfo.nome || info.num} (${leadInfo.resultado_final || leadInfo.etapa})`);
+        continue;
+      }
+
+      // v2 GUARD #2: Verificar se a "ultima msg do agente" foi de cadencia/posvenda/disparo
+      // (mensagens automaticas NAO devem disparar recuperacao — gera cascata)
+      const conteudoUltima = (info.content || "").toLowerCase();
+      const padroesCadencia = [
+        "ficamos no aguardo",
+        "queria te fazer uma proposta especial",
+        "última chance",
+        "ultima chance",
+        "se precisar da gente, é só chamar",
+        "se precisar da gente, e so chamar",
+        "estamos aqui",
+        "faz um tempo que não te vemos",
+        "faz um tempo que nao te vemos",
+        "presente pela sua última compra",
+        "presente pela sua ultima compra",
+        "ganhou",
+        "% de desconto",
+        "novidades e promoções",
+        "novidades e promocoes",
+      ];
+      const ehMensagemAutomatica = padroesCadencia.some((p) => conteudoUltima.includes(p));
+      if (ehMensagemAutomatica) {
+        console.log(`[RECUP] Pulando ${info.num}: ultima msg eh automatica (cadencia/posvenda/disparo)`);
+        continue;
+      }
+
+      // v2 GUARD #3: Verificar se cliente JA mandou alguma msg (so recuperar conversas reais)
+      const msgsCliente = await sbGet(
+        "conversas_wpp",
+        `cliente_subdominio=eq.${info.sub}&numero=like.*${info.num}*&role=eq.user&limit=1&select=id`,
+      );
+      if (!msgsCliente || msgsCliente.length === 0) {
+        console.log(`[RECUP] Pulando ${info.num}: cliente nunca mandou mensagem (so recebeu)`);
+        continue;
+      }
 
       // Ler/criar registro em recuperacao_sessao
       const existes = await sbGet(
