@@ -2749,7 +2749,22 @@ function goView(id,btn){
   if(id==='conselho'){safeRun('renderConselheiroGrid',renderConselheiroGrid);}
   if(id==='master'){safeRun('renderMasterClients',renderMasterClients);}
   if(id==='dashboard'){safeRun('initDashboard',initDashboard);}
-  if(id==='posv30'){safeRun('renderPosv30Counts',renderPosv30Counts);safeRun('renderPosv30Segs',renderPosv30Segs);safeRun('renderPosvCfg',renderPosvCfg);safeRun('renderRecRules',renderRecRules);safeRun('renderUpsellRules',renderUpsellRules);safeRun('renderRecDash',renderRecDash);}
+  if(id==='posv30'){
+    if(typeof _carregarPosvLeads==='function'){
+      _carregarPosvLeads().then(function(){
+        safeRun('renderPosv30Counts',renderPosv30Counts);
+        safeRun('renderPosv30Segs',renderPosv30Segs);
+        safeRun('renderPostVendaV5',typeof renderPostVendaV5==='function'?renderPostVendaV5:function(){});
+      });
+    }else{
+      safeRun('renderPosv30Counts',renderPosv30Counts);
+      safeRun('renderPosv30Segs',renderPosv30Segs);
+    }
+    safeRun('renderPosvCfg',renderPosvCfg);
+    safeRun('renderRecRules',renderRecRules);
+    safeRun('renderUpsellRules',renderUpsellRules);
+    safeRun('renderRecDash',renderRecDash);
+  }
   if(id==='posv'){safeRun('checkPvImediataWindow',checkPvImediataWindow);safeRun('renderPvImediataLeads',renderPvImediataLeads);safeRun('_cbLoadAndApplyConfig',_cbLoadAndApplyConfig);safeRun('_pvImediataLoadConfig',_pvImediataLoadConfig);safeRun('renderCashbackLeadsReal',renderCashbackLeadsReal);}
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
@@ -4308,14 +4323,14 @@ async function _cbLoadAndApplyConfig(){
 }
 
 function salvarCfgPvImediata(){salvarPvImediata();}
-function toggleCashback2(){
+async function toggleCashback2(){
+  // Reusa o handler principal (que persiste no banco via _cbPatchConfig)
+  await toggleCashback();
+  // Sincroniza UI do botão alternativo, se existir
   const btn=document.getElementById('cb-master-toggle2');
   const lbl=document.getElementById('cb-status-lbl2');
-  if(!btn)return;
-  const isOn=btn.classList.contains('on');
-  btn.className='toggle '+(isOn?'off':'on');
-  if(lbl){lbl.textContent=isOn?'● Inativo':'● Ativo';lbl.className='cashback-active '+(isOn?'cb-off':'cb-on');}
-  toast(isOn?'⚠️ Cash Back desativado.':'✅ Cash Back ativado!');
+  if(btn)btn.className='toggle '+(cashbackOn?'on':'off');
+  if(lbl){lbl.textContent=cashbackOn?'● Ativo':'● Inativo';lbl.className='cashback-active '+(cashbackOn?'cb-on':'cb-off');}
 }
 
 // ── POSV30 view ──
@@ -4362,6 +4377,29 @@ function executarDisparo30(){
   if(!confirm('Disparar para aproximadamente '+total+' cliente(s)?'))return;
   toast('✅ Disparo realizado para '+total+' cliente(s)!');
 }
+// Carrega leads finalizados (venda) e calcula `dias` desde finalizado_em.
+// Popula POSV_LEADS para alimentar contadores e kanban da aba Pós-Venda 30+.
+async function _carregarPosvLeads(){
+  try{
+    var sub=_gs();
+    var r=await fetch(_SB+'/rest/v1/leads?cliente_subdominio=eq.'+sub+'&resultado_final=eq.venda&select=id,nome,telefone,numero,produto,valor,vendedor,finalizado_em&order=finalizado_em.desc&limit=500',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var leads=await r.json();
+    POSV_LEADS.length=0;
+    var now=Date.now();
+    (leads||[]).forEach(function(l){
+      var dt=l.finalizado_em?new Date(l.finalizado_em).getTime():null;
+      if(!dt)return;
+      var dias=Math.floor((now-dt)/86400000);
+      POSV_LEADS.push({
+        id:l.id,nome:l.nome||'Cliente',
+        tel:l.telefone||l.numero||'',
+        produto:l.produto||'',valor:Number(l.valor)||0,vendedor:l.vendedor||'',
+        finalizado_em:l.finalizado_em,dias:dias
+      });
+    });
+  }catch(e){console.error('[POSV LOAD]',e);}
+}
+
 function renderPosv30Counts(){
   const el=document.getElementById('posv30-counts');if(!el)return;
   const c30=POSV_LEADS.filter(l=>l.dias===30).length;
@@ -4371,14 +4409,17 @@ function renderPosv30Counts(){
     <div style="padding:5px 11px;border-radius:var(--r);background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.2);font-size:10px;color:#00E5A0;font-family:var(--font);font-weight:700;">● 30d: ${c30}</div>
     <div style="padding:5px 11px;border-radius:var(--r);background:rgba(251,176,64,.1);border:1px solid rgba(251,176,64,.2);font-size:10px;color:#FBB040;font-family:var(--font);font-weight:700;">● 90d: ${c90}</div>
     <div style="padding:5px 11px;border-radius:var(--r);background:rgba(255,92,0,.1);border:1px solid rgba(255,92,0,.2);font-size:10px;color:#FF7A33;font-family:var(--font);font-weight:700;">● 180d: ${c180}</div>`;
-  // Mirror cashback leads to posv30
+  // Mirror cashback leads to posv30 — usa mesmos status que renderCashbackLeadsReal
   const cb2=document.getElementById('cb-leads-list2');
   if(cb2){
-    const pct=document.getElementById('cb-pct')?.value||10;
+    const pct=parseFloat(document.getElementById('cb-pct')?.value||'10')||10;
     cb2.innerHTML=CASHBACK_DATA.map(l=>{
-      const ini2=l.nome.split(' ').map(w=>w[0]).slice(0,2).join('');
-      const cbVal=(l.valor*pct/100).toFixed(2).replace('.',',');
-      return`<div class="cb-lead-row"><div class="cb-lead-av">${ini2}</div><div class="cb-lead-info"><div class="cb-lead-name">${l.nome}</div><div class="cb-lead-sub">R$${l.valor.toFixed(2).replace('.',',')} · ${l.dias_passados} dias atrás</div></div><div class="cb-lead-val">R$${cbVal} off</div><span class="cb-lead-status ${l.status==='pending'?'cbs-pending':l.status==='sent'?'cbs-sent':'cbs-used'}">${l.status==='pending'?'⏳':l.status==='sent'?'✉️':'✅'} ${l.status==='pending'?'Pendente':l.status==='sent'?'Enviado':'Usado'}</span></div>`;
+      const valNum=Number(l.valor)||0;
+      const ini2=(l.nome||'').split(' ').map(w=>(w[0]||'')).slice(0,2).join('').toUpperCase()||'?';
+      const cbVal=(valNum*pct/100).toFixed(2).replace('.',',');
+      const statusLbl=l.status==='sent'?'✅ Enviado':l.status==='queued'?'⏳ Na fila':'📥 Disponível';
+      const statusCls=l.status==='sent'?'cbs-used':l.status==='queued'?'cbs-sent':'cbs-pending';
+      return `<div class="cb-lead-row"><div class="cb-lead-av">${ini2}</div><div class="cb-lead-info"><div class="cb-lead-name">${l.nome||'Cliente'}</div><div class="cb-lead-sub">R$${valNum.toFixed(2).replace('.',',')} · ${l.dias_passados||0} dias atrás</div></div><div class="cb-lead-val">R$${cbVal} off</div><span class="cb-lead-status ${statusCls}">${statusLbl}</span></div>`;
     }).join('');
   }
 }
@@ -4407,7 +4448,7 @@ function renderPosvCfg(){
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
         <div style="width:12px;height:12px;border-radius:50%;background:${col.cor};flex-shrink:0;"></div>
         <input class="posv-cfg-inp" value="${col.label}" onchange="POSV_COLS[${i}].label=this.value" style="flex:1;font-weight:700;font-size:12px;" placeholder="Nome da coluna" />
-        <input class="posv-cfg-inp" type="number" value="${col.dias}" min="1" max="730" onchange="POSV_COLS[${i}].dias=parseInt(this.value);POSV_AUTO_MSG_CFG[parseInt(this.value)]=POSV_AUTO_MSG_CFG[col.dias]||{ativo:false,msg:'',anexo:null,modo:'msg_midia'};" style="width:66px;" title="Período em dias" />
+        <input class="posv-cfg-inp" type="number" value="${col.dias}" min="1" max="730" onchange="(function(idx,ant){var novo=parseInt(event.target.value);if(!novo||novo===ant)return;if(POSV_AUTO_MSG_CFG[ant]){POSV_AUTO_MSG_CFG[novo]=POSV_AUTO_MSG_CFG[ant];delete POSV_AUTO_MSG_CFG[ant];}else if(!POSV_AUTO_MSG_CFG[novo]){POSV_AUTO_MSG_CFG[novo]={ativo:false,msg:'',anexo:null,modo:'msg_midia'};}POSV_COLS[idx].dias=novo;})(${i},${col.dias})" style="width:66px;" title="Período em dias" />
         <span style="font-size:10px;color:var(--dim);white-space:nowrap;">dias exatos</span>
         <button style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;flex-shrink:0;" onclick="removePosvCol(${i})" title="Remover coluna">✕</button>
       </div>
@@ -4768,9 +4809,40 @@ async function toggleCashback(){
   toast(cashbackOn?'✅ Cash Back ativado!':'⚠️ Cash Back desativado.');
 }
 
-// Salva a config completa do cashback no config_cliente
+// Helper genérico: salva config_cliente de forma atômica (backup + restore se falhar).
+async function _saveConfigClienteAtomico(chave, valorObj){
+  var sub=_gs();
+  var bak=null;
+  try{
+    var rB=await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+sub+'&chave=eq.'+chave+'&select=valor&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var bArr=await rB.json();
+    if(bArr&&bArr[0])bak=bArr[0].valor;
+  }catch(e){}
+  await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+sub+'&chave=eq.'+chave,{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+  var rP=await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,chave:chave,valor:JSON.stringify(valorObj)})});
+  if(!rP.ok){
+    if(bak!==null){try{await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,chave:chave,valor:bak})});}catch(e){}}
+    return false;
+  }
+  return true;
+}
+
+// Patch parcial: carrega do banco, faz merge e salva (não toca em campos não fornecidos)
+async function _cbPatchConfig(parcial){
+  var atual=await _cbLoadConfig()||{};
+  var merged=Object.assign({}, atual, parcial||{});
+  return await _saveConfigClienteAtomico('cashback_config', merged);
+}
+
+// Salva a config completa do cashback no config_cliente (botão "Salvar" do form).
+// override = patch opcional (usado por togglers que mudam só 1 campo).
 async function _cbSalvarConfig(override){
   try{
+    if(override&&typeof override==='object'){
+      // Toggle / patch: NÃO sobrescrever com inputs do form (que podem estar com defaults)
+      var ok=await _cbPatchConfig(override);
+      return ok?(await _cbLoadConfig()):null;
+    }
     var atual=await _cbLoadConfig();
     var cfg=Object.assign({
       ativo:cashbackOn,
@@ -4782,9 +4854,9 @@ async function _cbSalvarConfig(override){
       anexo_url:atual?atual.anexo_url:null,
       anexo_tipo:atual?atual.anexo_tipo:null,
       delay_dias:2
-    },override||{});
-    await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.cashback_config',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
-    await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:_gs(),chave:'cashback_config',valor:JSON.stringify(cfg)})});
+    });
+    var ok2=await _saveConfigClienteAtomico('cashback_config', cfg);
+    if(!ok2)return null;
     return cfg;
   }catch(e){console.error('[CB] salvar:',e);return null;}
 }
@@ -6338,17 +6410,21 @@ async function cbHandleFile(input){
   try{
     var url=await _uploadAnexoStorage(file,'cashback');
     if(url){
-      // Atualizar config no banco com anexo_url
-      var cur=await _cbLoadConfig()||{};
-      cur.anexo_url=url;
-      cur.anexo_tipo=cbAttachType==='imagem'?'image':(cbAttachType==='video'?'video':'document');
-      await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.cashback_config',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
-      await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:_gs(),chave:'cashback_config',valor:JSON.stringify(cur)})});
-      if(preview){
-        const name=document.getElementById('cb-attach-name');
-        if(name)name.textContent='✅ '+file.name;
+      // Inferir tipo a partir do mime se nao foi setado via botão
+      var _tipoFromMime=file.type&&file.type.indexOf('image/')===0?'image':(file.type&&file.type.indexOf('video/')===0?'video':null);
+      var anexoTipo=cbAttachType==='imagem'?'image':(cbAttachType==='video'?'video':(_tipoFromMime||'document'));
+      // Patch atômico: só atualiza anexo_url/anexo_tipo, preserva pct/validade/msg/etc
+      var ok=await _cbPatchConfig({anexo_url:url,anexo_tipo:anexoTipo});
+      if(ok){
+        if(preview){
+          const name=document.getElementById('cb-attach-name');
+          if(name)name.textContent='✅ '+file.name;
+        }
+        toast('✅ Anexo salvo: '+file.name);
+      }else{
+        if(preview){const name=document.getElementById('cb-attach-name');if(name)name.textContent='❌ '+file.name;}
+        toast('❌ Erro ao gravar config (config anterior preservada).');
       }
-      toast('✅ Anexo salvo: '+file.name);
     }else{
       if(preview){const name=document.getElementById('cb-attach-name');if(name)name.textContent='❌ '+file.name;}
       toast('❌ Erro no upload.');
@@ -6356,12 +6432,14 @@ async function cbHandleFile(input){
   }catch(e){console.error('[CB UPLOAD]',e);toast('❌ '+e.message);}
 }
 
-function cbClearAttach(){
+async function cbClearAttach(){
   cbAttachFile=null;cbAttachType=null;cbMediaFile=null;cbMediaType=null;
   const preview=document.getElementById('cb-attach-preview');
   if(preview)preview.style.display='none';
   document.querySelectorAll('.cb-attach-row .dm-btn').forEach(b=>b.classList.remove('active'));
   const inp=document.getElementById('cb-file-input');if(inp)inp.value='';
+  // Persistir remoção no banco — senão o disparo continuaria mandando o anexo antigo
+  try{await _cbPatchConfig({anexo_url:null,anexo_tipo:null});}catch(e){}
   toast('Anexo removido.');
 }
 
@@ -7421,7 +7499,13 @@ function addPosvCol(){
 
 function removePosvCol(i){
   if(POSV_COLS.length<=1){toast('⚠️ Mantenha ao menos 1 coluna.');return;}
-  POSV_COLS.splice(i,1);renderPosvCfg();
+  var diasRem=POSV_COLS[i]&&POSV_COLS[i].dias;
+  POSV_COLS.splice(i,1);
+  // Evita órfão na config quando outra coluna não usa o mesmo dias
+  if(diasRem!=null&&!POSV_COLS.some(function(c){return c.dias===diasRem;})){
+    if(POSV_AUTO_MSG_CFG[diasRem])delete POSV_AUTO_MSG_CFG[diasRem];
+  }
+  renderPosvCfg();
 }
 
 function salvarPosvCols(){
