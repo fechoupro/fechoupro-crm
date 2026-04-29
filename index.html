@@ -6336,18 +6336,34 @@ function calcDisparoCount(){
 
 function renderDisparoRecipientsList(){
   const el=document.getElementById('disparo-recipients-list');if(!el)return;
-  const todos=[...POSV_LEADS,...LEADS.filter(l=>l.etapa==='finalizado')];
+  const _norm=t=>String(t||'').replace(/\D/g,'');
+  const _esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const fontes=[
+    ...((window._LEADS_REF||(typeof LEADS!=='undefined'?LEADS:[])||[]).map(l=>({id:l._dbId||l.id,nome:l.nome,tel:l.tel||l.telefone,produto:l.produto,valor:l.valor,etapa:l.etapa,_origem:'lead'}))),
+    ...((window._CONTATOS_RAW||window.CONTATOS||[]).map(c=>({id:c._dbId||c.id,nome:c.nome,tel:c.tel,produto:c.produto,_origem:'contato'})))
+  ];
   const uniq=[];const seen=new Set();
-  todos.forEach(l=>{if(!seen.has(l.nome)){seen.add(l.nome);uniq.push(l);}});
-  el.innerHTML=uniq.map((l,i)=>`
+  fontes.forEach(l=>{
+    const key=_norm(l.tel);
+    if(!key||seen.has(key))return;
+    seen.add(key);
+    uniq.push(l);
+  });
+  if(!uniq.length){el.innerHTML='<div style="padding:16px;color:var(--muted);font-size:12px;text-align:center">Nenhum cliente com telefone cadastrado.</div>';return;}
+  el.innerHTML=uniq.map((l,i)=>{
+    const tel=_norm(l.tel);
+    const sub=l._origem==='lead'?(l.etapa==='finalizado'?'Fechado':(l.etapa||'No funil')):'Contato';
+    const ini=(l.nome||'?').split(' ').map(w=>w[0]||'').slice(0,2).join('').toUpperCase();
+    return `
     <div class="dr-item">
-      <input type="checkbox" class="dr-check" id="dr-${i}" onchange="updateDisparoCount()" checked />
-      <div class="dr-av">${l.nome.split(' ').map(w=>w[0]).slice(0,2).join('')}</div>
+      <input type="checkbox" class="dr-check" data-tel="${tel}" data-id="${_esc(l.id||'')}" data-nome="${_esc(l.nome)}" data-produto="${_esc(l.produto)}" data-valor="${l.valor||0}" id="dr-${i}" onchange="updateDisparoCount()" checked />
+      <div class="dr-av">${ini}</div>
       <div class="dr-info">
-        <div class="dr-name">${l.nome}</div>
-        <div class="dr-sub">${l.produto||'—'} · ${l.dias?l.dias+' dias':'Fechado recente'}</div>
+        <div class="dr-name">${_esc(l.nome)||'(sem nome)'}</div>
+        <div class="dr-sub">${_esc(l.produto)||'—'} · ${sub}</div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function disparoSelectMedia(tipo,btn){
@@ -6457,21 +6473,27 @@ async function executarDisparo(){
 // Busca destinatarios reais baseado no segmento selecionado
 async function _disparoGetDestinatarios(){
   var sub=_gs();
+  // Se o usuário marcou "Seleção manual", IGNORA outros segmentos e usa SOMENTE os checkboxes marcados.
+  // Isso evita o bug de disparar pra Elba/Marcela quando o usuário só queria Renato.
+  var temCustom=(typeof disparoSegs!=='undefined'&&disparoSegs&&disparoSegs.has&&disparoSegs.has('custom'))||window._disparoSegAtivo==='custom';
+  if(temCustom){
+    var checked=document.querySelectorAll('#disparo-recipients-list input.dr-check:checked');
+    var out=[];var seenTel=new Set();
+    checked.forEach(function(cb){
+      var tel=cb.dataset.tel||'';
+      if(!tel||seenTel.has(tel))return;
+      seenTel.add(tel);
+      out.push({id:cb.dataset.id||tel,nome:cb.dataset.nome||'',numero:tel,telefone:tel,produto:cb.dataset.produto||'',valor:parseFloat(cb.dataset.valor)||0});
+    });
+    return out;
+  }
   var seg=window._disparoSegAtivo||'todos_posv';
-  // Buscar leads baseado no segmento
   var query='cliente_subdominio=eq.'+sub;
   if(seg==='todos_posv')query+='&resultado_final=eq.venda';
   else if(seg==='d30'){var d=new Date(Date.now()-30*86400000).toISOString();query+='&resultado_final=eq.venda&finalizado_em=lte.'+encodeURIComponent(d);}
   else if(seg==='d90'){var d=new Date(Date.now()-90*86400000).toISOString();query+='&resultado_final=eq.venda&finalizado_em=lte.'+encodeURIComponent(d);}
   else if(seg==='d180'){var d=new Date(Date.now()-180*86400000).toISOString();query+='&resultado_final=eq.venda&finalizado_em=lte.'+encodeURIComponent(d);}
   else if(seg==='fechados')query+='&resultado_final=eq.venda';
-  else if(seg==='custom'){
-    // Pegar IDs selecionados manualmente (se implementado)
-    var ids=window._disparoManualIds||[];
-    if(!ids.length)return [];
-    var q='&id=in.('+ids.map(encodeURIComponent).join(',')+')';
-    query+=q;
-  }
   var r=await fetch(_SB+'/rest/v1/leads?'+query+'&select=id,nome,telefone,numero,produto,valor&limit=500',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
   return await r.json();
 }
