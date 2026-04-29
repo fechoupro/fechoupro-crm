@@ -280,6 +280,26 @@ Deno.serve(async(req)=>{
     await fetch(SB+"/rest/v1/recuperacao_sessao?cliente_subdominio=eq."+SUB+"&numero=eq."+num,{method:"DELETE",headers:H});
   }catch(_){}
 
+  // v34: REATIVAR lead se estava finalizado e cliente respondeu
+  // Regra: SO o cliente reativa o lead. Mensagens automaticas/sistema nao reativam.
+  // Como esse codigo so executa quando msg do cliente chega (fromMe=false), aqui eh seguro reativar.
+  try{
+    const leadAtual=await sbGet("leads","cliente_subdominio=eq."+SUB+"&telefone=eq."+num+"&select=id,nome,etapa,resultado_final&limit=1");
+    if(leadAtual?.[0]){
+      const l=leadAtual[0];
+      const precisaReativar=l.etapa==="finalizado"||l.resultado_final==="venda"||l.resultado_final==="nao_venda";
+      if(precisaReativar){
+        await sbPatch("leads","id=eq."+l.id,{
+          etapa:"atendimento",
+          resultado_final:null,
+          finalizado_em:null,
+          reativado_em:new Date().toISOString()
+        });
+        console.log("[WEBHOOK v34] Lead reativado: "+(l.nome||num)+" (id "+l.id+") — cliente voltou a responder");
+      }
+    }
+  }catch(e){console.error("[WEBHOOK v34] Erro reativar lead:",String(e));}
+
   // ---- v33: persistir pushName (nome do perfil WhatsApp) — validacao rigorosa ----
   // Roda em paralelo ao resto, nao bloqueia resposta da Mila
   const pushNameRaw=(data?.pushName||"").trim();

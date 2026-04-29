@@ -167,6 +167,24 @@ Deno.serve(async (req: Request) => {
           await fetch(`${SB}/rest/v1/recuperacao_sessao?cliente_subdominio=eq.${cfg.sub}&numero=eq.${sender_id}`, { method: "DELETE", headers: H });
         } catch {}
 
+        // v2: REATIVAR lead Instagram se estava finalizado e cliente respondeu
+        try {
+          const leadCheck = await sbGet("leads", `cliente_subdominio=eq.${cfg.sub}&telefone=eq.${sender_id}&select=id,nome,etapa,resultado_final&limit=1`);
+          if (leadCheck?.[0]) {
+            const l = leadCheck[0];
+            const precisaReativar = l.etapa === "finalizado" || l.resultado_final === "venda" || l.resultado_final === "nao_venda";
+            if (precisaReativar) {
+              await sbPatch("leads", `id=eq.${l.id}`, {
+                etapa: "atendimento",
+                resultado_final: null,
+                finalizado_em: null,
+                reativado_em: new Date().toISOString()
+              });
+              console.log(`[IG-WEBHOOK v2] Lead reativado: ${l.nome || sender_id} (id ${l.id})`);
+            }
+          }
+        } catch (e) { console.error("[IG-WEBHOOK v2] Erro reativar:", e); }
+
         // Buscar nome do remetente (pode ter sido salvo antes ou vir do payload)
         let nomeRemetente = "cliente";
         try {
