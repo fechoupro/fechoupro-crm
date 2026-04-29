@@ -5024,6 +5024,24 @@ function _formatarDataSep(d){
   }
   return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
 }
+function _renderMsgMidia(txt){
+  if(!txt)return '';
+  // Detecta marcadores de mídia inseridos pelo backend (processar_posvenda_auto)
+  // Formato: [📷 Imagem] URL  /  [🎥 Vídeo] URL  /  [🎵 Áudio] URL  /  [📎 Arquivo] URL
+  // Pode ter caption depois do URL (separado por \n).
+  var m=txt.match(/^\[(📷 Imagem|🎥 V[íi]deo|🎵 [ÁA]udio|📎 Arquivo)\]\s*(\S+)([\s\S]*)$/);
+  if(m){
+    var tipo=m[1];var url=m[2];var rest=(m[3]||'').replace(/^\n+/,'');
+    var caption=rest?'<div style="margin-top:6px;white-space:pre-wrap;">'+_escHtml(rest)+'</div>':'';
+    if(tipo.indexOf('Imagem')>=0)return '<a href="'+url+'" target="_blank" rel="noopener"><img src="'+url+'" style="max-width:240px;max-height:240px;border-radius:8px;display:block;cursor:pointer;" loading="lazy"/></a>'+caption;
+    if(tipo.indexOf('deo')>=0)return '<video src="'+url+'" controls style="max-width:260px;border-radius:8px;display:block;"></video>'+caption;
+    if(tipo.indexOf('udio')>=0)return '<audio src="'+url+'" controls style="max-width:260px;display:block;"></audio>'+caption;
+    var nomeArq=url.replace(/^.*\//,'').replace(/^\d+_/,'');
+    return '<a href="'+url+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:inherit;"><span>📎</span><span style="text-decoration:underline;">'+_escHtml(nomeArq)+'</span></a>'+caption;
+  }
+  return txt;
+}
+function _escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function _renderMsgsComData(msgs){
   if(!msgs||!msgs.length)return '';
   var out=[];var ultimaData=null;
@@ -5038,7 +5056,8 @@ function _renderMsgsComData(msgs){
     }
     var cls=m.tipo==='recv'?'recv':(m.tipo==='agent'?'agent':'sent');
     var sufixo=m.tipo==='agent'?' · IA':'';
-    out.push('<div class="msg '+cls+'">'+m.txt+'<div class="msg-time">'+(m.hora||'')+sufixo+'</div></div>');
+    var corpo=_renderMsgMidia(m.txt||'');
+    out.push('<div class="msg '+cls+'">'+corpo+'<div class="msg-time">'+(m.hora||'')+sufixo+'</div></div>');
   });
   return out.join('');
 }
@@ -6518,7 +6537,14 @@ window.disparoHandleFile=async function(input){
     var url=await _uploadAnexoStorage(file,'disparo');
     if(url){
       window._disparoAnexoUrl=url;
-      window._disparoAnexoTipo=window._disparoMediaType==='imagem'?'image':(window._disparoMediaType==='video'?'video':'document');
+      var _tipo=(typeof disparoMediaType!=='undefined'&&disparoMediaType)||window._disparoMediaType||'';
+      // Inferir do mime do arquivo se o tipo não foi setado
+      if(!_tipo&&file.type){
+        if(file.type.indexOf('image/')===0)_tipo='imagem';
+        else if(file.type.indexOf('video/')===0)_tipo='video';
+        else _tipo='arquivo';
+      }
+      window._disparoAnexoTipo=_tipo==='imagem'?'image':(_tipo==='video'?'video':'document');
       if(preview)preview.innerHTML='<div style="font-size:11px;color:var(--accent2);">📎 '+file.name+' (salvo)</div>';
       toast('✅ Anexo enviado');
     }else{
