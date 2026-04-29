@@ -70,7 +70,14 @@ BEGIN
             'number', jid,
             'mediatype', COALESCE(item.anexo_tipo,'image'),
             'media', item.anexo_url,
-            'caption', CASE WHEN item.modo='only_midia' THEN item.mensagem ELSE '' END
+            'caption', CASE WHEN item.modo='only_midia' THEN item.mensagem ELSE '' END,
+            'fileName', regexp_replace(item.anexo_url, '^.*/', ''),
+            'mimetype', CASE
+              WHEN COALESCE(item.anexo_tipo,'image') = 'image' THEN 'image/jpeg'
+              WHEN item.anexo_tipo = 'video' THEN 'video/mp4'
+              WHEN item.anexo_tipo = 'audio' THEN 'audio/mpeg'
+              ELSE 'application/octet-stream'
+            END
           )
         );
       END IF;
@@ -80,9 +87,28 @@ BEGIN
         SET enviado = TRUE, enviado_em = NOW()
         WHERE id = item.id;
 
-      -- Registra no chat
-      INSERT INTO conversas_wpp (cliente_subdominio, numero, role, content, canal)
-      VALUES (item.cliente_subdominio, jid, 'assistant', item.mensagem, 'wpp');
+      -- Registra no chat (texto + marcador de anexo, se houver)
+      IF item.mensagem IS NOT NULL AND LENGTH(item.mensagem) > 0 AND item.modo <> 'only_midia' THEN
+        INSERT INTO conversas_wpp (cliente_subdominio, numero, role, content, canal)
+        VALUES (item.cliente_subdominio, jid, 'assistant', item.mensagem, 'wpp');
+      END IF;
+      IF item.anexo_url IS NOT NULL THEN
+        INSERT INTO conversas_wpp (cliente_subdominio, numero, role, content, canal)
+        VALUES (
+          item.cliente_subdominio,
+          jid,
+          'assistant',
+          CASE
+            WHEN COALESCE(item.anexo_tipo,'image') = 'image' THEN '[📷 Imagem] ' || item.anexo_url
+            WHEN item.anexo_tipo = 'video' THEN '[🎥 Vídeo] ' || item.anexo_url
+            WHEN item.anexo_tipo = 'audio' THEN '[🎵 Áudio] ' || item.anexo_url
+            ELSE '[📎 Arquivo] ' || item.anexo_url
+          END
+          || CASE WHEN item.modo='only_midia' AND item.mensagem IS NOT NULL AND LENGTH(item.mensagem)>0
+                  THEN E'\n' || item.mensagem ELSE '' END,
+          'wpp'
+        );
+      END IF;
 
       RAISE NOTICE 'POSVENDA: Enviada % para % (%)', item.tipo, item.lead_nome, item.numero;
 
