@@ -1314,7 +1314,7 @@ Qualquer dúvida, estamos aqui! 💪</textarea>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
       <div>
         <div style="font-size:13px;font-family:var(--font);font-weight:800;">📋 Clientes aguardando agradecimento</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:3px;">Compras do dia anterior — clique em "Enviar" para disparar manualmente</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px;">Compras finalizadas (venda) nos últimos 3 dias — clique em "Enviar" para disparar manualmente</div>
       </div>
       <button class="btn btn-primary" style="font-size:11px;" onclick="enviarTodosPvImediata()">📤 Enviar para todos</button>
     </div>
@@ -2382,9 +2382,10 @@ Regras: Nunca mencione que é IA. Seja direta e objetiva. Sempre tente entender 
             <div class="fg"><label class="fl">Janela de envio — hora fim</label><input class="fi" type="time" id="cfg-pvim-fim" value="20:00" /></div>
             <div class="fg"><label class="fl">Considerar apenas dias úteis</label>
               <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-                <button class="toggle on" id="cfg-pvim-diasuteis"></button>
+                <button class="toggle on" id="cfg-pvim-diasuteis" onclick="this.classList.toggle('on');this.classList.toggle('off');"></button>
                 <span style="font-size:11px;color:var(--muted);">Ativo — sábados, domingos e feriados são ignorados</span>
               </div>
+              <div style="font-size:10px;color:var(--dim);margin-top:6px;">ℹ️ A janela horária do envio é controlada no servidor (atualmente seg–sex 8h–18h e sábado 8h–11h). Os campos acima ficam salvos para uso futuro quando essa configuração virar dinâmica.</div>
             </div>
             <button class="btn btn-primary" style="width:100%;font-size:11px;margin-top:4px;" onclick="salvarCfgPvImediata()">✓ Salvar configurações</button>
           </div>
@@ -4077,11 +4078,18 @@ async function renderPvImediataLeads(){
     </div>`).join('');
 }
 
-async function enviarPvImediata(id){
+async function enviarPvImediata(id,opts){
+  opts=opts||{};
   const lead=PV_IMEDIATA_LEADS.find(l=>String(l.id)===String(id));
   if(!lead){toast('Lead nao encontrado');return;}
   var numero=lead.tel||lead.telefone||lead.numero||'';
   if(!numero){toast('⚠️ Lead sem número.');return;}
+  // Aviso se está fora da janela do servidor (seg-sex 8h-18h / sáb 8h-11h)
+  if(!opts.skipJanelaCheck){
+    var _now=new Date(),_dow=_now.getDay(),_h=_now.getHours();
+    var _foraJanela=(_dow===0)||(_dow===6&&!(_h>=8&&_h<11))||(_dow>=1&&_dow<=5&&!(_h>=8&&_h<18));
+    if(_foraJanela&&!confirm('⚠️ Você está fora do horário comercial do servidor (seg–sex 8h–18h, sáb 8h–11h).\n\nA mensagem será enfileirada e disparada automaticamente assim que o horário abrir. Continuar?')){return;}
+  }
   const msgRaw=document.getElementById('pvimediata-msg')?.value||'Obrigado {nome}!';
   const msg=msgRaw
     .replace(/\{nome\}/g,(lead.nome||'').split(' ')[0]||'vc')
@@ -4096,6 +4104,8 @@ async function enviarPvImediata(id){
   var anexoUrl=window._pvimAnexoUrl||null;
   var anexoTipo=window._pvimAnexoTipo||null;
   var modo=document.querySelector('input[name="pvim-send-mode"]:checked')?.value||'msg_midia';
+  if(modo==='only_midia'&&!anexoUrl){toast('⚠️ Modo "Somente anexo" mas nenhum anexo selecionado.');return;}
+  if(modo==='only_msg'&&(!msg||!msg.trim())){toast('⚠️ Modo "Somente mensagem" mas o texto está vazio.');return;}
   var ir=await fetch(_SB+'/rest/v1/posvenda_queue',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify([{cliente_subdominio:sub,lead_id:String(lead.id),lead_nome:lead.nome,numero:numero,tipo:'agradecimento',mensagem:msg,anexo_url:anexoUrl,anexo_tipo:anexoTipo,modo:modo,enviar_em:new Date().toISOString()}])});
   if(!ir.ok){toast('❌ Erro ao enfileirar.');return;}
   lead.enviado=true;
@@ -4107,19 +4117,22 @@ async function enviarTodosPvImediata(){
   const pendentes=PV_IMEDIATA_LEADS.filter(l=>!l.enviado);
   if(pendentes.length===0){toast('ℹ️ Todos os clientes já receberam a mensagem.');return;}
   if(!confirm('📤 Enviar agradecimento pra '+pendentes.length+' cliente(s)?\n\nSerá enfileirado agora e o servidor dispara respeitando horário comercial.'))return;
-  var sub=_gs();
   var enfileirados=0;
   for(var i=0;i<pendentes.length;i++){
-    try{await enviarPvImediata(pendentes[i].id);enfileirados++;}catch(e){}
+    try{await enviarPvImediata(pendentes[i].id,{skipJanelaCheck:true});enfileirados++;}catch(e){}
   }
   toast('✅ '+enfileirados+' agradecimento(s) enfileirado(s).');
 }
 
 function _getNomeLoja(){
+  // Cascata: localStorage → input do form → fallback genérico
   try{
     var c=JSON.parse(localStorage.getItem('mf_company')||'{}');
-    return c.nome||'nossa loja';
-  }catch(e){return 'nossa loja';}
+    if(c&&c.nome)return c.nome;
+  }catch(e){}
+  var inp=document.getElementById('company-name-inp');
+  if(inp&&inp.value&&inp.value.trim())return inp.value.trim();
+  return 'nossa loja';
 }
 
 function togglePvImediata(){
@@ -4127,6 +4140,8 @@ function togglePvImediata(){
   const btn=document.getElementById('pvimediata-toggle');
   if(btn)btn.className='toggle '+(pvImediataAtivo?'on':'off');
   toast(pvImediataAtivo?'✅ Pós-Venda Imediata ativada!':'⚠️ Pós-Venda Imediata desativada.');
+  // Persistir imediatamente (silencioso) — não esperar o user clicar Salvar
+  if(typeof salvarPvImediata==='function')salvarPvImediata({silencioso:true});
 }
 
 function pvimSelectAnexo(tipo,btn){
@@ -4171,8 +4186,13 @@ async function _uploadAnexoStorage(file,prefixo){
     // Tentar upload direto (bucket precisa existir e ser public)
     var up=await fetch(_SB+'/storage/v1/object/'+bucket+'/'+encodeURIComponent(path),{method:'POST',headers:{'Authorization':'Bearer '+_SK,'apikey':_SK,'x-upsert':'true','Content-Type':file.type||'application/octet-stream'},body:file});
     if(!up.ok){
-      // Tentar criar bucket publico e refazer
-      await fetch(_SB+'/storage/v1/bucket',{method:'POST',headers:{'Authorization':'Bearer '+_SK,'apikey':_SK,'Content-Type':'application/json'},body:JSON.stringify({id:bucket,name:bucket,public:true})});
+      // Bucket pode não existir OU existir privado.
+      // 1) Tentar criar como public; 2) se já existir, forçar update pra public; 3) refazer upload.
+      var crP=await fetch(_SB+'/storage/v1/bucket',{method:'POST',headers:{'Authorization':'Bearer '+_SK,'apikey':_SK,'Content-Type':'application/json'},body:JSON.stringify({id:bucket,name:bucket,public:true})});
+      if(!crP.ok){
+        // Já existe — forçar público via PUT
+        try{await fetch(_SB+'/storage/v1/bucket/'+bucket,{method:'PUT',headers:{'Authorization':'Bearer '+_SK,'apikey':_SK,'Content-Type':'application/json'},body:JSON.stringify({public:true})});}catch(e){}
+      }
       up=await fetch(_SB+'/storage/v1/object/'+bucket+'/'+encodeURIComponent(path),{method:'POST',headers:{'Authorization':'Bearer '+_SK,'apikey':_SK,'x-upsert':'true','Content-Type':file.type||'application/octet-stream'},body:file});
     }
     if(!up.ok){console.error('upload failed',up.status,await up.text());return null;}
@@ -4182,24 +4202,49 @@ async function _uploadAnexoStorage(file,prefixo){
 
 function pvimClearAnexo(){
   pvImediataAnexo=null;pvImediataAnexoTipo=null;
-  const badge=document.getElementById('pvim-attach-badge');if(badge)badge.style.display='none';
+  window._pvimAnexoUrl=null;window._pvimAnexoTipo=null;
+  const badge=document.getElementById('pvim-attach-badge');if(badge){badge.style.display='none';badge.textContent='';}
   const inp=document.getElementById('pvim-file');if(inp)inp.value='';
   document.querySelectorAll('.pvimediata-cfg .rec-attach-btn').forEach(b=>b.classList.remove('active'));
 }
 
-async function salvarPvImediata(){
+async function salvarPvImediata(opts){
+  opts=opts||{};
   try{
+    // Mirror cfg-pvim-link (em Configurações) ↔ pvimediata-link (painel principal)
+    var linkPrincipal=(document.getElementById('pvimediata-link')||{}).value||'';
+    var linkCfg=(document.getElementById('cfg-pvim-link')||{}).value||'';
+    var linkFinal=linkPrincipal||linkCfg||'';
     var cfg={
       ativo:pvImediataAtivo,
       msg:document.getElementById('pvimediata-msg')?.value||'',
-      link_google:document.getElementById('pvimediata-link')?.value||'',
+      link_google:linkFinal,
       anexo_url:window._pvimAnexoUrl||null,
       anexo_tipo:window._pvimAnexoTipo||null,
-      modo:document.querySelector('input[name="pvim-send-mode"]:checked')?.value||'msg_midia'
+      modo:document.querySelector('input[name="pvim-send-mode"]:checked')?.value||'msg_midia',
+      // Janela horária: armazena pra futura leitura server-side. Hoje SQL usa fp_dentro_horario_comercial fixa.
+      janela_inicio:(document.getElementById('cfg-pvim-inicio')||{}).value||'07:00',
+      janela_fim:(document.getElementById('cfg-pvim-fim')||{}).value||'20:00',
+      so_dias_uteis:!(document.getElementById('cfg-pvim-diasuteis')&&document.getElementById('cfg-pvim-diasuteis').classList.contains('off'))
     };
-    await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+_gs()+'&chave=eq.posvenda_config',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
-    await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:_gs(),chave:'posvenda_config',valor:JSON.stringify(cfg)})});
-    toast('✅ Configuração de Pós-Venda Imediata salva!');
+    var sub=_gs();
+    // Backup do valor atual antes de apagar (anti perda de config se POST falhar)
+    var bak=null;
+    try{
+      var rB=await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+sub+'&chave=eq.posvenda_config&select=valor&limit=1',{headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+      var bArr=await rB.json();
+      if(bArr&&bArr[0])bak=bArr[0].valor;
+    }catch(e){}
+    await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+sub+'&chave=eq.posvenda_config',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
+    var rP=await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,chave:'posvenda_config',valor:JSON.stringify(cfg)}));
+    if(!rP.ok){
+      // Restaura backup pra não deixar a config em branco
+      if(bak!==null){
+        try{await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,chave:'posvenda_config',valor:bak})});}catch(e){}
+      }
+      throw new Error('Falha ao salvar (HTTP '+rP.status+'). Configuração anterior restaurada.');
+    }
+    if(!opts.silencioso)toast('✅ Configuração de Pós-Venda Imediata salva!');
   }catch(e){toast('❌ Erro: '+e.message);}
 }
 
@@ -4213,9 +4258,20 @@ async function _pvImediataLoadConfig(){
     var toggle=document.getElementById('pvimediata-toggle');
     if(toggle)toggle.className='toggle '+(pvImediataAtivo?'on':'off');
     if(cfg.msg){var m=document.getElementById('pvimediata-msg');if(m)m.value=cfg.msg;}
-    if(cfg.link_google){var l=document.getElementById('pvimediata-link');if(l)l.value=cfg.link_google;}
+    if(cfg.link_google){
+      var l=document.getElementById('pvimediata-link');if(l)l.value=cfg.link_google;
+      var l2=document.getElementById('cfg-pvim-link');if(l2)l2.value=cfg.link_google;
+    }
+    if(cfg.janela_inicio){var ji=document.getElementById('cfg-pvim-inicio');if(ji)ji.value=cfg.janela_inicio;}
+    if(cfg.janela_fim){var jf=document.getElementById('cfg-pvim-fim');if(jf)jf.value=cfg.janela_fim;}
+    var jdu=document.getElementById('cfg-pvim-diasuteis');
+    if(jdu)jdu.className='toggle '+((cfg.so_dias_uteis===false)?'off':'on');
     window._pvimAnexoUrl=cfg.anexo_url;
     window._pvimAnexoTipo=cfg.anexo_tipo;
+    // Restaurar variável local pro botão de tipo refletir estado salvo
+    if(cfg.anexo_tipo==='image')pvImediataAnexoTipo='imagem';
+    else if(cfg.anexo_tipo==='video')pvImediataAnexoTipo='video';
+    else if(cfg.anexo_tipo)pvImediataAnexoTipo='arquivo';
     if(cfg.anexo_url){
       var badge=document.getElementById('pvim-attach-badge');
       if(badge){badge.style.display='inline';badge.textContent='📎 Anexo salvo';}
@@ -6405,6 +6461,7 @@ function disparoHandleFile(input){
 
 function disparoClearMedia(){
   disparoMediaFile=null;disparoMediaType=null;
+  window._disparoAnexoUrl=null;window._disparoAnexoTipo=null;
   document.querySelectorAll('.disparo-media-row .dm-btn').forEach(b=>b.classList.remove('active'));
   const el=document.getElementById('disparo-media-preview');
   if(el){el.style.display='none';el.textContent='';}
