@@ -4251,7 +4251,7 @@ async function salvarPvImediata(opts){
       if(bArr&&bArr[0])bak=bArr[0].valor;
     }catch(e){}
     await fetch(_SB+'/rest/v1/config_cliente?cliente_subdominio=eq.'+sub+'&chave=eq.posvenda_config',{method:'DELETE',headers:{apikey:_SK,'Authorization':'Bearer '+_SK}});
-    var rP=await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,chave:'posvenda_config',valor:JSON.stringify(cfg)}));
+    var rP=await fetch(_SB+'/rest/v1/config_cliente',{method:'POST',headers:{apikey:_SK,'Authorization':'Bearer '+_SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({cliente_subdominio:sub,chave:'posvenda_config',valor:JSON.stringify(cfg)})});
     if(!rP.ok){
       // Restaura backup pra não deixar a config em branco
       if(bak!==null){
