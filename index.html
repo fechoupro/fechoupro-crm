@@ -2503,6 +2503,7 @@ async function fazerLogin(){
     var d=await r.json();
     if(!d.ok){errEl.textContent=d.error||'Erro ao fazer login.';errEl.style.display='block';btnEl.textContent='Entrar';btnEl.disabled=false;return;}
     localStorage.setItem('fp_token',d.token);
+        if(d.jwt)localStorage.setItem('fp_jwt',d.jwt);
     window.USUARIO_ATUAL=d.usuario;
     iniciarSessao(d.usuario);
   }catch(e){errEl.textContent='Erro de conexao. Tente novamente.';errEl.style.display='block';}
@@ -2515,7 +2516,8 @@ async function verificarSessao(){
   try{
     var r=await fetch(_SB+'/functions/v1/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verificar',token:token})});
     var d=await r.json();
-    if(!d.ok){localStorage.removeItem('fp_token');_mostrarLogin();return false;}
+       if(!d.ok){localStorage.removeItem('fp_token');localStorage.removeItem('fp_jwt');_mostrarLogin();return false;}
+        if(d.jwt)localStorage.setItem('fp_jwt',d.jwt);
     window.USUARIO_ATUAL=d.usuario;
     iniciarSessao(d.usuario);
     return true;
