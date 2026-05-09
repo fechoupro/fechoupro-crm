@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/((?!admin\\.html|_next|favicon|robots|sitemap|api).*)",
+      "source": "/:path*",
       "has": [
         {
           "type": "host",
@@ -11,7 +11,7 @@
       "destination": "/admin.html"
     },
     {
-      "source": "/((?!admin\\.html|_next|favicon|robots|sitemap|api).*)",
+      "source": "/:path*",
       "has": [
         {
           "type": "host",
