@@ -1,0 +1,24 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.fechoupro.com.br"
+        }
+      ],
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "fechoupro.com.br"
+        }
+      ],
+      "destination": "/admin.html"
+    }
+  ]
+}

@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FechouPro · Painel Super Admin</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👑</text></svg>">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a;
+    --bg-card: #161616;
+    --bg-hover: #1f1f1f;
+    --border: #2a2a2a;
+    --text: #f5f5f5;
+    --text-dim: #888;
+    --primary: #FF5C00;
+    --primary-hover: #e54e00;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; }
+  input, select, textarea { font-family: inherit; }
+
+  /* ============ LOGIN SCREEN ============ */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: radial-gradient(circle at top, #1a1a1a, #0a0a0a 70%);
+  }
+  .login-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+  .login-logo {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  .login-logo h1 {
+    font-size: 24px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--primary), #ff8a3d);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .login-logo p {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .field {
+    margin-bottom: 16px;
+  }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+  .btn-primary {
+    width: 100%;
+    padding: 12px;
+    background: var(--primary);
+    color: white;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .login-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--danger);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  /* ============ ADMIN PANEL ============ */
+  #admin-panel { display: none; min-height: 100vh; }
+  .admin-header {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .admin-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .admin-header h1 {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .badge-super {
+    background: var(--primary);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .admin-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+  .admin-header-right .user-email { color: var(--text-dim); }
+  .btn-logout {
+    background: transparent;
+    color: var(--text-dim);
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .btn-logout:hover {
+    color: var(--text);
+    border-color: var(--danger);
+  }
+
+  .admin-main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .admin-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .filter-pill {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .filter-pill.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+  .filter-pill:hover:not(.active) {
+    color: var(--text);
+    border-color: var(--text-dim);
+  }
+  .search-input {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    min-width: 220px;
+  }
+  .search-input:focus { outline: none; border-color: var(--primary); }
+  .btn-novo {
+    background: var(--primary);
+    color: white;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+  .btn-novo:hover { background: var(--primary-hover); }
+
+  /* ============ STATS ============ */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .stat-card .label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .stat-card .value { font-size: 28px; font-weight: 700; }
+  .stat-card .value.success { color: var(--success); }
+  .stat-card .value.warning { color: var(--warning); }
+  .stat-card .value.danger { color: var(--danger); }
+
+  /* ============ CLIENTS TABLE ============ */
+  .clients-grid {
+    display: grid;
+    gap: 12px;
+  }
+  .client-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+    transition: border-color 0.15s;
+  }
+  .client-card:hover { border-color: var(--text-dim); }
+  .client-card.inactive { opacity: 0.6; }
+  .client-info-line1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .client-info-line1 .name {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .badge-rede { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+  .badge-loja { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+  .badge-individual { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+  .badge-active { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+  .badge-inactive { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+  .badge-plano { background: rgba(255, 92, 0, 0.15); color: var(--primary); }
+
+  .client-info-line2 {
+    font-size: 13px;
+    color: var(--text-dim);
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .client-info-line2 a {
+    color: var(--text-dim);
+    text-decoration: none;
+  }
+  .client-info-line2 a:hover { color: var(--primary); }
+
+  .client-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .btn-action {
+    padding: 7px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    transition: all 0.15s;
+  }
+  .btn-action:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-action.danger:hover { border-color: var(--danger); color: var(--danger); }
+  .btn-action.success { background: var(--primary); color: white; border-color: var(--primary); }
+  .btn-action.success:hover { background: var(--primary-hover); }
+
+  /* ============ MODAL ============ */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-box h2 { margin-bottom: 8px; font-size: 20px; }
+  .modal-box .modal-desc {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .btn-secondary {
+    flex: 1;
+    padding: 11px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .btn-secondary:hover { border-color: var(--text-dim); }
+  .modal-actions .btn-primary { flex: 1; }
+
+  /* ============ EMPTY ============ */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* ============ TOAST ============ */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 18px;
+    color: var(--text);
+    font-size: 13px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    transform: translateY(120%);
+    transition: transform 0.3s;
+    z-index: 200;
+  }
+  #toast.show { transform: translateY(0); }
+  #toast.success { border-color: var(--success); }
+  #toast.error { border-color: var(--danger); }
+
+  /* ============ MOBILE ============ */
+  @media (max-width: 640px) {
+    .client-card { grid-template-columns: 1fr; }
+    .client-actions { justify-content: flex-start; }
+    .admin-header { padding: 12px 16px; }
+    .admin-main { padding: 16px; }
+    .admin-header-right .user-email { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <h1>FechouPro</h1>
+      <p>Painel Super Admin</p>
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <form id="login-form">
+      <div class="field">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" required autocomplete="email" placeholder="seu@email.com">
+      </div>
+      <div class="field">
+        <label for="login-senha">Senha</label>
+        <input type="password" id="login-senha" required autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn-primary" id="login-btn">Entrar</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============ ADMIN PANEL ============ -->
+<div id="admin-panel">
+  <header class="admin-header">
+    <div class="admin-header-left">
+      <h1>👑 FechouPro Admin</h1>
+      <span class="badge-super">SUPER ADMIN</span>
+    </div>
+    <div class="admin-header-right">
+      <span class="user-email" id="user-email"></span>
+      <button class="btn-logout" id="btn-logout">Sair</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <!-- STATS -->
+    <div class="stats-grid" id="stats-grid"></div>
+
+    <!-- TOOLBAR -->
+    <div class="admin-toolbar">
+      <div class="toolbar-left">
+        <button class="filter-pill active" data-filter="todos">Todos</button>
+        <button class="filter-pill" data-filter="ativos">Ativos</button>
+        <button class="filter-pill" data-filter="bloqueados">Bloqueados</button>
+        <button class="filter-pill" data-filter="redes">Redes</button>
+        <button class="filter-pill" data-filter="lojas">Lojas</button>
+        <button class="filter-pill" data-filter="individuais">Individuais</button>
+        <input type="text" class="search-input" id="search-input" placeholder="Buscar por nome ou subdomínio...">
+      </div>
+      <button class="btn-novo" id="btn-novo">+ Novo Cliente</button>
+    </div>
+
+    <!-- CLIENTS LIST -->
+    <div class="clients-grid" id="clients-grid">
+      <div class="empty-state"><div class="icon">⏳</div>Carregando clientes...</div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ MODAL: NOVO CLIENTE ============ -->
+<div class="modal-overlay" id="modal-novo">
+  <div class="modal-box">
+    <h2>Novo Cliente</h2>
+    <p class="modal-desc">Cadastra uma nova empresa que vai usar o FechouPro. Você pode adicionar usuários depois.</p>
+    <form id="form-novo">
+      <div class="field">
+        <label for="novo-nome">Nome da empresa *</label>
+        <input type="text" id="novo-nome" required placeholder="Ex: Academia Vitalidade">
+      </div>
+      <div class="field">
+        <label for="novo-subdominio">Subdomínio *</label>
+        <input type="text" id="novo-subdominio" required pattern="[a-z0-9-]+" placeholder="ex: vitalidade ou vitalidade-centro" title="Apenas letras minúsculas, números e hífens">
+        <small style="color: var(--text-dim); font-size: 11px; display: block; margin-top: 4px;">
+          Será acessado em: <strong id="preview-subdominio">subdominio</strong>.fechoupro.com.br
+        </small>
+      </div>
+      <div class="field">
+        <label for="novo-tipo">Tipo *</label>
+        <select id="novo-tipo" required>
+          <option value="individual">Individual (cliente único, sem rede)</option>
+          <option value="rede">Rede (multi-loja)</option>
+          <option value="loja">Loja de uma rede existente</option>
+        </select>
+      </div>
+      <div class="field" id="field-rede" style="display: none;">
+        <label for="novo-rede">Rede (subdomínio da rede pai) *</label>
+        <select id="novo-rede"></select>
+      </div>
+      <div class="field">
+        <label for="novo-plano">Plano *</label>
+        <select id="novo-plano" required>
+          <option value="trial">Trial</option>
+          <option value="basic">Básico</option>
+          <option value="pro" selected>Pro</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="novo-email">Email do admin (opcional, pra contato)</label>
+        <input type="email" id="novo-email" placeholder="contato@empresa.com.br">
+      </div>
+      <div class="field">
+        <label for="novo-tel">Telefone (opcional)</label>
+        <input type="text" id="novo-tel" placeholder="(11) 99999-0000">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="btn-cancelar-novo">Cancelar</button>
+        <button type="submit" class="btn-primary" id="btn-salvar-novo">Cadastrar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div id="toast"></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
+
+// ============ CONFIG ============
+const SB_URL = 'https://udtoojqdjcbxnvevazum.supabase.co'
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkdG9vanFkamNieG52ZXZhenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NjM3NzQsImV4cCI6MjA4OTUzOTc3NH0.-HENtNoiH3yiEMxWIZeVrcB20BOOzoTw6oJsuvanBtM'
+
+const supa = createClient(SB_URL, SB_ANON, {
+  auth: { persistSession: true, autoRefreshToken: true }
+})
+
+// ============ STATE ============
+let CLIENTES = []
+let FILTRO = 'todos'
+let BUSCA = ''
+
+// ============ DOM HELPERS ============
+const $ = id => document.getElementById(id)
+function toast(msg, tipo = 'info') {
+  const el = $('toast')
+  el.textContent = msg
+  el.className = tipo
+  el.classList.add('show')
+  setTimeout(() => el.classList.remove('show'), 3500)
+}
+
+// ============ AUTH ============
+async function checarSessao() {
+  const { data: { session } } = await supa.auth.getSession()
+  if (session && session.user.app_metadata.role === 'super_admin') {
+    mostrarPainel(session.user)
+    return true
+  }
+  if (session) {
+    // Logado mas não é super_admin — sair
+    await supa.auth.signOut()
+    mostrarLogin('Acesso negado. Esta conta não tem permissão de Super Admin.')
+    return false
+  }
+  mostrarLogin()
+  return false
+}
+
+async function fazerLogin(email, senha) {
+  const errEl = $('login-error')
+  const btn = $('login-btn')
+  errEl.style.display = 'none'
+  btn.disabled = true
+  btn.textContent = 'Entrando...'
+
+  try {
+    const { data, error } = await supa.auth.signInWithPassword({ email, password: senha })
+    if (error) throw error
+
+    if (data.user.app_metadata.role !== 'super_admin') {
+      await supa.auth.signOut()
+      throw new Error('Esta conta não tem permissão de Super Admin.')
+    }
+
+    mostrarPainel(data.user)
+  } catch (e) {
+    errEl.textContent = e.message || 'Erro ao fazer login.'
+    errEl.style.display = 'block'
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Entrar'
+  }
+}
+
+async function fazerLogout() {
+  await supa.auth.signOut()
+  mostrarLogin()
+}
+
+function mostrarLogin(erro = null) {
+  $('login-screen').style.display = 'flex'
+  $('admin-panel').style.display = 'none'
+  if (erro) {
+    $('login-error').textContent = erro
+    $('login-error').style.display = 'block'
+  }
+}
+
+function mostrarPainel(user) {
+  $('login-screen').style.display = 'none'
+  $('admin-panel').style.display = 'block'
+  $('user-email').textContent = user.email
+  carregarClientes()
+}
+
+// ============ DADOS ============
+async function carregarClientes() {
+  const { data, error } = await supa
+    .from('empresas')
+    .select('*')
+    .order('tipo', { ascending: false })
+    .order('cliente_subdominio')
+
+  if (error) {
+    toast('Erro ao carregar: ' + error.message, 'error')
+    return
+  }
+  CLIENTES = data || []
+  renderStats()
+  renderClientes()
+}
+
+function renderStats() {
+  const total = CLIENTES.length
+  const ativos = CLIENTES.filter(c => c.ativo).length
+  const bloqueados = total - ativos
+  const redes = CLIENTES.filter(c => c.tipo === 'rede').length
+  const lojas = CLIENTES.filter(c => c.tipo === 'loja').length
+
+  $('stats-grid').innerHTML = `
+    <div class="stat-card"><div class="label">Total Clientes</div><div class="value">${total}</div></div>
+    <div class="stat-card"><div class="label">Ativos</div><div class="value success">${ativos}</div></div>
+    <div class="stat-card"><div class="label">Bloqueados</div><div class="value danger">${bloqueados}</div></div>
+    <div class="stat-card"><div class="label">Redes</div><div class="value">${redes}</div></div>
+    <div class="stat-card"><div class="label">Lojas Vinculadas</div><div class="value">${lojas}</div></div>
+  `
+}
+
+function filtrarClientes() {
+  return CLIENTES.filter(c => {
+    if (FILTRO === 'ativos' && !c.ativo) return false
+    if (FILTRO === 'bloqueados' && c.ativo) return false
+    if (FILTRO === 'redes' && c.tipo !== 'rede') return false
+    if (FILTRO === 'lojas' && c.tipo !== 'loja') return false
+    if (FILTRO === 'individuais' && c.tipo !== 'individual') return false
+    if (BUSCA) {
+      const q = BUSCA.toLowerCase()
+      if (!c.nome?.toLowerCase().includes(q) && !c.cliente_subdominio.toLowerCase().includes(q)) return false
+    }
+    return true
+  })
+}
+
+function renderClientes() {
+  const grid = $('clients-grid')
+  const lista = filtrarClientes()
+
+  if (!lista.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="icon">📭</div>Nenhum cliente encontrado.</div>'
+    return
+  }
+
+  grid.innerHTML = lista.map(c => {
+    const url = `https://${c.cliente_subdominio}.fechoupro.com.br`
+    const tipoLabel = c.tipo === 'rede' ? 'REDE' : c.tipo === 'loja' ? 'LOJA' : 'INDIVIDUAL'
+    const ativoLabel = c.ativo ? 'ATIVO' : 'BLOQUEADO'
+    return `
+      <div class="client-card ${c.ativo ? '' : 'inactive'}">
+        <div class="client-info">
+          <div class="client-info-line1">
+            <span class="name">${escapeHtml(c.nome || c.cliente_subdominio)}</span>
+            <span class="badge badge-${c.tipo}">${tipoLabel}</span>
+            <span class="badge ${c.ativo ? 'badge-active' : 'badge-inactive'}">${ativoLabel}</span>
+            <span class="badge badge-plano">${escapeHtml(c.plano || 'trial')}</span>
+          </div>
+          <div class="client-info-line2">
+            <a href="${url}" target="_blank">${c.cliente_subdominio}.fechoupro.com.br ↗</a>
+            ${c.rede_subdominio ? `<span>Rede: ${escapeHtml(c.rede_subdominio)}</span>` : ''}
+            ${c.email_admin ? `<span>${escapeHtml(c.email_admin)}</span>` : ''}
+          </div>
+        </div>
+        <div class="client-actions">
+          <button class="btn-action success" data-action="acessar" data-id="${c.id}">Acessar como cliente ↗</button>
+          <button class="btn-action" data-action="toggle" data-id="${c.id}">${c.ativo ? 'Bloquear' : 'Desbloquear'}</button>
+        </div>
+      </div>
+    `
+  }).join('')
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))
+}
+
+// ============ AÇÕES ============
+async function acessarComoCliente(id) {
+  const c = CLIENTES.find(x => x.id === id)
+  if (!c) return
+  // Abre nova aba com o subdomínio do cliente
+  // A sessão atual do super admin é compartilhada via localStorage do Supabase
+  // (que funciona porque é mesmo domínio raiz fechoupro.com.br)
+  window.open(`https://${c.cliente_subdominio}.fechoupro.com.br`, '_blank')
+}
+
+async function toggleAtivo(id) {
+  const c = CLIENTES.find(x => x.id === id)
+  if (!c) return
+  const novoAtivo = !c.ativo
+  const acao = novoAtivo ? 'desbloquear' : 'BLOQUEAR'
+  if (!confirm(`Tem certeza que deseja ${acao} "${c.nome || c.cliente_subdominio}"?`)) return
+
+  const { error } = await supa
+    .from('empresas')
+    .update({ ativo: novoAtivo })
+    .eq('id', id)
+
+  if (error) {
+    toast('Erro: ' + error.message, 'error')
+    return
+  }
+  toast(`Cliente ${novoAtivo ? 'desbloqueado' : 'bloqueado'} com sucesso`, 'success')
+  carregarClientes()
+}
+
+async function cadastrarNovo(form) {
+  const dados = {
+    cliente_subdominio: $('novo-subdominio').value.trim().toLowerCase(),
+    nome: $('novo-nome').value.trim(),
+    tipo: $('novo-tipo').value,
+    plano: $('novo-plano').value,
+    email_admin: $('novo-email').value.trim() || null,
+    tel: $('novo-tel').value.trim() || null,
+    ativo: true,
+    data_contratacao: new Date().toISOString()
+  }
+  if (dados.tipo === 'loja') {
+    dados.rede_subdominio = $('novo-rede').value
+    if (!dados.rede_subdominio) {
+      toast('Selecione a rede pai.', 'error')
+      return
+    }
+  }
+
+  const { error } = await supa.from('empresas').insert(dados)
+
+  if (error) {
+    toast('Erro ao cadastrar: ' + error.message, 'error')
+    return
+  }
+  toast('Cliente cadastrado com sucesso!', 'success')
+  $('modal-novo').classList.remove('show')
+  form.reset()
+  carregarClientes()
+}
+
+// ============ MODAL ============
+function abrirModalNovo() {
+  // Carrega lista de redes para o dropdown
+  const redes = CLIENTES.filter(c => c.tipo === 'rede')
+  const sel = $('novo-rede')
+  sel.innerHTML = '<option value="">Selecione...</option>' +
+    redes.map(r => `<option value="${escapeHtml(r.cliente_subdominio)}">${escapeHtml(r.nome || r.cliente_subdominio)}</option>`).join('')
+  $('modal-novo').classList.add('show')
+}
+
+// ============ EVENT LISTENERS ============
+$('login-form').addEventListener('submit', e => {
+  e.preventDefault()
+  fazerLogin($('login-email').value.trim(), $('login-senha').value)
+})
+
+$('btn-logout').addEventListener('click', fazerLogout)
+
+$('btn-novo').addEventListener('click', abrirModalNovo)
+
+$('btn-cancelar-novo').addEventListener('click', () => {
+  $('modal-novo').classList.remove('show')
+})
+
+$('modal-novo').addEventListener('click', e => {
+  if (e.target.id === 'modal-novo') $('modal-novo').classList.remove('show')
+})
+
+$('form-novo').addEventListener('submit', e => {
+  e.preventDefault()
+  cadastrarNovo(e.target)
+})
+
+$('novo-tipo').addEventListener('change', e => {
+  $('field-rede').style.display = e.target.value === 'loja' ? 'block' : 'none'
+})
+
+$('novo-subdominio').addEventListener('input', e => {
+  e.target.value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+  $('preview-subdominio').textContent = e.target.value || 'subdominio'
+})
+
+document.querySelectorAll('.filter-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    FILTRO = btn.dataset.filter
+    renderClientes()
+  })
+})
+
+$('search-input').addEventListener('input', e => {
+  BUSCA = e.target.value.trim()
+  renderClientes()
+})
+
+// Delegação de eventos para botões dinâmicos
+$('clients-grid').addEventListener('click', e => {
+  const btn = e.target.closest('[data-action]')
+  if (!btn) return
+  const id = btn.dataset.id
+  const action = btn.dataset.action
+  if (action === 'acessar') acessarComoCliente(id)
+  else if (action === 'toggle') toggleAtivo(id)
+})
+
+// ============ INIT ============
+checarSessao()
+</script>
+</body>
+</html>
